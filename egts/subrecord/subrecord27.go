@@ -2,7 +2,6 @@ package subrecord
 
 import (
 	"encoding/binary"
-	"log"
 
 	"github.com/LdDl/go-egts/egts/utils"
 )
@@ -47,7 +46,8 @@ func ParseEgtsSrLiquidLevelSensor(b []byte) interface{} {
 	   			7		не используется
 	*/
 	if len(b) != 7 {
-		log.Panicln("INVALID LEN ", len(b))
+		//log.Panicln("INVALID LEN ", len(b))
+		return nil
 	}
 	var d EgtsSrLiquidLevelSensor
 	flagBytes := uint16(b[0])
