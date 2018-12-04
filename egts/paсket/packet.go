@@ -236,6 +236,9 @@ func (rd *RecordData) ReadSubrecordData(b []byte) (data interface{}, err uint8) 
 		data = subrecord.ParseEgtsSrStateData(b) // EGTS_SR_STATE_DATA
 	case 27:
 		data = subrecord.ParseEgtsSrLiquidLevelSensor(b) //EGTS_SR_LIQUID_LEVEL_SENSOR
+		if data == nil {
+			err = 148
+		}
 	default:
 		err = 148 //EGTS_PC_SRVC_NFOUND (Сервис не найден)
 	}
