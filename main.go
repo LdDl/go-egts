@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"log"
 
-	"github.com/LdDl/go-egts/egts/paсket"
+	packet "github.com/LdDl/go-egts/egts/paсket"
 )
 
 func readFromBytes() {
@@ -50,7 +50,7 @@ func readFromFile() {
 }
 
 func main() {
-	readFromBytes()
-	//readFromStringHEX()
+	// readFromBytes()
+	readFromStringHEX()
 	//readFromFile()
 }

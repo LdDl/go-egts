@@ -1,9 +1,9 @@
 // Package crc8 implements the 8-bit cyclic redundancy check, or CRC-8, checksum.
 //
 // It provides parameters for the majority of well-known CRC-8 algorithms.
-package crc
+package crc8
 
-import "g_service_bus/pkgs/utils"
+import "github.com/LdDl/go-egts/egts/utils"
 
 // Params represents parameters of a CRC-8 algorithm including polynomial and initial value.
 // More information about algorithms parametrization and parameter descriptions

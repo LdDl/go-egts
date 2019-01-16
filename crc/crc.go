@@ -1,8 +1,9 @@
 package crc
 
 import (
-	"g_service_bus/pkgs/egts/crc16"
-	"g_service_bus/pkgs/egts/crc8"
+	"github.com/LdDl/go-egts/crc/crc8"
+
+	"github.com/LdDl/go-egts/crc/crc16"
 )
 
 //Crc --
