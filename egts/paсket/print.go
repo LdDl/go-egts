@@ -4,8 +4,6 @@ import "fmt"
 
 // Print - prints packet's header and data
 func (p *Packet) Print() {
-	fmt.Println("\t\tPacket")
-	fmt.Println("\tHeader")
 	fmt.Println("Protocol Version: ", p.ProtocolVersion)
 	fmt.Println("Security Key ID: ", p.SecurityKeyID)
 	fmt.Println("Flag: PR ", p.PR, " CMP ", p.CMP, " ENA ", p.ENA, " RTE ", p.RTE, " PRF ", p.PRF)
@@ -28,7 +26,6 @@ func (p *Packet) Print() {
 		fmt.Println("Source Service Type: ", p.ServicesFrameData[i].SourceServiceType)
 		fmt.Println("Recipient Service Type: ", p.ServicesFrameData[i].RecipientServiceType)
 		fmt.Println("Record Data: ", p.ServicesFrameData[i].RecordData)
-
 		fmt.Println("\tRecordData Struct")
 		fmt.Println("Subrecord Type: ", p.ServicesFrameData[i].RecordData.SubrecordType)
 		fmt.Println("Subrecord Length: ", p.ServicesFrameData[i].RecordData.SubrecordLength)
