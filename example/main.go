@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	packet "github.com/LdDl/go-egts/egts/paсket"
+	packet "github.com/LdDl/go-egts/egts/packet"
 	"github.com/LdDl/go-egts/egts/subrecord"
 )
 

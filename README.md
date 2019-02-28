@@ -17,7 +17,7 @@ go get -u github.com/LdDl/go-egts/...
 
 ## Testing
 ```go
-go test -timeout 30s github.com/LdDl/go-egts/egts/paсket
+go test -timeout 30s github.com/LdDl/go-egts/egts/packet
 ```
 
 ## Current usage
