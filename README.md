@@ -12,7 +12,7 @@ EGTS (Era Glonass Telematics Standard) parsing via Golang
 
 ## Installation
 ```go
-go get -u github.com/LdDl/go-egts
+go get -u github.com/LdDl/go-egts/...
 ```
 
 ## Testing
