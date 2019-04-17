@@ -86,6 +86,8 @@ func TestReadPacketAuthHEX(t *testing.T) {
 				"Subrecord type has to be 1, but it is", data.ServicesFrameData[0].RecordData.SubrecordType,
 			)
 		}
+		t.Error("auth response ", data.ResponseData)
+
 	}
 }
 

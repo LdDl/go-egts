@@ -141,7 +141,13 @@ func ReadPacket(b []byte) (p Packet, err uint8) {
 		return
 	}
 	p.ServicesFrameData, err = p.ReadServicesFrameData(b[p.HeaderLength : uint16(p.HeaderLength)+p.FrameDataLength])
-	p.ResponseData = p.Response(b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength], err, flagBytes)
+
+	// на EGTS_SR_TERM_IDENTITY в ответ шлем EGTS_SR_RESULT_CODE в остальных случаях шлем EGTS_SR_RECORD_RESPONSE
+	if len(p.ServicesFrameData) == 1 && p.ServicesFrameData[0].RecordData.SubrecordType == 1 {
+		p.ResponseData = p.ResponseAuth(err, flagBytes)
+	} else {
+		p.ResponseData = p.Response(b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength], err, flagBytes)
+	}
 
 	return
 }
@@ -246,6 +252,7 @@ func (rd *RecordData) ReadSubrecordData(b []byte) (data interface{}, err uint8) 
 }
 
 // Response - составляем ответ к полученному пакету с кодом обработки pr
+// EGTS_SR_RECORD_RESPONSE - Подзапись применяется для осуществления подтверждения процесса обработки записи протокола уровня поддержки услуг. Данный тип подзаписи должен поддерживаться всеми сервисами
 func (p *Packet) Response(sfd []byte, pr uint8, flag uint16) (b []byte) {
 	if p.PacketType == 1 {
 		b := make([]byte, uint16(p.HeaderLength)+p.FrameDataLength+5)
@@ -286,6 +293,50 @@ func (p *Packet) Response(sfd []byte, pr uint8, flag uint16) (b []byte) {
 			i++
 		}
 		crcData = crc.Crc(16, sfd)
+		binary.LittleEndian.PutUint16(b[i:i+2], uint16(crcData))
+		return b
+	}
+	return b
+}
+
+// ResponseAuth - составляем авторизационный ответ к пакету EGTS_SR_TERM_IDENTITY (subrecord 1)
+// в ответ шлем EGTS_SR_RESULT_CODE (subrecord 7)
+func (p *Packet) ResponseAuth(pr uint8, flag uint16) (b []byte) {
+	if p.PacketType == 1 {
+		b := make([]byte, uint16(p.HeaderLength)+3)
+		i := 0
+		b[i] = byte(p.ProtocolVersion) //PRV
+		i++
+		b[i] = byte(p.SecurityKeyID) //SKID
+		i++
+		b[i] = byte(flag) //flag
+		i++
+		b[i] = byte(p.HeaderLength) //HL
+		i++
+		b[i] = byte(p.HeaderEncoding) //HE
+		i++
+		binary.LittleEndian.PutUint16(b[i:i+2], p.FrameDataLength+3) //FDL //+3 byte (response info)
+		i += 2
+		binary.LittleEndian.PutUint16(b[i:i+2], p.PacketID) //PID
+		i += 2
+		b[i] = byte(7) //EGTS_SR_RESULT_CODE (packet type)
+		i++
+		if p.RTE {
+			binary.LittleEndian.PutUint16(b[i:i+2], p.PeerAddress) //PRA
+			i += 2
+			binary.LittleEndian.PutUint16(b[i:i+2], p.RecipientAddress) //RCA
+			i += 2
+			b[i] = byte(p.TimeToLive) //TTL
+			i++
+		}
+		crcData := crc.Crc(8, b[:p.HeaderLength-1])
+		b[i] = byte(uint8(crcData)) //HCS
+		i++
+		bb := make([]byte, 1)
+		bb[0] = byte(pr) // code rezult
+		crcData = crc.Crc(16, bb)
+		b[i] = bb[0]
+		i++
 		binary.LittleEndian.PutUint16(b[i:i+2], uint16(crcData))
 		return b
 	}
