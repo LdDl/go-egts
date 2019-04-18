@@ -3,7 +3,6 @@ package packet
 import (
 	"encoding/hex"
 	"io/ioutil"
-	"log"
 	"testing"
 )
 
@@ -164,7 +163,6 @@ func TestReadPacketAuthBytes(t *testing.T) {
 			)
 		}
 
-		log.Println(data)
 		if len(data.ServicesFrameData) != 1 {
 			t.Error(
 				"Length of data has to be 1, but it is", len(data.ServicesFrameData),
