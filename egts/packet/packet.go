@@ -207,6 +207,10 @@ func (p *Packet) ReadSDR(b []byte) (sdfs []ServicesFrameData, err uint8) {
 		i++
 		sdf.RecipientServiceType = uint8(b[i])
 		i++
+		if sdf.RecordLength == 0 {
+			err = 132 // EGTS_PC_INC_DATAFORM - НЕВЕРНЫЙ ФОРМАТ ДАННЫХ
+			break
+		}
 		sdf.RecordData, err = ReadRecordData(b[i : i+int(sdf.RecordLength)])
 		i += int(sdf.RecordLength)
 		sdfs = append(sdfs, sdf)
