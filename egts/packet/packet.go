@@ -2,6 +2,7 @@ package packet
 
 import (
 	"encoding/binary"
+	"fmt"
 
 	"github.com/LdDl/go-egts/crc"
 	"github.com/LdDl/go-egts/egts/subrecord"
@@ -10,30 +11,56 @@ import (
 
 // Packet - Data packet (transport level)
 type Packet struct {
-	// Header of packet
-	ProtocolVersion  uint8  // PRV
-	SecurityKeyID    uint8  // SKID
-	HeaderLength     uint8  // HL
-	HeaderEncoding   uint8  // HE
-	FrameDataLength  uint16 // FDL
-	PacketID         uint16 // PID
-	PacketType       uint8  // PT
-	PeerAddress      uint16 // PRA
-	RecipientAddress uint16 //RCA
-	TimeToLive       uint8  // TTL
-	HeaderCheckSum   uint8  // HCS
+	/* Header of packet */
+	ProtocolVersion uint8 // PRV (Protocol Version)
+	SecurityKeyID   uint8 // SKID
+	/*                 */
+
+	/* Flags: PRF, PR, CMP, ENA, RTE */
+	PRF int  // PRF (Prefix)
+	PR  int  // PR
+	CMP bool // CMP
+	ENA int  // ENA
+	RTE bool // RTE
+	/*                              */
+
+	HeaderLength     uint8  // HL (Header Length)
+	HeaderEncoding   uint8  // HE (Header Encoding)
+	FrameDataLength  uint16 // FDL (Frame Data Length)
+	PacketID         uint16 // PID (Packet Identifier)
+	PacketType       uint8  // PT (Packet Type)
+	PeerAddress      uint16 // PRA (Peer Address)
+	RecipientAddress uint16 // RCA (Recipient Address)
+	TimeToLive       uint8  // TTL (Time To Live)
+	HeaderCheckSum   uint8  // HCS (Header Check Sum)
 	// Data for service level
-	ServicesFrameData []ServicesFrameData
+	ServicesFrameData []ServiceDataRecord // SFRD (Services Frame Data)
 	// Check sum for service level
 	ServicesFrameDataCheckSum uint16 // SFRCS
-	// Flag: PRF, PR, CMP, ENA, RTE.
-	PRF int
-	RTE bool
-	ENA int
-	CMP bool
-	PR  int
 	// Response for packet
 	ResponseData []byte
+}
+
+func (p Packet) String() string {
+	return fmt.Sprintf("\nPRV (Protocol Version): %v\nSKID (Security Key ID): %v\nFlags:\n\tPRF (Prefix): %v\n\tRTE: %v\n\tENA: %v\n\tCMP: %v\n\tPR: %v\nHL (Header Length): %v\nHE (Header Encoding): %v\nFDL (Frame Data Length): %v\nPID (Packet Identifier): %v\nPT (Packet Type): %v\nPRA (Peer Address): %v\nRCA (Recipient Address): %v\nTTL (Time To Live): %v\nHCS (Header Check Sum): %v\nSFRD (Services Frame Data): %v\n",
+		p.ProtocolVersion,
+		p.SecurityKeyID,
+		p.PRF,
+		p.RTE,
+		p.ENA,
+		p.CMP,
+		p.PR,
+		p.HeaderLength,
+		p.HeaderEncoding,
+		p.FrameDataLength,
+		p.PacketID,
+		p.PacketType,
+		p.PeerAddress,
+		p.RecipientAddress,
+		p.TimeToLive,
+		p.HeaderCheckSum,
+		p.ServicesFrameData,
+	)
 }
 
 /*
@@ -51,33 +78,6 @@ type Packet struct {
 	2 – EGTS_PT_SIGNED_APPDATA (пакет содержащий данные  ППУс цифровой подписью)
 
 */
-
-//ServicesFrameData - формат отдельной записи Протокола Уровня Поддержки Услуг.
-type ServicesFrameData struct {
-	RecordLength         uint16     // RL
-	RecordNumber         uint16     // RN
-	ObjectIdentifier     uint32     // OID
-	EventIdentifier      uint32     // EVID
-	Time                 uint32     //TM
-	SourceServiceType    uint8      // SST
-	RecipientServiceType uint8      // RST
-	RecordData           RecordData // RD
-	// RecordFlags (RFL)
-	OBFE bool
-	EVFE bool
-	TMFE bool
-	RPP  int
-	GRP  bool
-	RSOD bool
-	SSOD bool
-}
-
-//RecordData - формат отдельной подзаписи Протокола Уровня Поддержки Услуг.
-type RecordData struct {
-	SubrecordType   uint8  // SRT
-	SubrecordLength uint16 // SRL
-	SubrecordData   interface{}
-}
 
 //ReadPacket - чтение пакета данных протокола транспортного уровня
 func ReadPacket(b []byte) (p Packet, err uint8) {
@@ -154,7 +154,7 @@ func ReadPacket(b []byte) (p Packet, err uint8) {
 
 //ReadServicesFrameData - считывает данные поля SFRD - структура данных, зависящая от типа пакета и содержащая информацию
 //Протокола уровня поддержки услуг
-func (p *Packet) ReadServicesFrameData(b []byte) (sdf []ServicesFrameData, err uint8) {
+func (p *Packet) ReadServicesFrameData(b []byte) (sdf []ServiceDataRecord, err uint8) {
 	switch p.PacketType {
 	case 0:
 		//EGTS_PT_RESPONSE
@@ -174,10 +174,10 @@ func (p *Packet) ReadServicesFrameData(b []byte) (sdf []ServicesFrameData, err u
 }
 
 //ReadSDR - считывает данные поля SFRD в формате EGTS_PT_APPDATA
-func (p *Packet) ReadSDR(b []byte) (sdfs []ServicesFrameData, err uint8) {
+func (p *Packet) ReadSDR(b []byte) (sdfs []ServiceDataRecord, err uint8) {
 	i := 0
 	for {
-		var sdf ServicesFrameData
+		var sdf ServiceDataRecord
 		sdf.RecordLength = binary.LittleEndian.Uint16(b[i : i+2])
 		i += 2
 		sdf.RecordNumber = binary.LittleEndian.Uint16(b[i : i+2])

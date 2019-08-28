@@ -2,29 +2,52 @@ package subrecord
 
 import (
 	"encoding/binary"
+	"fmt"
 
 	"github.com/LdDl/go-egts/egts/utils"
 )
 
-//EgtsSrTermIdentity --
+// EgtsSrTermIdentity EGTS_SR_TERM_IDENTITY
 type EgtsSrTermIdentity struct {
-	TerminalIdentifier                                  uint16 // TID
-	HomeDispatcherIdentifier                            uint16 // HDID
-	InternationalMobileEquipmentIdentity                string // IMEI
-	InternationalMobileSubscriberIdentity               string // IMSI
-	LanguageCode                                        string // LNGC
-	NetworkIdentifier                                   uint16 // NID
-	BufferSize                                          uint16 // BS
-	MobileStationIntegratedServicesDigitalNetworkNumber string // MSISDN
-	//Flags
-	MNE   bool
-	BSE   bool
-	NIDE  bool
-	SSRA  bool
-	LNGCE bool
-	IMSIE bool
-	IMEIE bool
-	HDIDE bool
+	TerminalIdentifier uint16 // TID (Terminal Identifier)
+	/* Flags: MNE, BSE, NIDE, SSRA, LNGCE, IMSIE, IMEIE, HDIDE */
+	MNE   bool // MNE
+	BSE   bool // BSE
+	NIDE  bool // NIDE
+	SSRA  bool // SSRA
+	LNGCE bool // LNGCE
+	IMSIE bool // IMSIE
+	IMEIE bool // IMEIE
+	HDIDE bool // HDIDE
+	/*                                                        */
+	HomeDispatcherIdentifier                            uint16 // HDID (Home Dispatcher Identifier)
+	InternationalMobileEquipmentIdentity                string // IMEI (International Mobile Equipment Identity)
+	InternationalMobileSubscriberIdentity               string // IMSI (International Mobile Subscriber Identity)
+	LanguageCode                                        string // LNGC (Language Code)
+	NetworkIdentifier                                   uint16 // NID (Network Identifier)
+	BufferSize                                          uint16 // BS (Buffer Size)
+	MobileStationIntegratedServicesDigitalNetworkNumber string // MSISDN (Mobile Station Integrated Services Digital Network Number)
+}
+
+func (subrecord EgtsSrTermIdentity) String() string {
+	return fmt.Sprintf("\n\t\t\tEGTS_SR_TERM_IDENTITY:\n\t\t\tTID (Terminal Identifier): %v\n\t\t\tFlags:\n\t\t\t\tMNE: %v\n\t\t\t\tBSE: %v\n\t\t\t\tNIDE: %v\n\t\t\t\tSSRA: %v\n\t\t\t\tLNGCE: %v\n\t\t\t\tIMSIE: %v\n\t\t\t\tIMEIE: %v\n\t\t\t\tHDIDE: %v\n\t\t\tHDID (Home Dispatcher Identifier): %v\n\t\t\tIMEI (International Mobile Equipment Identity): %v\n\t\t\tIMSI (International Mobile Subscriber Identity): %v\n\t\t\tLNGC (Language Code): %v\n\t\t\tNID (Network Identifier): %v\n\t\t\tBS (Buffer Size): %v\n\t\t\tMSISDN (Mobile Station Integrated Services Digital Network Number): %v",
+		subrecord.TerminalIdentifier,
+		subrecord.MNE,
+		subrecord.BSE,
+		subrecord.NIDE,
+		subrecord.SSRA,
+		subrecord.LNGCE,
+		subrecord.IMSIE,
+		subrecord.IMEIE,
+		subrecord.HDIDE,
+		subrecord.TerminalIdentifier,
+		subrecord.HomeDispatcherIdentifier,
+		subrecord.InternationalMobileEquipmentIdentity,
+		subrecord.LanguageCode,
+		subrecord.NetworkIdentifier,
+		subrecord.BufferSize,
+		subrecord.MobileStationIntegratedServicesDigitalNetworkNumber,
+	)
 }
 
 //ParseEgtsSrTermIdentity - EGTS_SR_TERM_IDENTITY

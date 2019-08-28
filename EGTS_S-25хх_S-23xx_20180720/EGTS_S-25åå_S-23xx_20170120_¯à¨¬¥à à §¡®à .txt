@@ -1,0 +1,542 @@
+Авторизация устройств СИГНАЛ и СМАРТ при работе по протоколу EGTS (с авториз)
+
+>>>>>> auth
+0100020b0020000000014f1900000010010101160000000000523836363130343032393639303030380004417f
+	{ ГОСТ Р 56361-2015 Таблица А.3 - Состав пакета протокола транспортного уровня (Начало)
+		PRV (Protocol Version)						01
+		SKID (Security Key ID)						00
+		Flags									02
+		{
+			PR										10
+			CMP										0
+			ENA										00
+			RTE										0
+			PRF (Prefix)								00
+		}
+		HL (Header Length)							0b = 11
+		HE (Header Encoding)						00
+		FDL (Frame Data Length)						2000 = 32
+		PID (Packet Identifier)						0000 = 0
+		PT (Packet Type)							01 = 1 "EGTS_PT_APPDATA"
+		HCS (Header Check Sum)						4f
+		SFRD (Services Frame Data)
+		{ ГОСТ Р 56361-2015 Таблица А.4 - Формат поля SFRD для пакета типа EGTS_PT_APPDATA (см. PT (Packet Type)) (Начало)
+			{ ГОСТ Р 56361-2015 Таблица В.1 - Формат отдельной записи протокола уровня поддержки услуг (Начало)
+				RL (Record Length)							1900 = 25
+				RN (Record Number)							0000
+				Flags									10
+				{
+					OBFE										0
+					EVFE										0
+					TMFE										0
+					RPP										10
+					GRP										0
+					RSOD										0
+					SSOD										0
+				}
+				SST (Source Service Type)					01 - 1 "EGTS_AUTH_SERVICE"
+				RST (Recipient Service Type)					01 - 1 "EGTS_AUTH_SERVICE"
+				RD (Record Data)
+				{ ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Начало)
+					SRT (Subrecord Туре)						01 - 1 "EGTS_SR_TERM_IDENTITY"
+					SRL(Subrecord Length)						1600
+					SRD (Subrecord Data)
+					{ ГОСТ Р 56361-2015 Таблица В.6 - Формат подзаписи EGTS_SR_TERM_IDENTITY сервиса EGTS_AUTH_SERVICE (см. SRT (Subrecord Туре)) (Начало)
+						TID (Terminal Identifier)					00000000
+						Flags									52
+						{
+							HDIDE									0
+							IMEIE									1
+							IMSIE									0
+							LNGCE									0
+							SSRA										1
+							NIDE										0
+							BSE										1
+							MNE										0
+						}
+						IMEI (International Mobile Equipment Identity)	383636313034303239363930303038
+						BS (Buffer Size)							0004
+					} ГОСТ Р 56361-2015 Таблица В.6 - Формат подзаписи EGTS_SR_TERM_IDENTITY сервиса EGTS_AUTH_SERVICE (см. SRT (Subrecord Туре)) (Конец)
+				} ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Конец)
+			} ГОСТ Р 56361-2015 Таблица В.1 - Формат отдельной записи протокола уровня поддержки услуг (Конец)
+		} ГОСТ Р 56361-2015 Таблица А.4 - Формат поля SFRD для пакета типа EGTS_PT_APPDATA (см. PT (Packet Type)) (Конец)
+		SFRCS (Services Frame Data Check Sum)		417f
+	} ГОСТ Р 56361-2015 Таблица А.3 - Состав пакета протокола транспортного уровня (Конец)
+
+<<<<<< response
+0100030b001000000000b300000006000000580101000300000000d9d1
+	{ ГОСТ Р 56361-2015 Таблица А.3 - Состав пакета протокола транспортного уровня (Начало)
+		PRV (Protocol Version)						01
+		SKID (Security Key ID)						00
+		Flags									03
+		{
+			PR										11
+			CMP										0
+			ENA										00
+			RTE										0
+			PRF (Prefix)								00
+		}
+		HL (Header Length)							0b
+		HE (Header Encoding)						00
+		FDL (Frame Data Length)						1000 = 16
+		PID (Packet Identifier)						0000
+		PT (Packet Type)							00 = 0 "EGTS_PT_RESPONSE"
+		HCS (Header Check Sum)						b3
+		SFRD (Services Frame Data)
+		{ ГОСТ Р 56361-2015 Таблица A.5 - Формат поля SFRD для пакета типа EGTS_PT_RESPONSE (см. PT (Packet Type)) (Начало)
+			RPID (Response Packet ID)					0000
+			PR (Processing Result)						00 = 0 "EGTS_PC_OK"
+			{ ГОСТ Р 56361-2015 Таблица В.1 - Формат отдельной записи протокола уровня поддержки услуг (Начало)
+				RL (Record Length)							0600 = 6
+				RN (Record Number)							0000
+				RFL (Record Flags)							58
+				{
+					OBFE										0
+					EVFE										0
+					TMFE										0
+					RPP										11
+					GRP										0
+					RSOD										1
+					SSOD										0
+				}
+				SST (Source Service Type)					01 = 1 "EGTS_AUTH_SERVICE"
+				RST (Recipient Service Type)					01 = 1 "EGTS_AUTH_SERVICE"
+				RD (Record Data)
+				{ ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Начало)
+					SRT (Subrecord Туре)							00 = 0 "EGTS_SR_RECORD_RESPONSE"
+					SRL(Subrecord Length)							0300 = 3
+					{ ГОСТ Р 56361-2015 Таблица В.5 - Формат подзаписи EGTS_SR_RECORD_RESPONSE (см. SRT (Subrecord Туре)) (Начало)
+						CRN (Confirmed Record Number)						0000
+						RST (Record Status)								00 = 0 "EGTS_PC_OK"
+					} ГОСТ Р 56361-2015 Таблица В.5 - Формат подзаписи EGTS_SR_RECORD_RESPONSE (см. SRT (Subrecord Туре)) (Конец)
+				} ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Конец)
+			} ГОСТ Р 56361-2015 Таблица В.1 - Формат отдельной записи протокола уровня поддержки услуг (Конец)
+		} ГОСТ Р 56361-2015 Таблица A.5 - Формат поля SFRD для пакета типа EGTS_PT_RESPONSE (см. PT (Packet Type)) (Конец)
+		SFRCS (Services Frame Data Check Sum)		d9d1
+	} ГОСТ Р 56361-2015 Таблица А.3 - Состав пакета протокола транспортного уровня (Конец)
+
+
+
+Передача телематического пакета устройством СИГНАЛ и СМАРТ при работе по протоколу EGTS и EGTS(с авториз)
+
+>>>>>> data
+0100020b00b000040001a99d003a9e97000000000a170000694f430d0202101800684f430d41b0aa9e99874d358a0080252802000000c0000011040018000000120c00000007000000fa0f00ce0a0013070003000000000000140500027f0015041b0700400000faffffff1b0700000100000000001b0700010100000000001b0700020100000000001b0700030100000000001b0700040100000000001b0700050100000000001b0700000200000000001b0700010200000000004f45
+
+	{ ГОСТ Р 56361-2015 Таблица А.3 - Состав пакета протокола транспортного уровня (Начало)
+		PRV (Protocol Version)						01
+		SKID (Security Key ID)						00
+		Flags									02
+		{
+			PR										10
+			CMP										0
+			ENA										00
+			RTE										0
+			PRF (Prefix)								00
+		}
+		HL (Header Length)							0b
+		HE (Header Encoding)						00
+		FDL (Frame Data Length)						b000 = 176
+		PID (Packet Identifier)						0400 = 4
+		PT (Packet Type)							01 = 1 "EGTS_PT_APPDATA" 
+		HCS (Header Check Sum)						a9
+		SFRD (Services Frame Data)
+		{ ГОСТ Р 56361-2015 Таблица А.4 - Формат поля SFRD для пакета типа EGTS_PT_APPDATA (см. PT (Packet Type)) (Начало)
+			{ ГОСТ Р 56361-2015 Таблица В.1 - Формат отдельной записи протокола уровня поддержки услуг (Начало)
+				RL (Record Length)							9d00 = 157
+				RN (Record Number)							3a9e = 40506 - FLEX #1 "Сквозной номер записи в энергонезависимой памяти"
+				RFL (Record Flags)							97
+				{
+					OBFE										1
+					EVFE										1
+					TMFE										1
+					RPP										10
+					GRP										0
+					RSOD										0
+					SSOD										1
+				}
+				OID (Object Identifier)						00000000 = 0 - "Идентификатор объекта" задается вручную в конфигурации устройства (заводское значение "0")
+				EVID (Event Identifier)						0a170000 = 5898 - FLEX #2 "Код события, соответствующий данной записи"
+				TM (Time)									694f430d = ‭222515049‬ - FLEX #3 "Время события"
+				SST (Source Service Type)					02 = 2 "EGTS_TELEDATA_SERVICE"
+				RST (Recipient Service Type)					02 = 2 "EGTS_TELEDATA_SERVICE"
+				RD (Record Data)
+				{ ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Начало)
+					SRT (Subrecord Туре)						10 = 16 - "EGTS_SR_POS_DATA"
+					SRL(Subrecord Length)						1800 = 24
+					SRD (Subrecord Data)
+					{ ГОСТ Р 56361-2015 Таблица Б.2 - Формат подзаписи EGTS_SR_POS_DATA сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Начало)
+						NTM (Navigation Time)						684f430d = ‭222515049‬ - FLEX #3 "Время события"
+						LAT (Latitude)								41b0aa9e - FLEX #10 "Последняя валидная широта"
+						LONG (Longitude)							99874d35 - FLEX #11 "Последняя валидная долгота"
+						Flags									8a
+						{
+							VLD										0 - FLEX #8 bit1 "Состояние навигационного датчика GPS/ГЛОНАСС - валидная навигация"
+							FIX										1
+							CS										0
+							BB										1
+							MV										0
+							LAHS										0
+							LOHS										0
+							ALTH										1
+						}
+						SPD(Speed)_младшие+старшие_биты+ALTS+DIRH	0080  - FLEX #13 "Скорость"
+						DIR (Direction)							25 - FLEX #14 "Курс"
+						ODM (Odometer)								280200 - FLEX #15 "Текущий пробег"
+						DIN (Digital Inputs)						00 - FLEX #29 "Текущие показания дискретных датчиков 1"
+						SRC (Source)								00
+						ALT (Altitude)								c00000 - FLEX #12 "Последняя валидная высота" 
+					} ГОСТ Р 56361-2015 Таблица Б.2 - Формат подзаписи EGTS_SR_POS_DATA сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Конец)
+				} ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Конец)
+				{ ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Начало)
+					SRT (Subrecord Туре)						11 = 17 - "EGTS_SR_EXT_POS_DATA"
+					SRL(Subrecord Length)						0400 = 4
+					SRD (Subrecord Data)
+					{ ГОСТ Р 56361-2015 Таблица Б.4 - Формат подзаписи EGTS_SR_EXT_POS_DATA сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Начало)
+						Flags									18
+						{
+							VFE										0
+							HFE										0
+							PFE										0
+							SFE										1
+							NSFE										1
+							reserve									000
+						}
+						SAT (Satellites)							00 - FLEX #8 bit 2..7 "Состояние навигационного датчика GPS/ГЛОНАСС - Количество навигационных спутников" 
+						NS (Navigation System)						0000
+					} ГОСТ Р 56361-2015 Таблица Б.4 - Формат подзаписи EGTS_SR_EXT_POS_DATA сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Конец)
+				} ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Конец)
+				{ ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Начало)
+					SRT (Subrecord Туре)						12 = 18 - "EGTS_SR_AD_SENSORS_DATA"
+					SRL(Subrecord Length)						0с00 = 12
+					SRD (Subrecord Data)
+					{ ГОСТ Р 56361-2015 Таблица Б.5 - Формат подзаписи EGTS_SR_AD_SENSORS_DATA сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Начало)
+						Flags										00
+						{
+							DIOE1										0
+							DIOE2										0
+							DIOE3										0
+							DIOE4										0
+							DIOE5										0
+							DIOE6										0
+							DIOE7										0
+							DIOE8										0
+						}
+						DOUT (Digital Outputs)							00 - FLEX #31 "Текущее состояние выходов 1"
+						Flags										07
+						{
+							ASFE1										1
+							ASFE2										1
+							ASFE3										1
+							ASFE4										0
+							ASFE5										0
+							ASFE6										0
+							ASFE7										0
+							ASFE8										0
+						}
+						ANS1 (Analog Sensor 1)							000000 - FLEX #21 "Напряжение на аналоговом входе 1 (Ain1)"
+						ANS2 (Analog Sensor 2)							fa0f00 - FLEX #22 "Напряжение на аналоговом входе 1 (Ain2)"
+						ANS3 (Analog Sensor 3)							ce0a00 - FLEX #23 "Напряжение на аналоговом входе 1 (Ain3)"
+					} ГОСТ Р 56361-2015 Таблица Б.5 - Формат подзаписи EGTS_SR_AD_SENSORS_DATA сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Конец)
+				} ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Конец)
+				{ ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Начало)
+					SRT (Subrecord Туре)							13 = 19 - "EGTS_SR_COUNTERS_DATA"
+					SRL(Subrecord Length)							0700 = 7
+					SRD (Subrecord Data)
+					{ ГОСТ Р 56361-2015 Таблица Б.6 - Формат подзаписи EGTS_SR_COUNTERS_DATA сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Начало)
+						Flags										03
+						{
+							CFE1											1
+							CFE2											1
+							CFE3											0
+							CFE4											0
+							CFE5											0
+							CFE6											0
+							CFE7											0
+							CFE8											0
+						}
+						CN1 (Counter 1)								000000 - FLEX #33 "Показания счетчика импульсов 1"
+						CN2 (Counter 2)								000000 - FLEX #34 "Показания счетчика импульсов 2"
+					} ГОСТ Р 56361-2015 Таблица Б.6 - Формат подзаписи EGTS_SR_COUNTERS_DATA сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Конец)
+				} ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Конец)
+				{ ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Начало)
+					SRT (Subrecord Туре)							14 = 20 - "EGTS_SR_STATE_DATA"
+					SRL(Subrecord Length)							0500 = 5
+					SRD (Subrecord Data)
+					{ ГОСТ Р 56361-2015 Таблица Б.9 - Формат подзаписи EGTS_SR_STATE_DATA сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Начало)
+						ST (State)									02 = 2 "Активный"
+						MPSV (Main Power Source Voltage)					7f = 12,7 В - FLEX #19 "Напряжение на основном источнике питания"
+						BBV (Back Up Battery Voltage)						00 = 0
+						IBV (Internal Battery Voltage)					15 = 1,5 В - FLEX #20 "Напряжение на резервном источнике питания"
+						Flags										04
+						{
+							BBU											0
+							IBU											0
+							NMS											1 - FLEX #8 bit 0 "Состояние навигационного датчика GPS/ГЛОНАСС - навигационный приемник"
+							reserve										00000
+						}
+					} ГОСТ Р 56361-2015 Таблица Б.9 - Формат подзаписи EGTS_SR_STATE_DATA сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Конец)
+				} ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Конец)
+				{ ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Начало)
+					SRT (Subrecord Туре)						1b = 27 - "EGTS_SR_LIQUID_LEVEL_SENSOR"
+					SRL(Subrecord Length)						0700 = 7
+					SRD (Subrecord Data)
+					{ ГОСТ Р 56361-2015 Таблица Б.16 - Формат подзаписи EGTS_SR_LIQUID_LEVEL_SENSOR Сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Начало)
+						Flags									40
+						{
+							LLSN (Liquid Level Sensor Number)				000 = 0 - порядковый номер датчика (1-й)
+							RDF										0 = 0 - поле LLSD имеет размер 4 байта (тип данных UINT)
+							LLSVU									00 = 0 - нетарированное показание ДУЖ
+							LLSEF									1 - ошибка при работе с ДУТ (Для устройств СИГНАЛ и СМАРТ при работе с цифровым ДУТ может быть установлен флаг ошибки и показания будут соответствовать коду ошибки)
+							reserve									0
+						}
+						MADDR (Module Address)						0000 = 0 - Для устройств СИГНАЛ и СМАРТ соответствует цифровому ДУТ RS-232
+						LLSD (Liquid Level Sensor Data)				faffffff = 65530 - FLEX #44 "Уровень топлива, измеренный датчиком уровня топлива RS-232" (Для устройств СИГНАЛ и СМАРТзначащими являются старшие 2 байта 0хfaff)  
+					} ГОСТ Р 56361-2015 Таблица Б.16 - Формат подзаписи EGTS_SR_LIQUID_LEVEL_SENSOR Сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Конец)
+				} ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Конец)
+				{ ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Начало)
+					SRT (Subrecord Туре)						1b = 27 - "EGTS_SR_LIQUID_LEVEL_SENSOR"
+					SRL(Subrecord Length)						0700 = 7
+					SRD (Subrecord Data)
+					{  ГОСТ Р 56361-2015 Таблица Б.16 - Формат подзаписи EGTS_SR_LIQUID_LEVEL_SENSOR Сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Начало)
+						Flags									00
+						{
+							LLSN (Liquid Level Sensor Number)				000 = 0 - порядковый номер датчика (1-й)
+							RDF										0 = 0 - поле LLSD имеет размер 4 байта (тип данных UINT)
+							LLSVU									00 = 0 - нетарированное показание ДУЖ
+							LLSEF									0 - ошибка при работе с ДУТ (Для устройств СИГНАЛ и СМАРТ при работе с цифровым ДУТ может быть установлен флаг ошибки и показания будут соответствовать коду ошибки)
+							reserve									0
+						}
+						MADDR (Module Address)						0100 = 1 - Для устройств СИГНАЛ и СМАРТ соответствует цифровому ДУТ RS-485
+						LLSD (Liquid Level Sensor Data)				00000000 = 0 - FLEX #38 "Уровень топлива, измеренный датчиком уровня топлива 1 RS-485" (Для устройств СИГНАЛ и СМАРТзначащими являются старшие 2 байта 0хfaff)  
+					} ГОСТ Р 56361-2015 Таблица Б.16 - Формат подзаписи EGTS_SR_LIQUID_LEVEL_SENSOR Сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Конец)
+				} ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Конец)
+				{ ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Начало)
+					SRT (Subrecord Туре)						1b = 27 - "EGTS_SR_LIQUID_LEVEL_SENSOR"
+					SRL(Subrecord Length)						0700 = 7
+					SRD (Subrecord Data)
+					{ ГОСТ Р 56361-2015 Таблица Б.16 - Формат подзаписи EGTS_SR_LIQUID_LEVEL_SENSOR Сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Начало)
+						Flags									40
+						{
+							LLSN (Liquid Level Sensor Number)				001 = 1 - порядковый номер датчика (2-й)
+							RDF										0 = 0 - поле LLSD имеет размер 4 байта (тип данных UINT)
+							LLSVU									00 = 0 - нетарированное показание ДУЖ
+							LLSEF									0 - ошибка при работе с ДУТ (Для устройств СИГНАЛ и СМАРТ при работе с цифровым ДУТ может быть установлен флаг ошибки и показания будут соответствовать коду ошибки)
+							reserve									0
+						}
+						MADDR (Module Address)						0100 = 1 - Для устройств СИГНАЛ и СМАРТ соответствует цифровому ДУТ RS-485
+						LLSD (Liquid Level Sensor Data)				00000000 = 0 - FLEX #39 "Уровень топлива, измеренный датчиком уровня топлива 2 RS-485" (Для устройств СИГНАЛ и СМАРТзначащими являются старшие 2 байта 0хfaff)  
+					} ГОСТ Р 56361-2015 Таблица Б.16 - Формат подзаписи EGTS_SR_LIQUID_LEVEL_SENSOR Сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Конец)
+				} ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Конец)
+				{ ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Начало)
+					SRT (Subrecord Туре)						1b = 27 - "EGTS_SR_LIQUID_LEVEL_SENSOR"
+					SRL(Subrecord Length)						0700 = 7
+					SRD (Subrecord Data)
+					{ ГОСТ Р 56361-2015 Таблица Б.16 - Формат подзаписи EGTS_SR_LIQUID_LEVEL_SENSOR Сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Начало)
+						Flags									40
+						{
+							LLSN (Liquid Level Sensor Number)				010 = 2 - порядковый номер датчика (3-й)
+							RDF										0 = 0 - поле LLSD имеет размер 4 байта (тип данных UINT)
+							LLSVU									00 = 0 - нетарированное показание ДУЖ
+							LLSEF									0 - ошибка при работе с ДУТ (Для устройств СИГНАЛ и СМАРТ при работе с цифровым ДУТ может быть установлен флаг ошибки и показания будут соответствовать коду ошибки)
+							reserve									0
+						}
+						MADDR (Module Address)						0100 = 1 - Для устройств СИГНАЛ и СМАРТ соответствует цифровому ДУТ RS-485
+						LLSD (Liquid Level Sensor Data)				00000000 = 0 - FLEX #40 "Уровень топлива, измеренный датчиком уровня топлива 3 RS-485" (Для устройств СИГНАЛ и СМАРТзначащими являются старшие 2 байта 0хfaff)  
+					} ГОСТ Р 56361-2015 Таблица Б.16 - Формат подзаписи EGTS_SR_LIQUID_LEVEL_SENSOR Сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Конец)
+				} ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Конец)
+				{ ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Начало)
+					SRT (Subrecord Туре)						1b = 27 - "EGTS_SR_LIQUID_LEVEL_SENSOR"
+					SRL(Subrecord Length)						0700 = 7
+					SRD (Subrecord Data)
+					{ ГОСТ Р 56361-2015 Таблица Б.16 - Формат подзаписи EGTS_SR_LIQUID_LEVEL_SENSOR Сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Начало)
+						Flags									40
+						{
+							LLSN (Liquid Level Sensor Number)				011 = 3 - порядковый номер датчика (4-й)
+							RDF										0 = 0 - поле LLSD имеет размер 4 байта (тип данных UINT)
+							LLSVU									00 = 0 - нетарированное показание ДУЖ
+							LLSEF									0 - ошибка при работе с ДУТ (Для устройств СИГНАЛ и СМАРТ при работе с цифровым ДУТ может быть установлен флаг ошибки и показания будут соответствовать коду ошибки)
+							reserve									0
+						}
+						MADDR (Module Address)						0100 = 1 - Для устройств СИГНАЛ и СМАРТ соответствует цифровому ДУТ RS-485
+						LLSD (Liquid Level Sensor Data)				00000000 = 0 - FLEX #41 "Уровень топлива, измеренный датчиком уровня топлива 4 RS-485" (Для устройств СИГНАЛ и СМАРТзначащими являются старшие 2 байта 0хfaff)  
+					} ГОСТ Р 56361-2015 Таблица Б.16 - Формат подзаписи EGTS_SR_LIQUID_LEVEL_SENSOR Сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Конец)
+				} ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Конец)
+				{ ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Начало)
+					SRT (Subrecord Туре)						1b = 27 - "EGTS_SR_LIQUID_LEVEL_SENSOR"
+					SRL(Subrecord Length)						0700 = 7
+					SRD (Subrecord Data)
+					{ ГОСТ Р 56361-2015 Таблица Б.16 - Формат подзаписи EGTS_SR_LIQUID_LEVEL_SENSOR Сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Начало)
+						Flags									40
+						{
+							LLSN (Liquid Level Sensor Number)				100 = 4 - порядковый номер датчика (5-й)
+							RDF										0 = 0 - поле LLSD имеет размер 4 байта (тип данных UINT)
+							LLSVU									00 = 0 - нетарированное показание ДУЖ
+							LLSEF									0 - ошибка при работе с ДУТ (Для устройств СИГНАЛ и СМАРТ при работе с цифровым ДУТ может быть установлен флаг ошибки и показания будут соответствовать коду ошибки)
+							reserve									0
+						}
+						MADDR (Module Address)						0100 = 1 - Для устройств СИГНАЛ и СМАРТ соответствует цифровому ДУТ RS-485
+						LLSD (Liquid Level Sensor Data)				00000000 = 0 - FLEX #42 "Уровень топлива, измеренный датчиком уровня топлива 5 RS-485" (Для устройств СИГНАЛ и СМАРТзначащими являются старшие 2 байта 0хfaff)  
+					} ГОСТ Р 56361-2015 Таблица Б.16 - Формат подзаписи EGTS_SR_LIQUID_LEVEL_SENSOR Сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Конец)
+				} ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Конец)
+				{ ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Начало)
+					SRT (Subrecord Туре)						1b = 27 - "EGTS_SR_LIQUID_LEVEL_SENSOR"
+					SRL(Subrecord Length)						0700 = 7
+					SRD (Subrecord Data)
+					{ ГОСТ Р 56361-2015 Таблица Б.16 - Формат подзаписи EGTS_SR_LIQUID_LEVEL_SENSOR Сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Начало)
+						Flags									40
+						{
+							LLSN (Liquid Level Sensor Number)				101 = 5 - порядковый номер датчика (6-й)
+							RDF										0 = 0 - поле LLSD имеет размер 4 байта (тип данных UINT)
+							LLSVU									00 = 0 - нетарированное показание ДУЖ
+							LLSEF									0 - ошибка при работе с ДУТ (Для устройств СИГНАЛ и СМАРТ при работе с цифровым ДУТ может быть установлен флаг ошибки и показания будут соответствовать коду ошибки)
+							reserve									0
+						}
+						MADDR (Module Address)						0100 = 1 - Для устройств СИГНАЛ и СМАРТ соответствует цифровому ДУТ RS-485
+						LLSD (Liquid Level Sensor Data)				00000000 = 0 - FLEX #43 "Уровень топлива, измеренный датчиком уровня топлива 6 RS-485" (Для устройств СИГНАЛ и СМАРТзначащими являются старшие 2 байта 0хfaff)  
+					} ГОСТ Р 56361-2015 Таблица Б.16 - Формат подзаписи EGTS_SR_LIQUID_LEVEL_SENSOR Сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Конец)
+				} ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Конец)
+				{ ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Начало)
+					SRT (Subrecord Туре)						1b = 27 - "EGTS_SR_LIQUID_LEVEL_SENSOR"
+					SRL(Subrecord Length)						0700 = 7
+					SRD (Subrecord Data)
+					{ ГОСТ Р 56361-2015 Таблица Б.16 - Формат подзаписи EGTS_SR_LIQUID_LEVEL_SENSOR Сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Начало)
+						Flags									40
+						{
+							LLSN (Liquid Level Sensor Number)				000 = 0 - порядковый номер датчика (1-й)
+							RDF										0 = 0 - поле LLSD имеет размер 4 байта (тип данных UINT)
+							LLSVU									00 = 0 - нетарированное показание ДУЖ
+							LLSEF									0 - ошибка при работе с ДУТ (Для устройств СИГНАЛ и СМАРТ при работе с цифровым ДУТ может быть установлен флаг ошибки и показания будут соответствовать коду ошибки)
+							reserve									0
+						}
+						MADDR (Module Address)						0200 = 2 - Для устройств СИГНАЛ и СМАРТ соответствует показаниям частотного входа
+						LLSD (Liquid Level Sensor Data)				00000000 = 0 - FLEX #35 "Частота на аналогово-частотном датчике уровня топлива 1" (Для устройств СИГНАЛ и СМАРТзначащими являются старшие 2 байта 0хfaff)  
+					} ГОСТ Р 56361-2015 Таблица Б.16 - Формат подзаписи EGTS_SR_LIQUID_LEVEL_SENSOR Сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Конец)
+				} ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Конец)
+				{ ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Начало)
+					SRT (Subrecord Туре)						1b = 27 - "EGTS_SR_LIQUID_LEVEL_SENSOR"
+					SRL(Subrecord Length)						0700 = 7
+					SRD (Subrecord Data)
+					{ ГОСТ Р 56361-2015 Таблица Б.16 - Формат подзаписи EGTS_SR_LIQUID_LEVEL_SENSOR Сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Начало)
+						Flags									40
+						{
+							LLSN (Liquid Level Sensor Number)				001 = 1 - порядковый номер датчика (2-й)
+							RDF										0 = 0 - поле LLSD имеет размер 4 байта (тип данных UINT)
+							LLSVU									00 = 0 - нетарированное показание ДУЖ
+							LLSEF									0 - ошибка при работе с ДУТ (Для устройств СИГНАЛ и СМАРТ при работе с цифровым ДУТ может быть установлен флаг ошибки и показания будут соответствовать коду ошибки)
+							reserve									0
+						}
+						MADDR (Module Address)						0200 = 2 - Для устройств СИГНАЛ и СМАРТ соответствует показаниям частотного входа
+						LLSD (Liquid Level Sensor Data)				00000000 = 0 - FLEX #36 "Частота на аналогово-частотном датчике уровня топлива 2" (Для устройств СИГНАЛ и СМАРТзначащими являются старшие 2 байта 0хfaff)  
+					} ГОСТ Р 56361-2015 Таблица Б.16 - Формат подзаписи EGTS_SR_LIQUID_LEVEL_SENSOR Сервиса EGTS_TELEDATA_SERVICE (см. SRT (Subrecord Туре)) (Конец)
+				} ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Конец)
+			} ГОСТ Р 56361-2015 Таблица В.1 - Формат отдельной записи протокола уровня поддержки услуг (Конец)
+		} ГОСТ Р 56361-2015 Таблица А.4 - Формат поля SFRD для пакета типа EGTS_PT_APPDATA (см. PT (Packet Type)) (Конец)
+		SFRCS (Services Frame Data Check Sum)		4f45
+	} ГОСТ Р 56361-2015 Таблица А.3 - Состав пакета протокола транспортного уровня (Конец)
+
+<<<<<< response
+0100030b0010000400009a04000006003a9e5802020003003a9e0050cc
+	{ ГОСТ Р 56361-2015 Таблица А.3 - Состав пакета протокола транспортного уровня (Начало)
+		PRV (Protocol Version)						01
+		SKID (Security Key ID)						00
+		Flags									03
+		{
+			PR										11
+			CMP										0
+			ENA										00
+			RTE										0
+			PRF (Prefix)								00
+		}
+		HL (Header Length)							0b = 11
+		HE (Header Encoding)						00
+		FDL (Frame Data Length)						1000 = 16
+		PID (Packet Identifier)						0400 = 4
+		PT (Packet Type)							00 = 0 "EGTS_PT_RESPONSE"
+		HCS (Header Check Sum)						9a
+		SFRD (Services Frame Data)
+		{ ГОСТ Р 56361-2015 Таблица A.5 - Формат поля SFRD для пакета типа EGTS_PT_RESPONSE (см. PT (Packet Type)) (Начало)
+			RPID (Response Packet ID)					0400
+			PR (Processing Result)						00 = 0 "EGTS_PC_OK"
+			{ ГОСТ Р 56361-2015 Таблица В.1 - Формат отдельной записи протокола уровня поддержки услуг (Начало)
+				RL (Record Length)							0600 = 6
+				RN (Record Number)							3a9e = 40506
+				RFL (Record Flags)							58
+				{
+					OBFE										0
+					EVFE										0
+					TMFE										0
+					RPP										11
+					GRP										0
+					RSOD										1
+					SSOD										0
+				}
+				SST (Source Service Type)					02 = 2 "EGTS_TELEDATA_SERVICE"
+				RST (Recipient Service Type)					02 = 2 "EGTS_TELEDATA_SERVICE"
+				RD (Record Data)
+				{ ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Начало)
+					SRT (Subrecord Туре)							00 = 0 "EGTS_SR_RECORD_RESPONSE"
+					SRL(Subrecord Length)							0300 = 3
+					{ ГОСТ Р 56361-2015 Таблица В.5 - Формат подзаписи EGTS_SR_RECORD_RESPONSE (см. SRT (Subrecord Туре)) (Начало)
+						CRN (Confirmed Record Number)						3a9e = 40506
+						RST (Record Status)								00 = 0 "EGTS_PC_OK"
+					} ГОСТ Р 56361-2015 Таблица В.5 - Формат подзаписи EGTS_SR_RECORD_RESPONSE (см. SRT (Subrecord Туре)) (Конец)
+				} ГОСТ Р 56361-2015 Таблица В.2 - Формат отдельной подзаписи протокола уровня поддержки услуг (Конец)
+			} ГОСТ Р 56361-2015 Таблица В.1 - Формат отдельной записи протокола уровня поддержки услуг (Конец)
+		} ГОСТ Р 56361-2015 Таблица A.5 - Формат поля SFRD для пакета типа EGTS_PT_RESPONSE (см. PT (Packet Type)) (Конец)
+		SFRCS									50cc
+	} ГОСТ Р 56361-2015 Таблица А.3 - Состав пакета протокола транспортного уровня (Конец)
+
+
+
+Дополнительно устройства СИГНАЛ и СМАРТ передают пинг-сообщения, для поддержания активности в канале. 
+Пинг-сообщения не предусмотрены в протоколе EGTS, поэтому устройства просто передают пакет транспортного уровня (ГОСТ Р 56361-2015 Таблица А.3 - "Состав пакета протокола транспортного уровня") с полем SFRD=0.
+Если необходимо, то передачу пинг-сообщений на сервер можно "отключить", увеличив интервал их передачи до 3600 сек в конфигурации устройства.
+
+>>>>>> ping
+0100020b000000050001d8
+	{ ГОСТ Р 56361-2015 Таблица А.3 - Состав пакета протокола транспортного уровня (Начало)
+		PRV (Protocol Version)						01
+		SKID (Security Key ID)						00
+		Flags									02
+		{
+			PR										10
+			CMP										0
+			ENA										00
+			RTE										0
+			PRF (Prefix)								00
+		}
+		HL (Header Length)							0b
+		HE (Header Encoding)						00
+		FDL (Frame Data Length)						0000
+		PID (Packet Identifier)						0500 (PID меняетсясогласно протоколу)
+		PT (Packet Type)							01 = 1 "EGTS_PT_APPDATA"
+		HCS (Header Check Sum)						d8
+	} ГОСТ Р 56361-2015 Таблица А.3 - Состав пакета протокола транспортного уровня (Конец)
+
+<<<<<< response(optional)
+0100030b000300050000e40500006c27
+	{ ГОСТ Р 56361-2015 Таблица А.3 - Состав пакета протокола транспортного уровня (Начало)
+		PRV (Protocol Version)						01
+		SKID (Security Key ID)						00
+		Flags									03
+		{
+			PR										11
+			CMP										0
+			ENA										00
+			RTE										0
+			PRF (Prefix)								00
+		}
+		HL (Header Length)							0b
+		HE (Header Encoding)						00
+		FDL (Frame Data Length)						0300 = 3
+		PID (Packet Identifier)						0500
+		PT (Packet Type)							00 = 0 "EGTS_PT_RESPONSE"
+		HCS (Header Check Sum)						e4
+		SFRD (Services Frame Data)
+		{ ГОСТ Р 56361-2015 Таблица A.5 - Формат поля SFRD для пакета типа EGTS_PT_RESPONSE (см. PT (Packet Type)) (Начало)
+			RPID (Response Packet ID)					0500
+			PR (Processing Result)						00 = 0 "EGTS_PC_OK"
+		} ГОСТ Р 56361-2015 Таблица A.5 - Формат поля SFRD для пакета типа EGTS_PT_RESPONSE (см. PT (Packet Type)) (Конец)
+		SFRCS (Services Frame Data Check Sum)		6c27
+	} ГОСТ Р 56361-2015 Таблица А.3 - Состав пакета протокола транспортного уровня (Конец)
+
