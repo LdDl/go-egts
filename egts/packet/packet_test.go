@@ -1,9 +1,13 @@
 package packet
 
 import (
+	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"testing"
+
+	"github.com/LdDl/go-egts/egts/utils"
 )
 
 var (
@@ -253,4 +257,49 @@ func TestPac(t *testing.T) {
 
 	t.Error(data)
 	t.Error(responseCode)
+}
+
+func TestReadPacketNew(t *testing.T) {
+
+	hexM := "0100020b0020000000014f1900000010010101160000000000523836363130343032393639303030380004417f"
+	var err error
+	maxBuffer, err = hex.DecodeString(hexM)
+	if err != nil {
+		t.Error(
+			"Error occurred", err,
+		)
+	}
+
+	t.Error("resp b", maxBuffer)
+
+	data, responseCode := ReadPacket(maxBuffer)
+	if responseCode != 0 {
+		t.Error(
+			"Response code has to be 0, but it is", responseCode,
+		)
+	}
+
+	fmt.Println("data", data)
+
+	newHEx := hex.EncodeToString(data.ResponseData)
+
+	hexM = "0100030b001000000000b300000006000000580101000300000000d9d1"
+	maxBuffer, err = hex.DecodeString(hexM)
+
+	t.Error("resp b-", maxBuffer)
+	t.Error("resp b ", data.ResponseData)
+
+	t.Error("resp", newHEx)
+	t.Error("resp", "0100030b001000000000b300000006000000580101000300000000d9d1")
+
+	hexM = "1000"
+	maxBuffer, err = hex.DecodeString(hexM)
+	t.Error("flag", maxBuffer)
+	t.Error("flag new", binary.LittleEndian.Uint16([]byte{16, 0}))
+
+	flagBytes := uint16(maxBuffer[0]) //flag
+	PR := utils.BitField(flagBytes, 1)
+
+	t.Error("flag", PR)
+
 }

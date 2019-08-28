@@ -144,7 +144,7 @@ func ReadPacket(b []byte) (p Packet, err uint8) {
 
 	// на EGTS_SR_TERM_IDENTITY в ответ шлем EGTS_SR_RESULT_CODE в остальных случаях шлем EGTS_SR_RECORD_RESPONSE
 	if len(p.ServicesFrameData) == 1 && p.ServicesFrameData[0].RecordData.SubrecordType == 1 {
-		p.ResponseData = p.ResponseAuth(err, flagBytes)
+		p.ResponseData = p.ResponseAuth(err)
 	} else {
 		p.ResponseData = p.Response(b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength], err, flagBytes)
 	}
@@ -305,25 +305,25 @@ func (p *Packet) Response(sfd []byte, pr uint8, flag uint16) (b []byte) {
 
 // ResponseAuth - составляем авторизационный ответ к пакету EGTS_SR_TERM_IDENTITY (subrecord 1)
 // в ответ шлем EGTS_SR_RESULT_CODE (subrecord 7)
-func (p *Packet) ResponseAuth(pr uint8, flag uint16) (b []byte) {
+func (p *Packet) ResponseAuth(pr uint8) (b []byte) {
 	if p.PacketType == 1 {
-		b := make([]byte, uint16(p.HeaderLength)+3)
+		b := make([]byte, uint16(p.HeaderLength))
 		i := 0
 		b[i] = byte(p.ProtocolVersion) //PRV
 		i++
 		b[i] = byte(p.SecurityKeyID) //SKID
 		i++
-		b[i] = byte(flag) //flag
+		b[i] = byte(3) //flag низкий приоритет
 		i++
 		b[i] = byte(p.HeaderLength) //HL
 		i++
 		b[i] = byte(p.HeaderEncoding) //HE
 		i++
-		binary.LittleEndian.PutUint16(b[i:i+2], p.FrameDataLength+3) //FDL //+3 byte (response info)
+		binary.LittleEndian.PutUint16(b[i:i+2], 16) //FDL
 		i += 2
 		binary.LittleEndian.PutUint16(b[i:i+2], p.PacketID) //PID
 		i += 2
-		b[i] = byte(7) //EGTS_SR_RESULT_CODE (packet type)
+		b[i] = byte(0) //EGTS_SR_RESULT_CODE (packet type)
 		i++
 		if p.RTE {
 			binary.LittleEndian.PutUint16(b[i:i+2], p.PeerAddress) //PRA
@@ -336,12 +336,40 @@ func (p *Packet) ResponseAuth(pr uint8, flag uint16) (b []byte) {
 		crcData := crc.Crc(8, b[:p.HeaderLength-1])
 		b[i] = byte(uint8(crcData)) //HCS
 		i++
-		bb := make([]byte, 1)
-		bb[0] = byte(pr) // code rezult
+
+		// sfrd
+		bb := make([]byte, 16)
+		ii := 0
+		binary.LittleEndian.PutUint16(bb[ii:ii+2], p.PacketID) //RPID (Response Packet ID)
+		ii += 2
+		bb[ii] = byte(pr) // PR (Processing Result)
+		ii++
+		//sdr
+		binary.LittleEndian.PutUint16(bb[ii:ii+2], 6) //RL (Record Length)
+		ii += 2
+		binary.LittleEndian.PutUint16(bb[ii:ii+2], p.ServicesFrameData[0].RecordNumber) //RN (Record Number)
+		ii += 2
+		bb[ii] = byte(88) // RFL (Record Flags)
+		ii++
+		bb[ii] = byte(1) // SST (Source Service Type)
+		ii++
+		bb[ii] = byte(1) // RST (Recipient Service Type)
+		ii++
+		//RD (Record Data)
+		bb[ii] = byte(0) // SRT (Subrecord Туре)
+		ii++
+		binary.LittleEndian.PutUint16(bb[ii:ii+2], 3) //RL (Record Length)
+		ii += 2
+		//SRD (Subrecord Data)
+		binary.LittleEndian.PutUint16(bb[ii:ii+2], p.ServicesFrameData[0].RecordNumber) //CRN (Confirmed Record Number)
+		ii += 2
+		bb[ii] = byte(pr) // RST (Record Status)
+		ii++
 		crcData = crc.Crc(16, bb)
-		b[i] = bb[0]
-		i++
-		binary.LittleEndian.PutUint16(b[i:i+2], uint16(crcData))
+		crcByte := make([]byte, 2)
+		binary.LittleEndian.PutUint16(crcByte, uint16(crcData))
+		b = append(b, bb...)
+		b = append(b, crcByte...)
 		return b
 	}
 	return b
