@@ -15,7 +15,7 @@ func (p *Packet) ResponseAuth(pr uint8) (b []byte) {
 		i++
 		b[i] = byte(p.SecurityKeyID) // SKID (Security Key ID)
 		i++
-		b[i] = byte(1) // Flags: PRF (Prefix), RTE, ENA, CMP, PR
+		b[i] = byte(0) // Flags: PRF (Prefix), RTE, ENA, CMP, PR
 		i++
 		b[i] = byte(11) // HL (Header Length)
 		i++

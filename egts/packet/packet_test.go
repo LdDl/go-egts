@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"testing"
 )
 
@@ -255,23 +254,23 @@ func TestBackPacket(t *testing.T) {
 	// pac := []byte{1, 0, 2, 11, 0, 184, 0, 1, 0, 1, 248, 27, 0, 0, 0, 151, 99, 0, 0, 0, 0, 21, 0, 0, 3, 0, 0, 0, 2, 2, 16, 24, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 234, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 27, 0, 1, 0, 151, 99, 0, 0, 0, 2, 21, 0, 0, 32, 0, 0, 0, 2, 2, 16, 24, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 234, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 27, 0, 2, 0, 151, 99, 0, 0, 0, 64, 18, 0, 0, 33, 0, 0, 0, 2, 2, 16, 24, 0, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 234, 0, 64, 0, 0, 0, 0, 0, 12, 0, 0, 0, 27, 0, 3, 0, 151, 99, 0, 0, 0, 3, 23, 0, 0, 90, 121, 13, 18, 2, 2, 16, 24, 0, 90, 121, 13, 18, 67, 168, 181, 158, 220, 93, 162, 53, 139, 16, 192, 51, 0, 0, 0, 0, 30, 0, 0, 0, 14, 109}
 	// he := "0100030B0010002600006F01000006000F0018010100030000000017AD"
 
-	// egtsAuthHex := "0100020b0020000000014f1900000010010101160000000000523836363130343032393639303030380004417f"
-	// egtsAuth, _ := hex.DecodeString(egtsAuthHex)
+	egtsAuthHex := "0100000B0022000100010C1700000004093A21120101011400000000000233353834383030383733373934313014D9"
+	egtsAuth, _ := hex.DecodeString(egtsAuthHex)
 
-	egtsAuth := []byte{
-		1, 0, 0, 11, 0, 34, 0, 1, 0, 1, 12, 23, 0, 0, 0, 4, 162, 63, 41, 18, 1, 1, 1, 20, 0, 0, 0, 0, 0, 2, 51, 53, 56, 52, 56, 48, 48, 56, 55, 51, 55, 57, 52, 49, 48, 156, 81,
-	}
+	// egtsAuth := []byte{
+	// 	1, 0, 0, 11, 0, 34, 0, 1, 0, 1, 12, 23, 0, 0, 0, 4, 162, 63, 41, 18, 1, 1, 1, 20, 0, 0, 0, 0, 0, 2, 51, 53, 56, 52, 56, 48, 48, 56, 55, 51, 55, 57, 52, 49, 48, 156, 81,
+	// }
 	parsedAuth, authCode := ReadPacket(egtsAuth)
 	fmt.Println("auth code:", authCode)
 	fmt.Println("parsed auth packet:")
 	_ = parsedAuth
 	// fmt.Println(parsedAuth)
 	fmt.Println(parsedAuth.ResponseData, hex.EncodeToString(parsedAuth.ResponseData))
-	fmt.Println("0100030b001000010000f501000006000000580101000300000000fd79")
-	fmt.Println(parsedAuth)
+	// fmt.Println(parsedAuth)
 
-	parsePT, authCode := ReadPacket(parsedAuth.ResponseData)
-	log.Println(parsePT)
+	egtsAuthHex = "0100030B0010004A00009F0100000600110018010100030000000050AB"
+	egtsAuth, _ = hex.DecodeString(egtsAuthHex)
+	fmt.Println("ans", egtsAuth)
 	// checkHex := "58"
 	// parsedCheckHex, _ := hex.DecodeString(checkHex)
 	// fmt.Println(parsedCheckHex)
