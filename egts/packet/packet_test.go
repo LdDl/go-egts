@@ -2,13 +2,13 @@ package packet
 
 import (
 	"encoding/hex"
-	"fmt"
 	"io/ioutil"
 	"testing"
 )
 
 var (
 	hexStringsAuth = []string{
+		"0100020b0020000000014f1900000010010101160000000000523836363130343032393639303030380004417f",
 		"0100000B0022000100010C1700000004E639211201010114000000000002333538343830303837333739343130701C",
 		"0100000B0022000100010c170001000196933831010101140096933831023836353930353032343632343131300397",
 		"0100000B0022000100010c1700010001539ffc300101011400539ffc3002383631373835303037323332353736ccff",
@@ -247,32 +247,4 @@ func TestReadPacketAuthFile(t *testing.T) {
 			}
 		}
 	}
-}
-
-func TestBackPacket(t *testing.T) {
-	// pac := []byte{1, 0, 2, 11, 0, 184, 0, 1, 0, 1, 248, 27, 0, 0, 0, 151, 99, 0, 0, 0, 0, 21, 0, 0, 3, 0, 0, 0, 2, 2, 16, 24, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 234, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 27, 0, 1, 0, 151, 99, 0, 0, 0, 2, 21, 0, 0, 32, 0, 0, 0, 2, 2, 16, 24, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 234, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 27, 0, 2, 0, 151, 99, 0, 0, 0, 64, 18, 0, 0, 33, 0, 0, 0, 2, 2, 16, 24, 0, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 234, 0, 64, 0, 0, 0, 0, 0, 12, 0, 0, 0, 27, 0, 3, 0, 151, 99, 0, 0, 0, 3, 23, 0, 0, 90, 121, 13, 18, 2, 2, 16, 24, 0, 90, 121, 13, 18, 67, 168, 181, 158, 220, 93, 162, 53, 139, 16, 192, 51, 0, 0, 0, 0, 30, 0, 0, 0, 14, 109}
-	// he := "0100030B0010002600006F01000006000F0018010100030000000017AD"
-
-	egtsAuthHex := "0100020b0020000000014f1900000010010101160000000000523836363130343032393639303030380004417f"
-	egtsAuth, _ := hex.DecodeString(egtsAuthHex)
-
-	parsedAuth, authCode := ReadPacket(egtsAuth)
-	fmt.Println("auth code:", authCode)
-	fmt.Println("parsed auth packet:")
-	fmt.Println(parsedAuth)
-
-	// egtsPkgPosDataBytes := []byte{0x01, 0x00, 0x03, 0x0B, 0x00, 0x23, 0x00, 0x8A, 0x00, 0x01, 0x49, 0x18, 0x00, 0x61,
-	// 	0x00, 0x99, 0xB0, 0x09, 0x02, 0x00, 0x02, 0x02, 0x10, 0x15, 0x00, 0xD5, 0x3F, 0x01, 0x10, 0x6F, 0x1C, 0x05, 0x9E,
-	// 	0x7A, 0xB5, 0x3C, 0x35, 0x01, 0xD0, 0x87, 0x2C, 0x01, 0x00, 0x00, 0x00, 0x00, 0xCC, 0x27}
-	// egtsPkgPosDataBytes, _ = hex.DecodeString(he)
-	// log.Println(egtsPkgPosDataBytes)
-	// egtsPkg, responseCode := ReadPacket(egtsPkgPosDataBytes)
-	// fmt.Println(responseCode, egtsPkg.ResponseData)
-
-	// if responseCode != 132 {
-	// 	t.Errorf("For this packet should be response '132', but got %d", responseCode)
-	// }
-
-	t.Error("Done")
-
 }
