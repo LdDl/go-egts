@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"testing"
-
-	"github.com/LdDl/go-egts/egts/utils"
 )
 
 var (
@@ -264,24 +262,10 @@ func TestBackPacket(t *testing.T) {
 	fmt.Println("parsed auth packet:")
 	fmt.Println(parsedAuth.ResponseData, hex.EncodeToString(parsedAuth.ResponseData))
 
-	// egtsAuthHex = "0100030b001000000000b300000006000000580101000300000000d9d1"
 	checkHex := "0100030b001000000000b300000006000000580101000300000000d9d1"
-	// egtsAuth, _ = hex.DecodeString(egtsAuthHex)
-	fmt.Println("Ans correct?", hex.EncodeToString(parsedAuth.ResponseData) == checkHex)
 
-	checkHex = "03"
-	parsedCheckHex, _ := hex.DecodeString(checkHex)
-	fmt.Println(parsedCheckHex)
-
-	PR0 := utils.BitField(uint16(parsedCheckHex[0]), 0).(bool)
-	PR1 := utils.BitField(uint16(parsedCheckHex[0]), 1).(bool)
-	CMP := utils.BitField(uint16(parsedCheckHex[0]), 2).(bool)
-	ENA := utils.BitField(uint16(parsedCheckHex[0]), 3, 4).(int)
-	RTE := utils.BitField(uint16(parsedCheckHex[0]), 5).(bool)
-	PRF := utils.BitField(uint16(parsedCheckHex[0]), 6, 7).(int)
-
-	fmt.Println(PR0, PR1, CMP, ENA, RTE, PRF)
-
-	t.Error("Done")
+	if hex.EncodeToString(parsedAuth.ResponseData) != checkHex {
+		t.Errorf("Response to auth has to be %s, but got: %s\n", checkHex, hex.EncodeToString(parsedAuth.ResponseData))
+	}
 
 }
