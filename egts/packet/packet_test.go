@@ -2,8 +2,10 @@ package packet
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"testing"
 )
 
@@ -253,6 +255,7 @@ func TestReadPacketAuthFile(t *testing.T) {
 func TestBackPacket(t *testing.T) {
 
 	egtsAuthHex := "0100020b0020000000014f1900000010010101160000000000523836363130343032393639303030380004417f"
+	// 0100020b002e000a0001271b00000097630000000000000042682a12020210180042682a1200c99c9e8c4a88358a00400000000000000000000045
 	egtsAuth, _ := hex.DecodeString(egtsAuthHex)
 
 	fmt.Println("Income", egtsAuth)
@@ -262,10 +265,56 @@ func TestBackPacket(t *testing.T) {
 	fmt.Println("parsed auth packet:")
 	fmt.Println(parsedAuth.ResponseData, hex.EncodeToString(parsedAuth.ResponseData))
 
+	str, _ := json.Marshal(parsedAuth)
+	fmt.Println(string(str))
+
+	parsedAuth.GetPTResponse()
+
+	checkHex := "0100030b001000000000b300000006000000580101000300000000d9d1"
+
+	if hex.EncodeToString(parsedAuth.ResponseData) != checkHex {
+		t.Errorf("Response to auth has to be %s, but got: %s\n", checkHex, hex.EncodeToString(parsedAuth.ResponseData))
+	}
+	t.Error(0)
+}
+
+func TestIncomingPacket(t *testing.T) {
+
+	egtsAuthHex := "0100020b00b0000e0001779d001100977c8e5702241100009edd050f02021018009edd050f5fb4b49e8d7da2359b00009bc8550f030012010011040018110000120c000000070000000000000000001307000300000000000014050002860014041b0700400000fbff00001b0700000100000000001b0700010100000000001b07000201006c6300001b0700030100000000001b0700040100000000001b0700050100000000001b0700000200000000001b070001020000000000dc85"
+	egtsAuth, _ := hex.DecodeString(egtsAuthHex)
+
+	fmt.Println("Income", egtsAuth)
+
+	parsedAuth, authCode := ReadPacket(egtsAuth)
+	fmt.Println("auth code:", authCode)
+	fmt.Println("parsed auth packet:")
+	fmt.Println(parsedAuth)
+
 	checkHex := "0100030b001000000000b300000006000000580101000300000000d9d1"
 
 	if hex.EncodeToString(parsedAuth.ResponseData) != checkHex {
 		t.Errorf("Response to auth has to be %s, but got: %s\n", checkHex, hex.EncodeToString(parsedAuth.ResponseData))
 	}
 
+}
+
+func TestPTresponsePacket(t *testing.T) {
+
+	egtsAuthHex := "0100030b001000000000b300000006000000580101000300000000d9d1"
+	// 0100020b002e000a0001271b00000097630000000000000042682a12020210180042682a1200c99c9e8c4a88358a00400000000000000000000045
+	egtsAuth, _ := hex.DecodeString(egtsAuthHex)
+
+	fmt.Println("Income", egtsAuth)
+
+	parsedAuth, authCode := ReadPacket(egtsAuth)
+	fmt.Println("auth code:", authCode)
+	d := parsedAuth.ServicesFrameData[0]
+	log.Println(d.RecordData)
+	// fmt.Println("parsed auth packet:")
+	// fmt.Println(parsedAuth.ResponseData, hex.EncodeToString(parsedAuth.ResponseData))
+
+	str, _ := json.Marshal(parsedAuth)
+	fmt.Println(string(str))
+
+	t.Error(0)
 }

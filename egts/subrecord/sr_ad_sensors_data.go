@@ -6,10 +6,13 @@ import (
 	"github.com/LdDl/go-egts/egts/utils"
 )
 
-// EgtsSrAdSensorsData - Применяется абонентским терминалом для передачи
-// на аппаратно-программный комплекс информации о состоянии дополнительных
-// дискретных и аналоговых входов
-type EgtsSrAdSensorsData struct {
+// SRAdSensorsData EGTS_SR_AD_SENSORS_DATA
+/*
+	Применяется абонентским терминалом для передачи
+	на аппаратно-программный комплекс информации о состоянии
+	дополнительных дискретных и аналоговых входов
+*/
+type SRAdSensorsData struct {
 	// Digital Outputs
 	DigitalOutputs uint8
 	// Additional Digital Inputs Octets 1-8
@@ -18,9 +21,9 @@ type EgtsSrAdSensorsData struct {
 	ANS []int
 }
 
-//ParseEgtsSrAdSensorsData - EGTS_SR_AD_SENSORS_DATA
-func ParseEgtsSrAdSensorsData(b []byte) interface{} {
-	var d EgtsSrAdSensorsData
+// BytesToSRAdSensorsData Parse array of bytes to EGTS_SR_AD_SENSORS_DATA
+func BytesToSRAdSensorsData(b []byte) interface{} {
+	var d SRAdSensorsData
 	d.ADI = make([]int, 8)
 	d.ANS = make([]int, 8)
 	// Digital Outputs

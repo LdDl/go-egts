@@ -6,15 +6,18 @@ import (
 	"github.com/LdDl/go-egts/egts/utils"
 )
 
-// EgtsSrCountersData -Используется аппаратно-программным комплексом
-// для передачи на абонентский терминал данных о значении счетных входов
-type EgtsSrCountersData struct {
+// SRCountersData EGTS_SR_COUNTERS_DATA
+/*
+	Используется аппаратно-программным комплексом для передачи
+	на абонентский терминал данных о значении счетных входов
+*/
+type SRCountersData struct {
 	Counters []int
 }
 
-//ParseEgtsSrCountersData - EGTS_SR_COUNTERS_DATA
-func ParseEgtsSrCountersData(b []byte) interface{} {
-	var d EgtsSrCountersData
+// BytesToSRCountersData Parse array of bytes to EGTS_SR_COUNTERS_DATA
+func BytesToSRCountersData(b []byte) interface{} {
+	var d SRCountersData
 	d.Counters = make([]int, 8)
 	// CFE1 ... CFE8 - (Counter Field Exists)
 	cfeFlag := uint16(b[0])

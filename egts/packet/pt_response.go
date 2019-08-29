@@ -2,10 +2,44 @@ package packet
 
 import (
 	"encoding/binary"
+	"encoding/json"
+	"fmt"
 
 	"github.com/LdDl/go-egts/crc"
 	"github.com/LdDl/go-egts/egts/utils"
 )
+
+//PTResponse структура подзаписи типа EGTS_PT_RESPONSE
+type PTResponse struct {
+	ResponsePacketID uint16            `json:"RPID"` // RPID Response Packet ID
+	ProcessingResult uint8             `json:"PR"`   // PR Processing Result
+	SDR              ServicesFrameData `json:"SFRD"` // SFRD (Services Frame Data)
+}
+
+func (p *Packet) GetPTResponse() (ptResp PTResponse) {
+	ptResp.ResponsePacketID = p.PacketID
+	ptResp.ProcessingResult = p.Error
+
+	str, _ := json.Marshal(ptResp)
+	fmt.Println("resp:")
+	fmt.Println(string(str))
+	return ptResp
+}
+
+// BytesToPTResponse Parse array of bytes to EGTS_PT_RESPONSE
+func BytesToPTResponse(b []byte) (data PTResponse) {
+	data.ResponsePacketID = binary.LittleEndian.Uint16(b[0:2])
+	data.ProcessingResult = uint8(b[2])
+	if len(b[3:]) > 0 {
+		data.SDR, _ = BytesToPTAppData(b[3:])
+	}
+	return data
+}
+
+func (p *PTResponse) Encode() (b []byte) {
+
+	return b
+}
 
 // ResponseAuth Returns EGTS_PT_RESPONSE
 func (p *Packet) ResponseAuth(pr uint8) (b []byte) {
