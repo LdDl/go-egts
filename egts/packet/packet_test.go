@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"testing"
+
+	"github.com/LdDl/go-egts/egts/utils"
 )
 
 var (
@@ -251,44 +253,34 @@ func TestReadPacketAuthFile(t *testing.T) {
 }
 
 func TestBackPacket(t *testing.T) {
-	// pac := []byte{1, 0, 2, 11, 0, 184, 0, 1, 0, 1, 248, 27, 0, 0, 0, 151, 99, 0, 0, 0, 0, 21, 0, 0, 3, 0, 0, 0, 2, 2, 16, 24, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 234, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 27, 0, 1, 0, 151, 99, 0, 0, 0, 2, 21, 0, 0, 32, 0, 0, 0, 2, 2, 16, 24, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 234, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 27, 0, 2, 0, 151, 99, 0, 0, 0, 64, 18, 0, 0, 33, 0, 0, 0, 2, 2, 16, 24, 0, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 234, 0, 64, 0, 0, 0, 0, 0, 12, 0, 0, 0, 27, 0, 3, 0, 151, 99, 0, 0, 0, 3, 23, 0, 0, 90, 121, 13, 18, 2, 2, 16, 24, 0, 90, 121, 13, 18, 67, 168, 181, 158, 220, 93, 162, 53, 139, 16, 192, 51, 0, 0, 0, 0, 30, 0, 0, 0, 14, 109}
-	// he := "0100030B0010002600006F01000006000F0018010100030000000017AD"
 
-	egtsAuthHex := "0100000B0022000100010C1700000004093A21120101011400000000000233353834383030383733373934313014D9"
+	egtsAuthHex := "0100020b0020000000014f1900000010010101160000000000523836363130343032393639303030380004417f"
 	egtsAuth, _ := hex.DecodeString(egtsAuthHex)
 
-	// egtsAuth := []byte{
-	// 	1, 0, 0, 11, 0, 34, 0, 1, 0, 1, 12, 23, 0, 0, 0, 4, 162, 63, 41, 18, 1, 1, 1, 20, 0, 0, 0, 0, 0, 2, 51, 53, 56, 52, 56, 48, 48, 56, 55, 51, 55, 57, 52, 49, 48, 156, 81,
-	// }
+	fmt.Println("Income", egtsAuth)
+
 	parsedAuth, authCode := ReadPacket(egtsAuth)
 	fmt.Println("auth code:", authCode)
 	fmt.Println("parsed auth packet:")
-	_ = parsedAuth
-	// fmt.Println(parsedAuth)
 	fmt.Println(parsedAuth.ResponseData, hex.EncodeToString(parsedAuth.ResponseData))
-	// fmt.Println(parsedAuth)
 
-	egtsAuthHex = "0100030B0010004A00009F0100000600110018010100030000000050AB"
-	egtsAuth, _ = hex.DecodeString(egtsAuthHex)
-	fmt.Println("ans", egtsAuth)
-	// checkHex := "58"
-	// parsedCheckHex, _ := hex.DecodeString(checkHex)
-	// fmt.Println(parsedCheckHex)
+	// egtsAuthHex = "0100030b001000000000b300000006000000580101000300000000d9d1"
+	checkHex := "0100030b001000000000b300000006000000580101000300000000d9d1"
+	// egtsAuth, _ = hex.DecodeString(egtsAuthHex)
+	fmt.Println("Ans correct?", hex.EncodeToString(parsedAuth.ResponseData) == checkHex)
 
-	// 0100020b0020000000014f1900000010010101160000000000523836363130343032393639303030380004417f
-	// 0100030b001000000000b300000006000000580101000300000000d9d1
-	// 0100020b002300000007ad00f0e1
-	// egtsPkgPosDataBytes := []byte{0x01, 0x00, 0x03, 0x0B, 0x00, 0x23, 0x00, 0x8A, 0x00, 0x01, 0x49, 0x18, 0x00, 0x61,
-	// 	0x00, 0x99, 0xB0, 0x09, 0x02, 0x00, 0x02, 0x02, 0x10, 0x15, 0x00, 0xD5, 0x3F, 0x01, 0x10, 0x6F, 0x1C, 0x05, 0x9E,
-	// 	0x7A, 0xB5, 0x3C, 0x35, 0x01, 0xD0, 0x87, 0x2C, 0x01, 0x00, 0x00, 0x00, 0x00, 0xCC, 0x27}
-	// egtsPkgPosDataBytes, _ = hex.DecodeString(he)
-	// log.Println(egtsPkgPosDataBytes)
-	// egtsPkg, responseCode := ReadPacket(egtsPkgPosDataBytes)
-	// fmt.Println(responseCode, egtsPkg.ResponseData)
+	checkHex = "03"
+	parsedCheckHex, _ := hex.DecodeString(checkHex)
+	fmt.Println(parsedCheckHex)
 
-	// if responseCode != 132 {
-	// 	t.Errorf("For this packet should be response '132', but got %d", responseCode)
-	// }
+	PR0 := utils.BitField(uint16(parsedCheckHex[0]), 0).(bool)
+	PR1 := utils.BitField(uint16(parsedCheckHex[0]), 1).(bool)
+	CMP := utils.BitField(uint16(parsedCheckHex[0]), 2).(bool)
+	ENA := utils.BitField(uint16(parsedCheckHex[0]), 3, 4).(int)
+	RTE := utils.BitField(uint16(parsedCheckHex[0]), 5).(bool)
+	PRF := utils.BitField(uint16(parsedCheckHex[0]), 6, 7).(int)
+
+	fmt.Println(PR0, PR1, CMP, ENA, RTE, PRF)
 
 	t.Error("Done")
 

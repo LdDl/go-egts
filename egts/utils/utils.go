@@ -51,3 +51,9 @@ func BitField(b uint16, i ...int) interface{} {
 		return int(b & uint16(sum))
 	}
 }
+
+// SetBit Sets the bit at position 'pos' in the integer 'n' with value 'val'
+func SetBit(n int, pos uint, val int) int {
+	n |= (val << pos)
+	return n
+}

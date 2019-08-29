@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 
 	"github.com/LdDl/go-egts/crc"
+	"github.com/LdDl/go-egts/egts/utils"
 )
 
 // ResponseAuth Returns EGTS_PT_RESPONSE
@@ -15,7 +16,19 @@ func (p *Packet) ResponseAuth(pr uint8) (b []byte) {
 		i++
 		b[i] = byte(p.SecurityKeyID) // SKID (Security Key ID)
 		i++
-		b[i] = byte(0) // Flags: PRF (Prefix), RTE, ENA, CMP, PR
+
+		// Flags: PRF (Prefix), RTE, ENA, CMP, PR
+		flags := 0
+		flags = utils.SetBit(flags, 0, 1) // PR "00" -> "0"
+		flags = utils.SetBit(flags, 1, 1) // PR "0" -> "0"
+		flags = utils.SetBit(flags, 2, 0) // CMP "0"
+		flags = utils.SetBit(flags, 3, 0) // ENA "00" -> "0"
+		flags = utils.SetBit(flags, 4, 0) // ENA "0" -> "0"
+		flags = utils.SetBit(flags, 5, 0) // RTE "0"
+		flags = utils.SetBit(flags, 6, 0) // PRF "00" -> "0"
+		flags = utils.SetBit(flags, 7, 0) // PRF "0" -> "0"
+		b[i] = byte(flags)                // Flags
+
 		i++
 		b[i] = byte(11) // HL (Header Length)
 		i++
