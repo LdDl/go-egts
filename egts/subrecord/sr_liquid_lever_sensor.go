@@ -6,9 +6,13 @@ import (
 	"github.com/LdDl/go-egts/egts/utils"
 )
 
-// EgtsSrLiquidLevelSensor - Применяется абонентским терминалом
-// для передачи на аппаратно-программный комплекс данных о показаниях ДУЖ
-type EgtsSrLiquidLevelSensor struct {
+// SRLiquidLevelSensor EGTS_SR_LIQUID_LEVEL_SENSOR
+/*
+	Применяется абонентским терминалом
+	для передачи на аппаратно-программный комплекс
+	данных о показаниях ДУЖ
+*/
+type SRLiquidLevelSensor struct {
 	LiquidLevelSensorNumber    int  // LLSN Liquid Level Sensor Number
 	RawbFlag                   bool // RDF bit 3 флаг, определяющий формат поля LLSD данной подзаписи:
 	LiquidLevelSensorValueUnit int  // LLSVU	bit 4-5 битовый флаг, определяющий единицы измерения показаний ДУЖ:
@@ -18,8 +22,8 @@ type EgtsSrLiquidLevelSensor struct {
 	LiquidLevelSensorb         uint32 // LLSD показания ДУЖ в формате, определяемом флагом RDF
 }
 
-//ParseEgtsSrLiquidLevelSensor - EGTS_SR_LIQUID_LEVEL_SENSOR
-func ParseEgtsSrLiquidLevelSensor(b []byte) interface{} {
+// Decode Parse array of bytes to EGTS_SR_LIQUID_LEVEL_SENSOR
+func (subr *SRLiquidLevelSensor) Decode(b []byte) {
 	/*
 	   #pragma pack( push, 1 )
 	   typedef struct {
@@ -47,18 +51,16 @@ func ParseEgtsSrLiquidLevelSensor(b []byte) interface{} {
 	*/
 	if len(b) != 7 {
 		//log.Panicln("INVALID LEN ", len(b))
-		return nil
+		return
 	}
-	var d EgtsSrLiquidLevelSensor
 	flagBytes := uint16(b[0])
-	d.LiquidLevelSensorNumber = utils.BitField(flagBytes, 0, 1, 2).(int)
-	d.RawbFlag = utils.BitField(flagBytes, 3).(bool)
-	d.LiquidLevelSensorValueUnit = utils.BitField(flagBytes, 4, 5).(int)
-	d.LiquidLevelSensorErrorFlag = utils.BitField(flagBytes, 6).(bool)
-	d.Flags = uint8(flagBytes)
-	d.MADDR = binary.LittleEndian.Uint16(b[1:3])
-	d.LiquidLevelSensorb = binary.LittleEndian.Uint32(b[3:])
-	return d
+	subr.LiquidLevelSensorNumber = utils.BitField(flagBytes, 0, 1, 2).(int)
+	subr.RawbFlag = utils.BitField(flagBytes, 3).(bool)
+	subr.LiquidLevelSensorValueUnit = utils.BitField(flagBytes, 4, 5).(int)
+	subr.LiquidLevelSensorErrorFlag = utils.BitField(flagBytes, 6).(bool)
+	subr.Flags = uint8(flagBytes)
+	subr.MADDR = binary.LittleEndian.Uint16(b[1:3])
+	subr.LiquidLevelSensorb = binary.LittleEndian.Uint32(b[3:])
 
 	/* TODO LLVU Check ErrorFlag
 

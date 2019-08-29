@@ -17,8 +17,8 @@ type SRStateData struct {
 	InternalBatteryVoltage float32 `json:"IBV"`  /* Internal Battery Voltage, in 0.1V */
 }
 
-//BytesToSRStateData Parse array of bytes to EGTS_SR_STATE_DATA
-func BytesToSRStateData(b []byte) (subr SRStateData) {
+// Decode Parse array of bytes to EGTS_SR_STATE_DATA
+func (subr *SRStateData) Decode(b []byte) {
 	states := []string{"Idle", "EraGlonass", "Active", "EmergencyCall", "EmergencyMonitor", "Testing", "Service", "FirmwareUpdate"}
 	subr.State = states[int(b[0])]
 	subr.MainPowerSourceVoltage = float32(b[1]) * 0.1
@@ -27,5 +27,4 @@ func BytesToSRStateData(b []byte) (subr SRStateData) {
 	subr.NavigationModuleEnable = utils.BitField(uint16(b[4]), 0).(bool)
 	subr.InternalBatteryEnable = utils.BitField(uint16(b[4]), 1).(bool)
 	subr.BackupBatteryEnable = utils.BitField(uint16(b[4]), 2).(bool)
-	return subr
 }

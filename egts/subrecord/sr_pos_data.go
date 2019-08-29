@@ -41,8 +41,8 @@ type SRPosData struct {
 
 }
 
-// BytesToSRPosData Parse array of bytes to EGTS_SR_POS_DATA
-func BytesToSRPosData(b []byte) (subr SRPosData) {
+// Decode Parse array of bytes to EGTS_SR_POS_DATA
+func (subr *SRPosData) Decode(b []byte) {
 	// Navigation Time , seconds since 00:00:00 01.01.2010 UTC
 	t1, _ := time.Parse(time.RFC3339, "2010-01-01T00:00:00+00:00")
 	subr.NavigationTimeUint = binary.LittleEndian.Uint32(b[0:4])
@@ -87,5 +87,4 @@ func BytesToSRPosData(b []byte) (subr SRPosData) {
 		alt = append(alt, byte(0))
 		subr.Altitude = binary.LittleEndian.Uint32(alt)
 	}
-	return subr
 }

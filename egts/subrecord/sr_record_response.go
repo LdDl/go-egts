@@ -12,9 +12,8 @@ type SRRecordResponse struct {
 	RecordStatus          uint8  `json:"RST"`
 }
 
-// BytesToSRRecordResponse Parse array of bytes to EGTS_SR_RECORD_RESPONSE
-func BytesToSRRecordResponse(b []byte) (subr SRRecordResponse) {
+// Decode Parse array of bytes to EGTS_SR_RECORD_RESPONSE
+func (subr *SRRecordResponse) Decode(b []byte) {
 	subr.ConfirmedRecordNumber = binary.LittleEndian.Uint16(b[0:2])
 	subr.RecordStatus = uint8(b[2])
-	return subr
 }

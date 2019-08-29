@@ -21,22 +21,21 @@ type SRAdSensorsData struct {
 	ANS []int
 }
 
-// BytesToSRAdSensorsData Parse array of bytes to EGTS_SR_AD_SENSORS_DATA
-func BytesToSRAdSensorsData(b []byte) interface{} {
-	var d SRAdSensorsData
-	d.ADI = make([]int, 8)
-	d.ANS = make([]int, 8)
+// Decode Parse array of bytes to EGTS_SR_AD_SENSORS_DATA
+func (subr *SRAdSensorsData) Decode(b []byte) {
+	subr.ADI = make([]int, 8)
+	subr.ANS = make([]int, 8)
 	// Digital Outputs
-	d.DigitalOutputs = uint8(b[1])
+	subr.DigitalOutputs = uint8(b[1])
 	// DIOE1 ... DIOE8 - Digital Inputs Octet Exists
 	dioeFlag := uint16(b[0])
 	n := 3
 	for i := 0; i < 8; i++ {
 		if utils.BitField(dioeFlag, i).(bool) {
-			d.ADI[i] = int(b[n])
+			subr.ADI[i] = int(b[n])
 			n++
 		} else {
-			d.ADI[i] = int(-1)
+			subr.ADI[i] = int(-1)
 		}
 	}
 	// ASFE1 ... ASFE8 - (Analog Sensor Field Exists)
@@ -44,11 +43,10 @@ func BytesToSRAdSensorsData(b []byte) interface{} {
 	for i := 0; i < 8; i++ {
 		if utils.BitField(asfeFlag, i).(bool) {
 			b := append([]byte{0}, b[n:n+3]...)
-			d.ANS[i] = int(binary.LittleEndian.Uint32(b))
+			subr.ANS[i] = int(binary.LittleEndian.Uint32(b))
 			n += 3
 		} else {
-			d.ANS[i] = int(-1)
+			subr.ANS[i] = int(-1)
 		}
 	}
-	return d
 }
