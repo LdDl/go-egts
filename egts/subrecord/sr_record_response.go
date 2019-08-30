@@ -1,6 +1,8 @@
 package subrecord
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+)
 
 // SRRecordResponse EGTS_SR_RECORD_RESPONSE
 /*

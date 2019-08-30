@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"testing"
 )
@@ -67,191 +66,6 @@ var (
 	maxBuffer = make([]byte, 0, 65535)
 )
 
-func TestReadPacketDataHEX(t *testing.T) {
-	for i := range hexStringsData {
-		var err error
-		maxBuffer, err = hex.DecodeString(hexStringsData[i])
-		if err != nil {
-			t.Error(
-				"Error occurred", err,
-			)
-		}
-
-		data, responseCode := ReadPacket(maxBuffer)
-		if responseCode != 0 {
-			t.Error(
-				"Response code has to be 0, but it is", responseCode,
-			)
-		}
-
-		if len(data.ServicesFrameData) != 1 {
-			t.Error(
-				"Length of data has to be 1, but it is", len(data.ServicesFrameData),
-			)
-		}
-
-		if data.ServicesFrameData[0].RecordData.SubrecordType != 16 {
-			t.Error(
-				"Subrecord type has to be 16, but it is", data.ServicesFrameData[0].RecordData.SubrecordType,
-			)
-		}
-	}
-}
-
-func TestReadPacketAuthHEX(t *testing.T) {
-
-	for i := range hexStringsAuth {
-		var err error
-		maxBuffer, err = hex.DecodeString(hexStringsAuth[i])
-		if err != nil {
-			t.Error(
-				"Error occurred", err,
-			)
-		}
-
-		data, responseCode := ReadPacket(maxBuffer)
-		if responseCode != 0 {
-			t.Error(
-				"Response code has to be 0, but it is", responseCode,
-			)
-		}
-
-		if len(data.ServicesFrameData) != 1 {
-			t.Error(
-				"Length of data has to be 1, but it is", len(data.ServicesFrameData),
-			)
-		}
-
-		if data.ServicesFrameData[0].RecordData.SubrecordType != 1 {
-			t.Error(
-				"Subrecord type has to be 1, but it is", data.ServicesFrameData[0].RecordData.SubrecordType,
-			)
-		}
-	}
-}
-
-func TestReadPacketDataBytes(t *testing.T) {
-
-	for i := range bytesData {
-
-		maxBuffer = bytesData[i]
-
-		data, responseCode := ReadPacket(maxBuffer)
-		if responseCode != 0 {
-			t.Error(
-				"Response code has to be 0, but it is", responseCode,
-			)
-		}
-
-		if len(data.ServicesFrameData) != 1 {
-			t.Error(
-				"Length of data has to be 1, but it is", len(data.ServicesFrameData),
-			)
-		}
-
-		if data.ServicesFrameData[0].RecordData.SubrecordType != 16 {
-			t.Error(
-				"Subrecord type has to be 16, but it is", data.ServicesFrameData[0].RecordData.SubrecordType,
-			)
-		}
-	}
-}
-
-func TestReadPacketAuthBytes(t *testing.T) {
-	for i := range bytesAuth {
-
-		maxBuffer = bytesAuth[i]
-
-		data, responseCode := ReadPacket(maxBuffer)
-		if responseCode != 0 {
-			t.Error(
-				"Response code has to be 0, but it is", responseCode,
-			)
-		}
-
-		if len(data.ServicesFrameData) != 1 {
-			t.Error(
-				"Length of data has to be 1, but it is", len(data.ServicesFrameData),
-			)
-		}
-
-		if data.ServicesFrameData[0].RecordData.SubrecordType != 1 {
-			t.Error(
-				"Subrecord type has to be 16, but it is", data.ServicesFrameData[0].RecordData.SubrecordType,
-			)
-		}
-	}
-}
-
-func TestReadPacketDataFile(t *testing.T) {
-
-	for i := range binaryData {
-		var err error
-		maxBuffer, err := ioutil.ReadFile(binaryData[i])
-		if err != nil {
-			t.Error(
-				"Error occurred", err,
-			)
-		}
-
-		data, responseCode := ReadPacket(maxBuffer)
-		if responseCode != 0 {
-			t.Error(
-				"Response code has to be 0, but it is", responseCode,
-			)
-		}
-
-		if len(data.ServicesFrameData) != 137 {
-			t.Error(
-				"Length of data has to be 1, but it is", len(data.ServicesFrameData),
-			)
-		}
-
-		for j := range data.ServicesFrameData {
-			if data.ServicesFrameData[j].RecordData.SubrecordType != 16 && data.ServicesFrameData[j].RecordData.SubrecordType != 18 {
-				t.Error(
-					"Subrecord type has to be 16, but it is", data.ServicesFrameData[j].RecordData.SubrecordType,
-				)
-			}
-		}
-	}
-
-}
-
-func TestReadPacketAuthFile(t *testing.T) {
-
-	for i := range binaryAuth {
-		var err error
-		maxBuffer, err := ioutil.ReadFile(binaryAuth[i])
-		if err != nil {
-			t.Error(
-				"Error occurred", err,
-			)
-		}
-
-		data, responseCode := ReadPacket(maxBuffer)
-		if responseCode != 0 {
-			t.Error(
-				"Response code has to be 0, but it is", responseCode,
-			)
-		}
-
-		if len(data.ServicesFrameData) != 1 {
-			t.Error(
-				"Length of data has to be 1, but it is", len(data.ServicesFrameData),
-			)
-		}
-
-		for j := range data.ServicesFrameData {
-			if data.ServicesFrameData[j].RecordData.SubrecordType != 1 {
-				t.Error(
-					"Subrecord type has to be 16, but it is", data.ServicesFrameData[j].RecordData.SubrecordType,
-				)
-			}
-		}
-	}
-}
-
 func TestBackPacket(t *testing.T) {
 
 	egtsAuthHex := "0100020b0020000000014f1900000010010101160000000000523836363130343032393639303030380004417f"
@@ -308,8 +122,8 @@ func TestPTresponsePacket(t *testing.T) {
 
 	parsedAuth, authCode := ReadPacket(egtsAuth)
 	fmt.Println("auth code:", authCode)
-	d := parsedAuth.ServicesFrameData[0]
-	log.Println(d.RecordData)
+	d := parsedAuth.ServicesFrameData
+	log.Println(d)
 	// fmt.Println("parsed auth packet:")
 	// fmt.Println(parsedAuth.ResponseData, hex.EncodeToString(parsedAuth.ResponseData))
 

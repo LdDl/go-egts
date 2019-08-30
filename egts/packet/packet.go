@@ -2,6 +2,7 @@ package packet
 
 import (
 	"encoding/binary"
+	"fmt"
 
 	"github.com/LdDl/go-egts/crc"
 	"github.com/LdDl/go-egts/egts/utils"
@@ -32,11 +33,12 @@ type Packet struct {
 	TimeToLive       uint8  `json:"TTL"` // TTL (Time To Live)
 	HeaderCheckSum   uint8  `json:"HCS"` // HCS (Header Check Sum)
 	// Data for service level
-	ServicesFrameData ServicesFrameData `json:"SFRD"` // SFRD (Services Frame Data)
+	ServicesFrameData BytesData `json:"SFRD"` // SFRD (Services Frame Data)
 	// Check sum for service level
 	ServicesFrameDataCheckSum uint16 `json:"SFRCS"` // SFRCS
+
 	// Response for packet
-	ResponseData []byte
+	ResponseData []byte `json:"-"`
 
 	Error uint8 `json:"-"`
 }
@@ -127,15 +129,34 @@ func ReadPacket(b []byte) (p Packet, err uint8) {
 		return
 	}
 
+	switch p.PacketType {
+	case EGTS_PT_RESPONSE:
+		p.ServicesFrameData = &PTResponse{}
+		break
+	case EGTS_PT_APPDATA:
+		p.ServicesFrameData = &ServicesFrameData{}
+		break
+	case EGTS_PT_SIGNED_APPDATA:
+		// @todo
+		break
+	default:
+		// nothing
+		break
+	}
+
 	// SFRD (Services Frame Data)
-	p.ServicesFrameData, err = p.ReadServicesFrameData(b[p.HeaderLength : uint16(p.HeaderLength)+p.FrameDataLength])
+	fmt.Println("Start parse packet", p.PacketType)
+	p.ServicesFrameData.Decode(b[p.HeaderLength : uint16(p.HeaderLength)+p.FrameDataLength])
+
+	// p.ServicesFrameData, err = p.ReadServicesFrameData(b[p.HeaderLength : uint16(p.HeaderLength)+p.FrameDataLength])
 
 	// на EGTS_SR_TERM_IDENTITY в ответ шлем EGTS_SR_RESULT_CODE в остальных случаях шлем EGTS_SR_RECORD_RESPONSE
-	if len(p.ServicesFrameData) == 1 && p.ServicesFrameData[0].RecordData.SubrecordType == 1 {
-		p.ResponseData = p.ResponseAuth(err)
-	} else {
-		p.ResponseData = p.Response(b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength], err, flagBytes)
-	}
+
+	// if len(p.ServicesFrameData) == 1 && p.ServicesFrameData[0].RecordData.SubrecordType == 1 {
+	// 	p.ResponseData = p.ResponseAuth(err)
+	// } else {
+	// 	p.ResponseData = p.Response(b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength], err, flagBytes)
+	// }
 
 	return p, err
 }
