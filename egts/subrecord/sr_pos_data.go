@@ -83,7 +83,8 @@ func (subr *SRPosData) Decode(b []byte) {
 	// SRC Source
 	subr.Source = uint8(b[20])
 	if subr.AltitudeFlag {
-		alt := b[21:24]
+		alt := make([]byte, len(b[21:24]))
+		copy(alt, b[21:24])
 		alt = append(alt, byte(0))
 		subr.Altitude = binary.LittleEndian.Uint32(alt)
 	}

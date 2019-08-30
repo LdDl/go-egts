@@ -2,7 +2,6 @@ package packet
 
 import (
 	"encoding/binary"
-	"log"
 
 	"github.com/LdDl/go-egts/egts/utils"
 )
@@ -37,7 +36,6 @@ type ServiceDataRecord struct {
 
 // Decode Parse array of bytes to SFRD
 func (sfrd *ServicesFrameData) Decode(b []byte) {
-	log.Println("Decode SDR", b)
 	i := 0
 	for {
 		sdr := ServiceDataRecord{}

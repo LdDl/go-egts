@@ -12,7 +12,7 @@ import (
 	на абонентский терминал данных о значении счетных входов
 */
 type SRCountersData struct {
-	Counters []int
+	Counters []int `json:"CN"`
 }
 
 // Decode Parse array of bytes to EGTS_SR_COUNTERS_DATA

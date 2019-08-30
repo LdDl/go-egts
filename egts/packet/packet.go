@@ -2,7 +2,7 @@ package packet
 
 import (
 	"encoding/binary"
-	"fmt"
+	"log"
 
 	"github.com/LdDl/go-egts/crc"
 	"github.com/LdDl/go-egts/egts/utils"
@@ -45,6 +45,7 @@ type Packet struct {
 
 //ReadPacket - чтение пакета данных протокола транспортного уровня
 func ReadPacket(b []byte) (p Packet, err uint8) {
+
 	// PRV (Protocol Version)
 	i := 0
 	p.ProtocolVersion = uint8(b[i])
@@ -53,7 +54,6 @@ func ReadPacket(b []byte) (p Packet, err uint8) {
 		p.Error = err
 		return
 	}
-
 	// SKID Security Key ID
 	i++
 	p.SecurityKeyID = uint8(b[i])
@@ -103,17 +103,18 @@ func ReadPacket(b []byte) (p Packet, err uint8) {
 
 	// SFRCS
 	i++
+	if len(b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength]) != int(p.FrameDataLength) {
+		err = EGTS_PC_INC_DATAFORM
+		p.Error = err
+		return
+	}
 	p.ServicesFrameDataCheckSum = binary.LittleEndian.Uint16(b[uint16(p.HeaderLength)+p.FrameDataLength : uint16(p.HeaderLength)+p.FrameDataLength+2])
 	if p.HeaderLength < 11 {
 		err = EGTS_PC_INC_HEADERFORM
 		p.Error = err
 		return
 	}
-	if len(b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength]) != int(p.FrameDataLength) {
-		err = EGTS_PC_INC_DATAFORM
-		p.Error = err
-		return
-	}
+
 	// Evaluate crc-8
 	crcData := crc.Crc(8, b[:p.HeaderLength-1])
 	if int(crcData) != int(p.HeaderCheckSum) {
@@ -145,7 +146,8 @@ func ReadPacket(b []byte) (p Packet, err uint8) {
 	}
 
 	// SFRD (Services Frame Data)
-	fmt.Println("Start parse packet", p.PacketType)
+	log.Println("Start parse packet", p.PacketType, p.HeaderLength, p.FrameDataLength, len(b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength]))
+
 	p.ServicesFrameData.Decode(b[p.HeaderLength : uint16(p.HeaderLength)+p.FrameDataLength])
 
 	// p.ServicesFrameData, err = p.ReadServicesFrameData(b[p.HeaderLength : uint16(p.HeaderLength)+p.FrameDataLength])

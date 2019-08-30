@@ -13,13 +13,13 @@ import (
 	данных о показаниях ДУЖ
 */
 type SRLiquidLevelSensor struct {
-	LiquidLevelSensorNumber    int  // LLSN Liquid Level Sensor Number
-	RawbFlag                   bool // RDF bit 3 флаг, определяющий формат поля LLSD данной подзаписи:
-	LiquidLevelSensorValueUnit int  // LLSVU	bit 4-5 битовый флаг, определяющий единицы измерения показаний ДУЖ:
-	LiquidLevelSensorErrorFlag bool // LLSEF	bit 7	битовый флаг, определяющий наличие ошибок при считывании значения датчика уровня жидкости
+	LiquidLevelSensorNumber    int  `json:"LLSN"`  // LLSN Liquid Level Sensor Number
+	RawbFlag                   bool `json:"RDF"`   // RDF bit 3 флаг, определяющий формат поля LLSD данной подзаписи:
+	LiquidLevelSensorValueUnit int  `json:"LLSVU"` // LLSVU	bit 4-5 битовый флаг, определяющий единицы измерения показаний ДУЖ:
+	LiquidLevelSensorErrorFlag bool `json:"LLSEF"` // LLSEF	bit 7	битовый флаг, определяющий наличие ошибок при считывании значения датчика уровня жидкости
 	Flags                      uint8
-	MADDR                      uint16 // MAC Address  адрес модуля, данные о показаниях ДУЖ с которого поступили в абонентский терминал
-	LiquidLevelSensorb         uint32 // LLSD показания ДУЖ в формате, определяемом флагом RDF
+	MADDR                      uint16 `json:"MADDR"` // MAC Address  адрес модуля, данные о показаниях ДУЖ с которого поступили в абонентский терминал
+	LiquidLevelSensorb         uint32 `json:"LLSD"`  // LLSD показания ДУЖ в формате, определяемом флагом RDF
 }
 
 // Decode Parse array of bytes to EGTS_SR_LIQUID_LEVEL_SENSOR

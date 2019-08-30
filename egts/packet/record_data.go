@@ -18,41 +18,48 @@ type RecordsData []*RecordData
 
 // Decode Parse array of bytes to Service Data Record
 func (rd *RecordsData) Decode(b []byte) {
-	rdEntity := &RecordData{}
-	rdEntity.SubrecordType = uint8(b[0])
-	rdEntity.SubrecordLength = binary.LittleEndian.Uint16(b[1:3])
-	switch rdEntity.SubrecordType {
-	case RecordResponse:
-		rdEntity.SubrecordData = &subrecord.SRRecordResponse{}
-		break
-	case TermIdentity:
-		// data = subrecord.BytesToSRTermIdentity(b)
-		break
-	case PosData:
-		// data = subrecord.BytesToSRPosData(b)
-		break
-	case ExtPosData:
-		// data = subrecord.ParseEgtsSrExPosData(b)
-		break
-	case AdSensorsData:
-		// data = subrecord.BytesToSRAdSensorsData(b)
-		break
-	case CountersData:
-		// data = subrecord.BytesToSRCountersData(b)
-		break
-	case StateData:
-		// data = subrecord.BytesToSRStateData(b)
-		break
-	case LiquidLevelSensor:
-		// data = subrecord.ParseEgtsSrLiquidLevelSensor(b)
-		// if data == nil {
-		// 	err = EGTS_PC_SRVC_NFOUND
-		// }
-		break
-	default:
-		// err = EGTS_PC_SRVC_NFOUND
-		break
+	i := 0
+
+	for i != len(b) {
+		rdEntity := &RecordData{}
+
+		rdEntity.SubrecordType = uint8(b[i])
+		i++
+		rdEntity.SubrecordLength = binary.LittleEndian.Uint16(b[i : i+2])
+
+		i += 2
+		switch rdEntity.SubrecordType {
+		case RecordResponse:
+			rdEntity.SubrecordData = &subrecord.SRRecordResponse{}
+			break
+		case TermIdentity:
+			rdEntity.SubrecordData = &subrecord.SRTermIdentity{}
+			break
+		case PosData:
+			rdEntity.SubrecordData = &subrecord.SRPosData{}
+			break
+		case ExtPosData:
+			rdEntity.SubrecordData = &subrecord.SRExPosDataRecord{}
+			break
+		case AdSensorsData:
+			rdEntity.SubrecordData = &subrecord.SRAdSensorsData{}
+			break
+		case CountersData:
+			rdEntity.SubrecordData = &subrecord.SRCountersData{}
+			break
+		case StateData:
+			rdEntity.SubrecordData = &subrecord.SRStateData{}
+			break
+		case LiquidLevelSensor:
+			rdEntity.SubrecordData = &subrecord.SRLiquidLevelSensor{}
+			break
+		default:
+			// err = EGTS_PC_SRVC_NFOUND
+			break
+		}
+		// rdEntity.SubrecordData.Decode(b[3:rdEntity.SubrecordLength])
+		rdEntity.SubrecordData.Decode(b[i : i+int(rdEntity.SubrecordLength)])
+		i += int(rdEntity.SubrecordLength)
+		*rd = append(*rd, rdEntity)
 	}
-	rdEntity.SubrecordData.Decode(b[3:])
-	*rd = append(*rd, rdEntity)
 }
