@@ -2,10 +2,11 @@ package packet
 
 import (
 	"encoding/binary"
+	"fmt"
 	"log"
+	"strconv"
 
 	"github.com/LdDl/go-egts/crc"
-	"github.com/LdDl/go-egts/egts/utils"
 )
 
 // Packet - Data packet (transport level)
@@ -16,11 +17,11 @@ type Packet struct {
 	/*                 */
 
 	/* Flags: PRF, PR, CMP, ENA, RTE */
-	PRF int  `json:"PRF"` // PRF (Prefix)
-	PR  int  `json:"PR"`  // PR (Priority)
-	CMP bool `json:"CMP"` // CMP (Compression)
-	ENA int  `json:"ENA"` // ENA (Encryption Algorithm)
-	RTE bool `json:"RTE"` // RTE (Route)
+	PRF string `json:"PRF"` // PRF (Prefix)
+	PR  string `json:"PR"`  // PR (Priority)
+	CMP string `json:"CMP"` // CMP (Compression)
+	ENA string `json:"ENA"` // ENA (Encryption Algorithm)
+	RTE string `json:"RTE"` // RTE (Route)
 	/*                              */
 
 	HeaderLength     uint8  `json:"HL"`  // HL (Header Length)
@@ -60,12 +61,12 @@ func ReadPacket(b []byte) (p Packet, err uint8) {
 
 	// Flags: PRF, PR, CMP, ENA, RTE
 	i++
-	flagBytes := uint16(b[i])
-	p.PR = utils.BitField(flagBytes, 0, 1).(int)  // 2 bits, PR
-	p.CMP = utils.BitField(flagBytes, 2).(bool)   // 1 bit, CMP
-	p.ENA = utils.BitField(flagBytes, 3, 4).(int) // 2 bits, ENA
-	p.RTE = utils.BitField(flagBytes, 5).(bool)   // 1 bit, RTE
-	p.PRF = utils.BitField(flagBytes, 6, 7).(int) // 1 bit, PRF
+	flagByteAsBits := fmt.Sprintf("%08b", uint16(b[i]))
+	p.PR = flagByteAsBits[6:]   // 2 bits, PR
+	p.CMP = flagByteAsBits[5:6] // 1 bit, CMP
+	p.ENA = flagByteAsBits[3:5] // 2 bits, ENA
+	p.RTE = flagByteAsBits[2:3] // 1 bit, RTE
+	p.PRF = flagByteAsBits[:2]  // 1 bit, PRF
 
 	i++
 	p.HeaderLength = uint8(b[i]) // HL (Header Length)
@@ -86,7 +87,7 @@ func ReadPacket(b []byte) (p Packet, err uint8) {
 	p.PacketType = uint8(b[i])
 
 	i++
-	if p.RTE {
+	if p.RTE == "1" {
 		// PRA (Peer Address)
 		p.PeerAddress = binary.LittleEndian.Uint16(b[i : i+2])
 		// RCA (Recipient Address)
@@ -169,22 +170,10 @@ func (p *Packet) Encode() (b []byte) {
 	b = append(b, p.ProtocolVersion)
 	b = append(b, p.SecurityKeyID)
 
-	flags := 0
-	flags = utils.SetBit(flags, 0, p.PR)
-	if p.CMP {
-		flags = utils.SetBit(flags, 1, 1)
-	} else {
-		flags = utils.SetBit(flags, 1, 0)
-	}
-	flags = utils.SetBit(flags, 2, p.ENA)
-	if p.RTE {
-		flags = utils.SetBit(flags, 3, 1)
-	} else {
-		flags = utils.SetBit(flags, 3, 0)
-	}
-	flags = utils.SetBit(flags, 4, p.PRF)
-
-	b = append(b, byte(flags))
+	flagsBits := p.PRF + p.RTE + p.ENA + p.CMP + p.PR
+	flags := uint64(0)
+	flags, _ = strconv.ParseUint(flagsBits, 2, 8)
+	b = append(b, uint8(flags))
 
 	b = append(b, p.HeaderLength)
 	b = append(b, p.HeaderEncoding)
@@ -199,7 +188,7 @@ func (p *Packet) Encode() (b []byte) {
 
 	b = append(b, p.PacketType)
 
-	if p.RTE {
+	if p.RTE == "1" {
 		peerA := make([]byte, 2)
 		binary.LittleEndian.PutUint16(peerA, p.PeerAddress)
 		b = append(b, peerA...)

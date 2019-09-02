@@ -2,9 +2,9 @@ package packet
 
 import (
 	"encoding/binary"
+	"fmt"
 	"log"
-
-	"github.com/LdDl/go-egts/egts/utils"
+	"strconv"
 )
 
 type BytesData interface {
@@ -20,13 +20,13 @@ type ServiceDataRecord struct {
 	RecordLength uint16 `json:"RL"` // RL (Record Length)
 	RecordNumber uint16 `json:"RN"` // RN (Record Number)
 	/* RecordFlags (RFL): SSOD, RSOD, GRP, RPP, TMFE, EVFE, OBFE */
-	SSOD bool `json:"SSOD"` // SSOD Source Service On Device
-	RSOD bool `json:"RSOD"` // RSOD Recipient Service On Device
-	GRP  bool `json:"GRP"`  // GRP Group
-	RPP  int  `json:"RPP"`  // RPP Record Processing Priority
-	TMFE bool `json:"TMFE"` // TMFE Time Field Exists
-	EVFE bool `json:"EVFE"` // EVFE Event ID Field Exists
-	OBFE bool `json:"OBFE"` // OBFE Object ID FieldExists
+	SSOD string `json:"SSOD"` // SSOD Source Service On Device
+	RSOD string `json:"RSOD"` // RSOD Recipient Service On Device
+	GRP  string `json:"GRP"`  // GRP Group
+	RPP  string `json:"RPP"`  // RPP Record Processing Priority
+	TMFE string `json:"TMFE"` // TMFE Time Field Exists
+	EVFE string `json:"EVFE"` // EVFE Event ID Field Exists
+	OBFE string `json:"OBFE"` // OBFE Object ID FieldExists
 	/*                                                          */
 	ObjectIdentifier     uint32      `json:"OID"`  // OID (Object Identifier)
 	EventIdentifier      uint32      `json:"EVID"` // EVID (Event Identifier)
@@ -55,38 +55,40 @@ func (sfrd *ServicesFrameData) Decode(b []byte) {
 
 		// RecordFlags (RFL): SSOD, RSOD, GRP, RPP, TMFE, EVFE, OBFE
 		i += 2
-		flagBytes := uint16(b[i])
+		flagByte := uint16(b[i])
 		i++
 
+		flagByteAsBits := fmt.Sprintf("%08b", flagByte)
+
 		// OBFE Object ID FieldExists
-		sdr.OBFE = utils.BitField(flagBytes, 0).(bool)
+		sdr.OBFE = flagByteAsBits[7:]
 		// EVFE Event ID Field Exists
-		sdr.EVFE = utils.BitField(flagBytes, 1).(bool)
+		sdr.EVFE = flagByteAsBits[6:7]
 		// TMFE Time Field Exists
-		sdr.TMFE = utils.BitField(flagBytes, 2).(bool)
+		sdr.TMFE = flagByteAsBits[5:6]
 		// RPP Record Processing Priority
-		sdr.RPP = utils.BitField(flagBytes, 3, 4).(int)
+		sdr.RPP = flagByteAsBits[3:5]
 		// GRP Group
-		sdr.GRP = utils.BitField(flagBytes, 5).(bool)
+		sdr.GRP = flagByteAsBits[2:3]
 		// RSOD Recipient Service On Device
-		sdr.RSOD = utils.BitField(flagBytes, 6).(bool)
+		sdr.RSOD = flagByteAsBits[1:2]
 		// SSOD Source Service On Device
-		sdr.SSOD = utils.BitField(flagBytes, 7).(bool)
+		sdr.SSOD = flagByteAsBits[:1]
 
 		// OID (Object Identifier)
-		if sdr.OBFE {
+		if sdr.OBFE == "1" {
 			sdr.ObjectIdentifier = binary.LittleEndian.Uint32(b[i : i+4])
 			i += 4
 		}
 
 		// EVID (Event Identifier)
-		if sdr.EVFE {
+		if sdr.EVFE == "1" {
 			sdr.EventIdentifier = binary.LittleEndian.Uint32(b[i : i+4])
 			i += 4
 		}
 
 		// TM (Time)
-		if sdr.TMFE {
+		if sdr.TMFE == "1" {
 			sdr.Time = binary.LittleEndian.Uint32(b[i : i+4])
 			i += 4
 		}
@@ -128,52 +130,22 @@ func (sfrd *ServicesFrameData) Encode() (b []byte) {
 		binary.LittleEndian.PutUint16(rn, sdr.RecordNumber)
 		b = append(b, rn...)
 
-		flags := 0
-		if sdr.OBFE {
-			flags = utils.SetBit(flags, 0, 1)
-		} else {
-			flags = utils.SetBit(flags, 0, 0)
-		}
-		if sdr.EVFE {
-			flags = utils.SetBit(flags, 1, 1)
-		} else {
-			flags = utils.SetBit(flags, 1, 0)
-		}
-		if sdr.TMFE {
-			flags = utils.SetBit(flags, 2, 1)
-		} else {
-			flags = utils.SetBit(flags, 3, 0)
-		}
-		flags = utils.SetBit(flags, 4, sdr.RPP)
-		if sdr.GRP {
-			flags = utils.SetBit(flags, 5, 1)
-		} else {
-			flags = utils.SetBit(flags, 5, 0)
-		}
-		if sdr.RSOD {
-			flags = utils.SetBit(flags, 6, 1)
-		} else {
-			flags = utils.SetBit(flags, 6, 0)
-		}
-		if sdr.SSOD {
-			flags = utils.SetBit(flags, 7, 1)
-		} else {
-			flags = utils.SetBit(flags, 7, 0)
-		}
+		flagsBits := sdr.SSOD + sdr.RSOD + sdr.GRP + sdr.RPP + sdr.TMFE + sdr.EVFE + sdr.OBFE
+		flags := uint64(0)
+		flags, _ = strconv.ParseUint(flagsBits, 2, 8)
+		b = append(b, uint8(flags))
 
-		b = append(b, byte(flags))
-
-		if sdr.OBFE {
+		if sdr.OBFE == "1" {
 			obfe := make([]byte, 2)
 			binary.LittleEndian.PutUint32(obfe, sdr.ObjectIdentifier)
 			b = append(b, obfe...)
 		}
-		if sdr.EVFE {
+		if sdr.EVFE == "1" {
 			evfe := make([]byte, 2)
 			binary.LittleEndian.PutUint32(evfe, sdr.EventIdentifier)
 			b = append(b, evfe...)
 		}
-		if sdr.TMFE {
+		if sdr.TMFE == "1" {
 			tmfe := make([]byte, 2)
 			binary.LittleEndian.PutUint32(tmfe, sdr.Time)
 			b = append(b, tmfe...)

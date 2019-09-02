@@ -2,30 +2,29 @@ package subrecord
 
 import (
 	"encoding/binary"
-	"log"
-
-	"github.com/LdDl/go-egts/egts/utils"
+	"fmt"
+	"strconv"
 )
 
 // SRTermIdentity EGTS_SR_TERM_IDENTITY
 type SRTermIdentity struct {
-	TerminalIdentifier uint16 `json:"TID"` // TID (Terminal Identifier)
+	TerminalIdentifier uint32 `json:"TID"` // TID (Terminal Identifier)
 
 	/* Flags: MNE, BSE, NIDE, SSRA, LNGCE, IMSIE, IMEIE, HDIDE */
-	MNE   bool `json:"MNE"`   // MNE
-	BSE   bool `json:"BSE"`   // BSE
-	NIDE  bool `json:"NIDE"`  // NIDE
-	SSRA  bool `json:"SSRA"`  // SSRA
-	LNGCE bool `json:"LNGCE"` // LNGCE
-	IMSIE bool `json:"IMSIE"` // IMSIE
-	IMEIE bool `json:"IMEIE"` // IMEIE
-	HDIDE bool `json:"HDIDE"` // HDIDE
+	MNE   string `json:"MNE"`   // MNE
+	BSE   string `json:"BSE"`   // BSE
+	NIDE  string `json:"NIDE"`  // NIDE
+	SSRA  string `json:"SSRA"`  // SSRA
+	LNGCE string `json:"LNGCE"` // LNGCE
+	IMSIE string `json:"IMSIE"` // IMSIE
+	IMEIE string `json:"IMEIE"` // IMEIE
+	HDIDE string `json:"HDIDE"` // HDIDE
 	/*                                                        */
 	HomeDispatcherIdentifier                            uint16 `json:"HDID"`   // HDID (Home Dispatcher Identifier)
 	InternationalMobileEquipmentIdentity                string `json:"IMEI"`   // IMEI (International Mobile Equipment Identity)
 	InternationalMobileSubscriberIdentity               string `json:"IMSI"`   // IMSI (International Mobile Subscriber Identity)
 	LanguageCode                                        string `json:"LNGC"`   // LNGC (Language Code)
-	NetworkIdentifier                                   uint16 `json:"NID"`    // NID (Network Identifier)
+	NetworkIdentifier                                   []byte `json:"NID"`    // NID (Network Identifier)
 	BufferSize                                          uint16 `json:"BS"`     // BS (Buffer Size)
 	MobileStationIntegratedServicesDigitalNetworkNumber string `json:"MSISDN"` // MSISDN (Mobile Station Integrated Services Digital Network Number)
 }
@@ -34,67 +33,70 @@ type SRTermIdentity struct {
 func (subr *SRTermIdentity) Decode(b []byte) {
 	// TID (Terminal Identifier)
 	i := 0
-	subr.TerminalIdentifier = binary.LittleEndian.Uint16(b[i : i+4])
+	subr.TerminalIdentifier = binary.LittleEndian.Uint32(b[i : i+4])
 
 	// Flags: MNE, BSE, NIDE, SSRA, LNGCE, IMSIE, IMEIE, HDIDE
 	i += 4
-	flagBytes := uint16(b[i])
+	flagByte := uint16(b[i])
+	flagByteAsBits := fmt.Sprintf("%08b", flagByte)
+
 	// HDIDE
-	subr.HDIDE = utils.BitField(flagBytes, 0).(bool)
+	subr.HDIDE = flagByteAsBits[7:]
 	// IMEIE
-	subr.IMEIE = utils.BitField(flagBytes, 1).(bool)
+	subr.IMEIE = flagByteAsBits[6:7]
 	// IMSIE
-	subr.IMSIE = utils.BitField(flagBytes, 2).(bool)
+	subr.IMSIE = flagByteAsBits[5:6]
 	// LNGCE
-	subr.LNGCE = utils.BitField(flagBytes, 3).(bool)
+	subr.LNGCE = flagByteAsBits[4:5]
 	// SSRA
-	subr.SSRA = utils.BitField(flagBytes, 4).(bool)
+	subr.SSRA = flagByteAsBits[3:4]
 	// NIDE
-	subr.NIDE = utils.BitField(flagBytes, 5).(bool)
+	subr.NIDE = flagByteAsBits[2:3]
 	// BSE
-	subr.BSE = utils.BitField(flagBytes, 6).(bool)
+	subr.BSE = flagByteAsBits[1:2]
 	// MNE
-	subr.MNE = utils.BitField(flagBytes, 7).(bool)
+	subr.MNE = flagByteAsBits[:1]
 
 	// HDID (Home Dispatcher Identifier)
 	i++
-	if subr.HDIDE {
+	if subr.HDIDE == "1" {
 		subr.HomeDispatcherIdentifier = binary.LittleEndian.Uint16(b[i : i+2])
 		i += 2
 	}
 
 	// IMEI (International Mobile Equipment Identity)
-	if subr.IMEIE {
+	if subr.IMEIE == "1" {
 		subr.InternationalMobileEquipmentIdentity = string(b[i : i+15])
 		i += 15
 	}
 
 	// IMSI (International Mobile Subscriber Identity)
-	if subr.IMSIE {
+	if subr.IMSIE == "1" {
 		subr.InternationalMobileSubscriberIdentity = string(b[i : i+16])
 		i += 16
 	}
 
 	// LNGC (Language Code)
-	if subr.LNGCE {
+	if subr.LNGCE == "1" {
 		subr.LanguageCode = string(b[i : i+3])
 		i += 3
 	}
 
 	// NID (Network Identifier)
-	if subr.NIDE {
-		subr.NetworkIdentifier = binary.LittleEndian.Uint16(b[i : i+3])
+	if subr.NIDE == "1" {
+		subr.NetworkIdentifier = make([]byte, 3)
+		copy(subr.NetworkIdentifier, b[i:i+3])
 		i += 3
 	}
 
 	// BS (Buffer Size)
-	if subr.BSE {
+	if subr.BSE == "1" {
 		subr.BufferSize = binary.LittleEndian.Uint16(b[i : i+2])
 		i += 2
 	}
 
 	// MSISDN (Mobile Station Integrated Services Digital Network Number)
-	if subr.MNE {
+	if subr.MNE == "1" {
 		subr.MobileStationIntegratedServicesDigitalNetworkNumber = string(b[i : i+15])
 		i += 15
 	}
@@ -103,54 +105,46 @@ func (subr *SRTermIdentity) Decode(b []byte) {
 // Encode Parse EGTS_SR_TERM_IDENTITY to array of bytes
 func (subr *SRTermIdentity) Encode() (b []byte) {
 
-	log.Println("encoding term")
-	tid := make([]byte, 2)
-	binary.LittleEndian.PutUint16(tid, subr.TerminalIdentifier)
+	tid := make([]byte, 4)
+	binary.LittleEndian.PutUint32(tid, subr.TerminalIdentifier)
 	b = append(b, tid...)
 
-	flags := 0
-	if subr.HDIDE {
-		flags = utils.SetBit(flags, 0, 1)
-	} else {
-		flags = utils.SetBit(flags, 0, 0)
-	}
-	if subr.IMEIE {
-		flags = utils.SetBit(flags, 1, 1)
-	} else {
-		flags = utils.SetBit(flags, 1, 0)
-	}
-	if subr.IMSIE {
-		flags = utils.SetBit(flags, 2, 1)
-	} else {
-		flags = utils.SetBit(flags, 2, 0)
-	}
-	if subr.LNGCE {
-		flags = utils.SetBit(flags, 3, 1)
-	} else {
-		flags = utils.SetBit(flags, 3, 0)
-	}
-	if subr.SSRA {
-		flags = utils.SetBit(flags, 4, 1)
-	} else {
-		flags = utils.SetBit(flags, 4, 0)
-	}
-	if subr.NIDE {
-		flags = utils.SetBit(flags, 5, 1)
-	} else {
-		flags = utils.SetBit(flags, 5, 0)
-	}
-	if subr.BSE {
-		flags = utils.SetBit(flags, 6, 1)
-	} else {
-		flags = utils.SetBit(flags, 6, 0)
-	}
-	if subr.MNE {
-		flags = utils.SetBit(flags, 7, 1)
-	} else {
-		flags = utils.SetBit(flags, 7, 0)
-	}
-	b = append(b, byte(flags))
+	flagsBits := subr.MNE + subr.BSE + subr.NIDE + subr.SSRA + subr.LNGCE + subr.IMSIE + subr.IMEIE + subr.HDIDE
+	flags := uint64(0)
+	flags, _ = strconv.ParseUint(flagsBits, 2, 8)
+	b = append(b, uint8(flags))
 
-	log.Println(b)
+	if subr.HDIDE == "1" {
+		hdid := make([]byte, 2)
+		binary.LittleEndian.PutUint16(hdid, subr.HomeDispatcherIdentifier)
+		b = append(b, hdid...)
+	}
+
+	if subr.IMEIE == "1" {
+		b = append(b, []byte(subr.InternationalMobileEquipmentIdentity)...)
+	}
+
+	if subr.IMSIE == "1" {
+		b = append(b, []byte(subr.InternationalMobileSubscriberIdentity)...)
+	}
+
+	if subr.LNGCE == "1" {
+		b = append(b, []byte(subr.LanguageCode)...)
+	}
+
+	if subr.NIDE == "1" {
+		b = append(b, subr.NetworkIdentifier...)
+	}
+
+	if subr.BSE == "1" {
+		nid := make([]byte, 2)
+		binary.LittleEndian.PutUint16(nid, subr.BufferSize)
+		b = append(b, nid...)
+	}
+
+	if subr.MNE == "1" {
+		b = append(b, []byte(subr.MobileStationIntegratedServicesDigitalNetworkNumber)...)
+	}
+
 	return b
 }
