@@ -27,7 +27,6 @@ func (p *Packet) GetPTResponse() (ptResp PTResponse) {
 func (response *PTResponse) Decode(b []byte) {
 	response.ResponsePacketID = binary.LittleEndian.Uint16(b[0:2])
 	response.ProcessingResult = uint8(b[2])
-
 	if len(b[3:]) > 0 {
 		response.SDR = &ServicesFrameData{}
 		response.SDR.Decode(b[3:])
@@ -40,7 +39,6 @@ func (response *PTResponse) Encode() (b []byte) {
 	binary.LittleEndian.PutUint16(rpid, response.ResponsePacketID)
 	b = append(b, rpid...)
 	b = append(b, response.ProcessingResult)
-
 	if response.SDR != nil {
 		sdr := response.SDR.Encode()
 		b = append(b, sdr...)

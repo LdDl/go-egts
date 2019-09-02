@@ -6,6 +6,8 @@ import (
 	"log"
 	"strconv"
 
+	"github.com/LdDl/go-egts/egts/subrecord"
+
 	"github.com/LdDl/go-egts/crc"
 )
 
@@ -213,4 +215,69 @@ func (p *Packet) Encode() (b []byte) {
 		}
 	}
 	return b
+}
+
+// PrepareAnswer Prepare answer for incoming packet
+func (p *Packet) PrepareAnswer() Packet {
+
+	if p.PacketType == EGTS_PT_APPDATA {
+
+		records := RecordsData{}
+		serviceType := uint8(0)
+		for _, r := range *p.ServicesFrameData.(*ServicesFrameData) {
+			records = append(records, &RecordData{
+				SubrecordType:   RecordResponse,
+				SubrecordLength: 3,
+				SubrecordData: &subrecord.SRRecordResponse{
+					ConfirmedRecordNumber: r.RecordNumber,
+					RecordStatus:          EGTS_PC_OK,
+				},
+			})
+			serviceType = r.SourceServiceType
+		}
+
+		resp := PTResponse{
+			ResponsePacketID: p.PacketID,
+			ProcessingResult: p.Error,
+		}
+
+		if records != nil {
+			resp.SDR = &ServicesFrameData{
+				&ServiceDataRecord{
+					RecordLength:         0, //todo
+					RecordNumber:         0, //todo
+					SSOD:                 "0",
+					RSOD:                 "0",
+					GRP:                  "1",
+					RPP:                  "00",
+					TMFE:                 "0",
+					EVFE:                 "0",
+					OBFE:                 "0",
+					SourceServiceType:    serviceType,
+					RecipientServiceType: serviceType,
+					RecordsData:          records,
+				},
+			}
+		}
+
+		ans := Packet{
+			ProtocolVersion:   1,
+			SecurityKeyID:     0,
+			PRF:               "00",
+			RTE:               "0",
+			ENA:               "00",
+			CMP:               "0",
+			PR:                "00",
+			HeaderLength:      11,
+			HeaderEncoding:    0,
+			FrameDataLength:   0, // todo
+			PacketID:          0, //todo
+			PacketType:        EGTS_PT_RESPONSE,
+			ServicesFrameData: &resp,
+		}
+
+		return ans
+	}
+
+	return Packet{}
 }

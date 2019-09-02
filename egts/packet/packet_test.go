@@ -58,3 +58,20 @@ func TestPTresponsePacket(t *testing.T) {
 	fmt.Println(enc, hex.EncodeToString(enc))
 	t.Error(0)
 }
+
+func TestAuthResponsePacket(t *testing.T) {
+
+	egtsAuthHex := "0100020b0020000000014f1900000010010101160000000000523836363130343032393639303030380004417f"
+	egtsAuth, _ := hex.DecodeString(egtsAuthHex)
+
+	fmt.Println("Income", egtsAuth)
+	parsedAuth, authCode := ReadPacket(egtsAuth)
+
+	str, _ := json.Marshal(parsedAuth)
+	fmt.Println(authCode, string(str))
+
+	fmt.Println("Encode:")
+	enc := parsedAuth.Encode()
+	fmt.Println(enc, hex.EncodeToString(enc))
+	t.Error(0)
+}

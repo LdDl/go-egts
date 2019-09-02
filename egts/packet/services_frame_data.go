@@ -32,7 +32,7 @@ type ServiceDataRecord struct {
 	Time                 uint32      `json:"TM"`   // TM (Time)
 	SourceServiceType    uint8       `json:"SST"`  // SST (Source Service Type)
 	RecipientServiceType uint8       `json:"RST"`  // RST (Recipient Service Type)
-	RecordData           RecordsData `json:"RD"`   // RD (Record Data)
+	RecordsData          RecordsData `json:"RD"`   // RD (Record Data)
 }
 
 // Decode Parse array of bytes to SFRD
@@ -103,8 +103,8 @@ func (sfrd *ServicesFrameData) Decode(b []byte) {
 		i++
 
 		if len(b[i:i+int(sdr.RecordLength)]) != 0 {
-			sdr.RecordData = RecordsData{}
-			sdr.RecordData.Decode(b[i : i+int(sdr.RecordLength)])
+			sdr.RecordsData = RecordsData{}
+			sdr.RecordsData.Decode(b[i : i+int(sdr.RecordLength)])
 			i += int(sdr.RecordLength)
 		}
 
@@ -152,7 +152,7 @@ func (sfrd *ServicesFrameData) Encode() (b []byte) {
 		b = append(b, sdr.SourceServiceType)
 		b = append(b, sdr.RecipientServiceType)
 
-		rd := sdr.RecordData.Encode()
+		rd := sdr.RecordsData.Encode()
 
 		b = append(b, rd...)
 	}
