@@ -36,3 +36,8 @@ func (subr *SRCountersData) Decode(b []byte) {
 func (subr *SRCountersData) Encode() (b []byte) {
 	return b
 }
+
+func (subr *SRCountersData) Len() (l uint16) {
+	l = uint16(len(subr.Encode()))
+	return l
+}

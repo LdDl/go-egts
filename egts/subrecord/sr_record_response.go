@@ -28,3 +28,8 @@ func (subr *SRRecordResponse) Encode() (b []byte) {
 	b = append(b, subr.RecordStatus)
 	return b
 }
+
+func (subr *SRRecordResponse) Len() (l uint16) {
+	l = uint16(len(subr.Encode()))
+	return l
+}

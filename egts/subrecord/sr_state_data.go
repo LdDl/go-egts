@@ -33,3 +33,8 @@ func (subr *SRStateData) Decode(b []byte) {
 func (subr *SRStateData) Encode() (b []byte) {
 	return b
 }
+
+func (subr *SRStateData) Len() (l uint16) {
+	l = uint16(len(subr.Encode()))
+	return l
+}

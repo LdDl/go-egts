@@ -76,3 +76,8 @@ func (rd *RecordsData) Encode() (b []byte) {
 	}
 	return b
 }
+
+func (rd *RecordsData) Len() (l uint16) {
+	l = uint16(len(rd.Encode()))
+	return l
+}

@@ -17,3 +17,8 @@ func (subr *SRResultCode) Decode(b []byte) {
 func (subr *SRResultCode) Encode() (b []byte) {
 	return b
 }
+
+func (subr *SRResultCode) Len() (l uint16) {
+	l = uint16(len(subr.Encode()))
+	return l
+}

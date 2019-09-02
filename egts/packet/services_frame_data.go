@@ -9,6 +9,7 @@ import (
 type BytesData interface {
 	Decode([]byte)
 	Encode() []byte
+	Len() uint16
 }
 
 // ServicesFrameData SFRD (Services Frame Data)
@@ -157,4 +158,9 @@ func (sfrd *ServicesFrameData) Encode() (b []byte) {
 		b = append(b, rd...)
 	}
 	return b
+}
+
+func (sfrd *ServicesFrameData) Len() (l uint16) {
+	l = uint16(len(sfrd.Encode()))
+	return l
 }

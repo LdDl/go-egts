@@ -100,3 +100,8 @@ func (subr *SRLiquidLevelSensor) Decode(b []byte) {
 func (subr *SRLiquidLevelSensor) Encode() (b []byte) {
 	return b
 }
+
+func (subr *SRLiquidLevelSensor) Len() (l uint16) {
+	l = uint16(len(subr.Encode()))
+	return l
+}

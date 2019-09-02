@@ -100,3 +100,8 @@ func (subr *SRPosData) Decode(b []byte) {
 func (subr *SRPosData) Encode() (b []byte) {
 	return b
 }
+
+func (subr *SRPosData) Len() (l uint16) {
+	l = uint16(len(subr.Encode()))
+	return l
+}

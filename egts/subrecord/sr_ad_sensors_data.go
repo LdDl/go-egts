@@ -55,3 +55,8 @@ func (subr *SRAdSensorsData) Decode(b []byte) {
 func (subr *SRAdSensorsData) Encode() (b []byte) {
 	return b
 }
+
+func (subr *SRAdSensorsData) Len() (l uint16) {
+	l = uint16(len(subr.Encode()))
+	return l
+}
