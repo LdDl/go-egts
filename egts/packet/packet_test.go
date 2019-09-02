@@ -70,8 +70,13 @@ func TestAuthResponsePacket(t *testing.T) {
 	str, _ := json.Marshal(parsedAuth)
 	fmt.Println(authCode, string(str))
 
-	fmt.Println("Encode:")
-	enc := parsedAuth.Encode()
-	fmt.Println(enc, hex.EncodeToString(enc))
+	resp := parsedAuth.PrepareAnswer()
+	fmt.Println("Encoded resp :")
+	encResp := resp.Encode()
+
+	str, _ = json.Marshal(resp)
+	fmt.Println(authCode, string(str))
+
+	fmt.Println(encResp, hex.EncodeToString(encResp))
 	t.Error(0)
 }

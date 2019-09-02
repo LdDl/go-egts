@@ -245,11 +245,11 @@ func (p *Packet) PrepareAnswer() Packet {
 			resp.SDR = &ServicesFrameData{
 				&ServiceDataRecord{
 					RecordLength:         records.Len(),
-					RecordNumber:         0, //todo
+					RecordNumber:         0, // @todo
 					SSOD:                 "0",
-					RSOD:                 "0",
-					GRP:                  "1",
-					RPP:                  "00",
+					RSOD:                 "1",
+					GRP:                  "0",
+					RPP:                  "11",
 					TMFE:                 "0",
 					EVFE:                 "0",
 					OBFE:                 "0",
@@ -267,11 +267,11 @@ func (p *Packet) PrepareAnswer() Packet {
 			RTE:               "0",
 			ENA:               "00",
 			CMP:               "0",
-			PR:                "00",
+			PR:                "11",
 			HeaderLength:      11,
 			HeaderEncoding:    0,
 			FrameDataLength:   resp.Len(),
-			PacketID:          0, //todo
+			PacketID:          p.PacketID, // @todo
 			PacketType:        EGTS_PT_RESPONSE,
 			ServicesFrameData: &resp,
 		}
