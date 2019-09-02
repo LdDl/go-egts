@@ -244,7 +244,7 @@ func (p *Packet) PrepareAnswer() Packet {
 		if records != nil {
 			resp.SDR = &ServicesFrameData{
 				&ServiceDataRecord{
-					RecordLength:         0, //todo
+					RecordLength:         records.Len(),
 					RecordNumber:         0, //todo
 					SSOD:                 "0",
 					RSOD:                 "0",
@@ -270,7 +270,7 @@ func (p *Packet) PrepareAnswer() Packet {
 			PR:                "00",
 			HeaderLength:      11,
 			HeaderEncoding:    0,
-			FrameDataLength:   0, // todo
+			FrameDataLength:   resp.Len(),
 			PacketID:          0, //todo
 			PacketType:        EGTS_PT_RESPONSE,
 			ServicesFrameData: &resp,
