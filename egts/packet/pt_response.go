@@ -36,13 +36,14 @@ func (response *PTResponse) Decode(b []byte) {
 
 // Encode Parse EGTS_PT_RESPONSE to array of bytes
 func (response *PTResponse) Encode() (b []byte) {
+	rpid := make([]byte, 2)
+	binary.LittleEndian.PutUint16(rpid, response.ResponsePacketID)
+	b = append(b, rpid...)
+	b = append(b, response.ProcessingResult)
 
-	// binary.LittleEndian.PutUint16(b, response.ResponsePacketID)
-	// b = append(b, response.ProcessingResult)
-
-	// if len(b[3:]) > 0 {
-	// 	response.SDR = &ServicesFrameData{}
-	// 	// response.SDR.Decode(b[3:])
-	// }
+	if response.SDR != nil {
+		sdr := response.SDR.Encode()
+		b = append(b, sdr...)
+	}
 	return b
 }

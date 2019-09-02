@@ -153,6 +153,7 @@ func (sfrd *ServicesFrameData) Encode() (b []byte) {
 		b = append(b, sdr.RecipientServiceType)
 
 		rd := sdr.RecordData.Encode()
+
 		b = append(b, rd...)
 	}
 	return b

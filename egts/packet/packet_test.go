@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
 	"testing"
 )
 
@@ -46,20 +45,16 @@ func TestIncomingPacket(t *testing.T) {
 func TestPTresponsePacket(t *testing.T) {
 
 	egtsAuthHex := "0100030b001000000000b300000006000000580101000300000000d9d1"
-	// 0100020b002e000a0001271b00000097630000000000000042682a12020210180042682a1200c99c9e8c4a88358a00400000000000000000000045
 	egtsAuth, _ := hex.DecodeString(egtsAuthHex)
 
 	fmt.Println("Income", egtsAuth)
-
 	parsedAuth, authCode := ReadPacket(egtsAuth)
-	fmt.Println("auth code:", authCode)
-	d := parsedAuth.ServicesFrameData
-	log.Println(d)
-	// fmt.Println("parsed auth packet:")
-	// fmt.Println(parsedAuth.ResponseData, hex.EncodeToString(parsedAuth.ResponseData))
 
 	str, _ := json.Marshal(parsedAuth)
-	fmt.Println(string(str))
+	fmt.Println(authCode, string(str))
 
+	fmt.Println("Encode:")
+	enc := parsedAuth.Encode()
+	fmt.Println(enc, hex.EncodeToString(enc))
 	t.Error(0)
 }
