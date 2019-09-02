@@ -3,7 +3,6 @@ package packet
 import (
 	"encoding/binary"
 	"fmt"
-	"log"
 	"strconv"
 )
 
@@ -120,7 +119,6 @@ func (sfrd *ServicesFrameData) Decode(b []byte) {
 
 // Encode Parse SFRD to array of bytes
 func (sfrd *ServicesFrameData) Encode() (b []byte) {
-	log.Println("encoding sfrd")
 	for _, sdr := range *sfrd {
 		rl := make([]byte, 2)
 		binary.LittleEndian.PutUint16(rl, sdr.RecordLength)
@@ -153,8 +151,6 @@ func (sfrd *ServicesFrameData) Encode() (b []byte) {
 
 		b = append(b, sdr.SourceServiceType)
 		b = append(b, sdr.RecipientServiceType)
-
-		log.Println(b)
 
 		rd := sdr.RecordData.Encode()
 		b = append(b, rd...)

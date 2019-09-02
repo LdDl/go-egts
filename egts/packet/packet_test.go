@@ -19,7 +19,7 @@ func TestBackPacket(t *testing.T) {
 	fmt.Println(authCode, string(str))
 
 	fmt.Println("Encode:")
-	fmt.Println(parsedAuth.Encode())
+	fmt.Println(parsedAuth.Encode(), hex.EncodeToString(parsedAuth.Encode()))
 	t.Error(0)
 }
 

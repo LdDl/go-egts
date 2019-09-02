@@ -200,12 +200,17 @@ func (p *Packet) Encode() (b []byte) {
 		b = append(b, p.TimeToLive)
 	}
 
-	b = append(b, uint8(crc.Crc(8, b)))
+	crc8 := uint8(crc.Crc(8, b))
+	b = append(b, crc8)
 	if p.ServicesFrameData != nil {
-		// @todo
-		_ = p.ServicesFrameData.Encode()
-		// log.Println("sfrd", sfrd)
+		sfrd := p.ServicesFrameData.Encode()
+		if len(sfrd) > 1 {
+			b = append(b, sfrd...)
+			crc16 := uint16(crc.Crc(16, sfrd))
+			crc16hash := make([]byte, 2)
+			binary.LittleEndian.PutUint16(crc16hash, crc16)
+			b = append(b, crc16hash...)
+		}
 	}
-	log.Println("So far", b)
 	return b
 }
