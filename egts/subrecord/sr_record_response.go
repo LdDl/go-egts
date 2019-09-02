@@ -19,3 +19,8 @@ func (subr *SRRecordResponse) Decode(b []byte) {
 	subr.ConfirmedRecordNumber = binary.LittleEndian.Uint16(b[0:2])
 	subr.RecordStatus = uint8(b[2])
 }
+
+// Encode Parse EGTS_SR_RECORD_RESPONSE to array of bytes
+func (subr *SRRecordResponse) Encode() (b []byte) {
+	return b
+}

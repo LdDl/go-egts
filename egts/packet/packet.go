@@ -162,3 +162,61 @@ func ReadPacket(b []byte) (p Packet, err uint8) {
 
 	return p, err
 }
+
+// Encode Parse EGTS_PT_RESPONSE to array of bytes
+func (p *Packet) Encode() (b []byte) {
+
+	b = append(b, p.ProtocolVersion)
+	b = append(b, p.SecurityKeyID)
+
+	flags := 0
+	flags = utils.SetBit(flags, 0, p.PR)
+	if p.CMP {
+		flags = utils.SetBit(flags, 1, 1)
+	} else {
+		flags = utils.SetBit(flags, 1, 0)
+	}
+	flags = utils.SetBit(flags, 2, p.ENA)
+	if p.RTE {
+		flags = utils.SetBit(flags, 3, 1)
+	} else {
+		flags = utils.SetBit(flags, 3, 0)
+	}
+	flags = utils.SetBit(flags, 4, p.PRF)
+
+	b = append(b, byte(flags))
+
+	b = append(b, p.HeaderLength)
+	b = append(b, p.HeaderEncoding)
+
+	fdl := make([]byte, 2)
+	binary.LittleEndian.PutUint16(fdl, p.FrameDataLength)
+	b = append(b, fdl...)
+
+	pid := make([]byte, 2)
+	binary.LittleEndian.PutUint16(pid, p.PacketID)
+	b = append(b, pid...)
+
+	b = append(b, p.PacketType)
+
+	if p.RTE {
+		peerA := make([]byte, 2)
+		binary.LittleEndian.PutUint16(peerA, p.PeerAddress)
+		b = append(b, peerA...)
+
+		recepientA := make([]byte, 2)
+		binary.LittleEndian.PutUint16(recepientA, p.RecipientAddress)
+		b = append(b, recepientA...)
+
+		b = append(b, p.TimeToLive)
+	}
+
+	b = append(b, uint8(crc.Crc(8, b)))
+	if p.ServicesFrameData != nil {
+		// @todo
+		_ = p.ServicesFrameData.Encode()
+		// log.Println("sfrd", sfrd)
+	}
+	log.Println("So far", b)
+	return b
+}

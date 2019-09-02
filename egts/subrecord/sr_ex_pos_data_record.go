@@ -20,7 +20,7 @@ type SRExPosDataRecord struct {
 	NavigationSystem               uint16 /* Navigation System */
 }
 
-// Decode Parse array of bytes to EGTS_SR_LIQUID_LEVEL_SENSOR
+// Decode Parse array of bytes to EGTS_SR_EXT_POS_DATA
 func (subr *SRExPosDataRecord) Decode(b []byte) {
 	// Flags
 	flagBytes := uint16(b[0])
@@ -63,4 +63,9 @@ func (subr *SRExPosDataRecord) Decode(b []byte) {
 		128 - QZSS.
 		Остальные значения зарезервированы.
 	*/
+}
+
+// Encode Parse EGTS_SR_EXT_POS_DATA to array of bytes
+func (subr *SRExPosDataRecord) Encode() (b []byte) {
+	return b
 }

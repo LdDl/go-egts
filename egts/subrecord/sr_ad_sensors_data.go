@@ -50,3 +50,8 @@ func (subr *SRAdSensorsData) Decode(b []byte) {
 		}
 	}
 }
+
+// Encode Parse EGTS_SR_AD_SENSORS_DATA to array of bytes
+func (subr *SRAdSensorsData) Encode() (b []byte) {
+	return b
+}

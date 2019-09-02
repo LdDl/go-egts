@@ -31,3 +31,8 @@ func (subr *SRCountersData) Decode(b []byte) {
 		}
 	}
 }
+
+// Encode Parse EGTS_SR_COUNTERS_DATA to array of bytes
+func (subr *SRCountersData) Encode() (b []byte) {
+	return b
+}

@@ -9,19 +9,17 @@ import (
 )
 
 func TestBackPacket(t *testing.T) {
-
 	egtsAuthHex := "0100020b0020000000014f1900000010010101160000000000523836363130343032393639303030380004417f"
-	// 0100020b002e000a0001271b00000097630000000000000042682a12020210180042682a1200c99c9e8c4a88358a00400000000000000000000045
 	egtsAuth, _ := hex.DecodeString(egtsAuthHex)
 
 	fmt.Println("Income", egtsAuth)
-
 	parsedAuth, authCode := ReadPacket(egtsAuth)
-	fmt.Println("auth code:", authCode)
 
 	str, _ := json.Marshal(parsedAuth)
-	fmt.Println(string(str))
+	fmt.Println(authCode, string(str))
 
+	fmt.Println("Encode:")
+	fmt.Println(parsedAuth.Encode())
 	t.Error(0)
 }
 

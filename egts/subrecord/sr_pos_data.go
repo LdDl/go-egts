@@ -89,3 +89,8 @@ func (subr *SRPosData) Decode(b []byte) {
 		subr.Altitude = binary.LittleEndian.Uint32(alt)
 	}
 }
+
+// Encode Parse EGTS_SR_POS_DATA to array of bytes
+func (subr *SRPosData) Encode() (b []byte) {
+	return b
+}

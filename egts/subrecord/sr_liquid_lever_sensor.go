@@ -95,3 +95,8 @@ func (subr *SRLiquidLevelSensor) Decode(b []byte) {
 	   }
 	*/
 }
+
+// Encode Parse EGTS_SR_LIQUID_LEVEL_SENSOR to array of bytes
+func (subr *SRLiquidLevelSensor) Encode() (b []byte) {
+	return b
+}

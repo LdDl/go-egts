@@ -12,3 +12,8 @@ type SRResultCode struct {
 func (subr *SRResultCode) Decode(b []byte) {
 	subr.RCD = uint8(b[0])
 }
+
+// Encode Parse EGTS_SR_RESULT_CODE to array of bytes
+func (subr *SRResultCode) Encode() (b []byte) {
+	return b
+}

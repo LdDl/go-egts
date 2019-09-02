@@ -2,12 +2,14 @@ package packet
 
 import (
 	"encoding/binary"
+	"log"
 
 	"github.com/LdDl/go-egts/egts/utils"
 )
 
 type BytesData interface {
 	Decode([]byte)
+	Encode() []byte
 }
 
 // ServicesFrameData SFRD (Services Frame Data)
@@ -112,4 +114,78 @@ func (sfrd *ServicesFrameData) Decode(b []byte) {
 			break
 		}
 	}
+}
+
+// Encode Parse SFRD to array of bytes
+func (sfrd *ServicesFrameData) Encode() (b []byte) {
+	log.Println("encoding sfrd")
+	for _, sdr := range *sfrd {
+		rl := make([]byte, 2)
+		binary.LittleEndian.PutUint16(rl, sdr.RecordLength)
+		b = append(b, rl...)
+
+		rn := make([]byte, 2)
+		binary.LittleEndian.PutUint16(rn, sdr.RecordNumber)
+		b = append(b, rn...)
+
+		flags := 0
+		if sdr.OBFE {
+			flags = utils.SetBit(flags, 0, 1)
+		} else {
+			flags = utils.SetBit(flags, 0, 0)
+		}
+		if sdr.EVFE {
+			flags = utils.SetBit(flags, 1, 1)
+		} else {
+			flags = utils.SetBit(flags, 1, 0)
+		}
+		if sdr.TMFE {
+			flags = utils.SetBit(flags, 2, 1)
+		} else {
+			flags = utils.SetBit(flags, 3, 0)
+		}
+		flags = utils.SetBit(flags, 4, sdr.RPP)
+		if sdr.GRP {
+			flags = utils.SetBit(flags, 5, 1)
+		} else {
+			flags = utils.SetBit(flags, 5, 0)
+		}
+		if sdr.RSOD {
+			flags = utils.SetBit(flags, 6, 1)
+		} else {
+			flags = utils.SetBit(flags, 6, 0)
+		}
+		if sdr.SSOD {
+			flags = utils.SetBit(flags, 7, 1)
+		} else {
+			flags = utils.SetBit(flags, 7, 0)
+		}
+
+		b = append(b, byte(flags))
+
+		if sdr.OBFE {
+			obfe := make([]byte, 2)
+			binary.LittleEndian.PutUint32(obfe, sdr.ObjectIdentifier)
+			b = append(b, obfe...)
+		}
+		if sdr.EVFE {
+			evfe := make([]byte, 2)
+			binary.LittleEndian.PutUint32(evfe, sdr.EventIdentifier)
+			b = append(b, evfe...)
+		}
+		if sdr.TMFE {
+			tmfe := make([]byte, 2)
+			binary.LittleEndian.PutUint32(tmfe, sdr.Time)
+			b = append(b, tmfe...)
+		}
+
+		b = append(b, sdr.SourceServiceType)
+		b = append(b, sdr.RecipientServiceType)
+
+		log.Println(b)
+
+		rd := sdr.RecordData.Encode()
+		b = append(b, rd...)
+	}
+	return b
 }

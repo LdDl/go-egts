@@ -2,6 +2,7 @@ package subrecord
 
 import (
 	"encoding/binary"
+	"log"
 
 	"github.com/LdDl/go-egts/egts/utils"
 )
@@ -97,4 +98,59 @@ func (subr *SRTermIdentity) Decode(b []byte) {
 		subr.MobileStationIntegratedServicesDigitalNetworkNumber = string(b[i : i+15])
 		i += 15
 	}
+}
+
+// Encode Parse EGTS_SR_TERM_IDENTITY to array of bytes
+func (subr *SRTermIdentity) Encode() (b []byte) {
+
+	log.Println("encoding term")
+	tid := make([]byte, 2)
+	binary.LittleEndian.PutUint16(tid, subr.TerminalIdentifier)
+	b = append(b, tid...)
+
+	flags := 0
+	if subr.HDIDE {
+		flags = utils.SetBit(flags, 0, 1)
+	} else {
+		flags = utils.SetBit(flags, 0, 0)
+	}
+	if subr.IMEIE {
+		flags = utils.SetBit(flags, 1, 1)
+	} else {
+		flags = utils.SetBit(flags, 1, 0)
+	}
+	if subr.IMSIE {
+		flags = utils.SetBit(flags, 2, 1)
+	} else {
+		flags = utils.SetBit(flags, 2, 0)
+	}
+	if subr.LNGCE {
+		flags = utils.SetBit(flags, 3, 1)
+	} else {
+		flags = utils.SetBit(flags, 3, 0)
+	}
+	if subr.SSRA {
+		flags = utils.SetBit(flags, 4, 1)
+	} else {
+		flags = utils.SetBit(flags, 4, 0)
+	}
+	if subr.NIDE {
+		flags = utils.SetBit(flags, 5, 1)
+	} else {
+		flags = utils.SetBit(flags, 5, 0)
+	}
+	if subr.BSE {
+		flags = utils.SetBit(flags, 6, 1)
+	} else {
+		flags = utils.SetBit(flags, 6, 0)
+	}
+	if subr.MNE {
+		flags = utils.SetBit(flags, 7, 1)
+	} else {
+		flags = utils.SetBit(flags, 7, 0)
+	}
+	b = append(b, byte(flags))
+
+	log.Println(b)
+	return b
 }

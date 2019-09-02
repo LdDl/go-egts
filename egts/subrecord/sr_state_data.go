@@ -28,3 +28,8 @@ func (subr *SRStateData) Decode(b []byte) {
 	subr.InternalBatteryEnable = utils.BitField(uint16(b[4]), 1).(bool)
 	subr.BackupBatteryEnable = utils.BitField(uint16(b[4]), 2).(bool)
 }
+
+// Encode Parse EGTS_SR_STATE_DATA to array of bytes
+func (subr *SRStateData) Encode() (b []byte) {
+	return b
+}
