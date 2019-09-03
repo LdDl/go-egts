@@ -1,7 +1,9 @@
 package subrecord
 
 import (
+	"encoding/hex"
 	"fmt"
+	"log"
 	"strconv"
 )
 
@@ -29,6 +31,7 @@ type SRStateData struct {
 
 // Decode Parse array of bytes to EGTS_SR_STATE_DATA
 func (subr *SRStateData) Decode(b []byte) {
+
 	states := []string{"Idle", "EraGlonass", "Active", "EmergencyCall", "EmergencyMonitor", "Testing", "Service", "FirmwareUpdate"}
 	subr.State = states[int(b[0])]
 	subr.StateByte = b[0]
@@ -45,6 +48,9 @@ func (subr *SRStateData) Decode(b []byte) {
 	subr.NavigationModuleEnable = flagByteAsBits[5:6]
 	subr.InternalBatteryEnable = flagByteAsBits[6:7]
 	subr.BackupBatteryEnable = flagByteAsBits[7:]
+
+	log.Println(b, hex.EncodeToString(b))
+	log.Println(subr.Encode())
 }
 
 // Encode Parse EGTS_SR_STATE_DATA to array of bytes
