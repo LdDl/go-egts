@@ -1,7 +1,6 @@
 package subrecord
 
 import (
-	"bytes"
 	"encoding/binary"
 
 	"github.com/LdDl/go-egts/egts/utils"
@@ -18,7 +17,7 @@ type SRCountersData struct {
 
 // Decode Parse array of bytes to EGTS_SR_COUNTERS_DATA
 func (subr *SRCountersData) Decode(b []byte) (err error) {
-	buffer := bytes.NewReader(b)
+	// buffer := bytes.NewReader(b)
 	subr.Counters = make([]int, 8)
 	// CFE1 ... CFE8 - (Counter Field Exists)
 	cfeFlag := uint16(b[0])
