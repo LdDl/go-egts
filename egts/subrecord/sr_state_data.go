@@ -1,6 +1,8 @@
 package subrecord
 
-import "github.com/LdDl/go-egts/egts/utils"
+import (
+	"fmt"
+)
 
 // SRStateData EGTS_SR_STATE_DATA
 /*
@@ -8,10 +10,13 @@ import "github.com/LdDl/go-egts/egts/utils"
 	информации о состоянии абонентского терминала
 */
 type SRStateData struct {
-	State                  string  `json:"ST"`   /* State */
-	NavigationModuleEnable bool    `json:"NMS"`  /* Navigation Module State */
-	InternalBatteryEnable  bool    `json:"IBU"`  /* Internal Battery Used */
-	BackupBatteryEnable    bool    `json:"BBU"`  /* Back Up Battery Used */
+	/* Header section */
+	State string `json:"ST"` /* State */
+	/* Flags section */
+	NavigationModuleEnable string `json:"NMS"` /* Navigation Module State */
+	InternalBatteryEnable  string `json:"IBU"` /* Internal Battery Used */
+	BackupBatteryEnable    string `json:"BBU"` /* Back Up Battery Used */
+	/* Data section */
 	MainPowerSourceVoltage float32 `json:"MPSV"` /* Main Power Source Voltage, in 0.1V */
 	BackupBatteryVoltage   float32 `json:"BBV"`  /* Back Up Battery Voltage, in 0.1V */
 	InternalBatteryVoltage float32 `json:"IBV"`  /* Internal Battery Voltage, in 0.1V */
@@ -24,9 +29,12 @@ func (subr *SRStateData) Decode(b []byte) {
 	subr.MainPowerSourceVoltage = float32(b[1]) * 0.1
 	subr.BackupBatteryVoltage = float32(b[2]) * 0.1
 	subr.InternalBatteryVoltage = float32(b[3]) * 0.1
-	subr.NavigationModuleEnable = utils.BitField(uint16(b[4]), 0).(bool)
-	subr.InternalBatteryEnable = utils.BitField(uint16(b[4]), 1).(bool)
-	subr.BackupBatteryEnable = utils.BitField(uint16(b[4]), 2).(bool)
+
+	flagByte := uint16(b[4])
+	flagByteAsBits := fmt.Sprintf("%08b", flagByte)
+	subr.NavigationModuleEnable = flagByteAsBits[5:6]
+	subr.InternalBatteryEnable = flagByteAsBits[6:7]
+	subr.BackupBatteryEnable = flagByteAsBits[7:]
 }
 
 // Encode Parse EGTS_SR_STATE_DATA to array of bytes

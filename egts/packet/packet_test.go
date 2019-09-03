@@ -7,50 +7,6 @@ import (
 	"testing"
 )
 
-type Identity struct {
-	Incoming  string
-	Code      uint8
-	Outcoming string
-}
-
-var (
-	identities = []Identity{
-		Identity{
-			Incoming:  "0100020b0020000000014f1900000010010101160000000000523836363130343032393639303030380004417f",
-			Code:      0,
-			Outcoming: "0100030b001000000000b300000006000000580101000300000000d9d1",
-		},
-		Identity{
-			Incoming:  "0100020b0020000000014f19000000100101011600000000005238363637393530333034383630353200045155",
-			Code:      0,
-			Outcoming: "0100030b001000000000b300000006000000580101000300000000d9d1",
-		},
-	}
-)
-
-func TestIdentity(t *testing.T) {
-	for i := range identities {
-		egtsAuthHex := identities[i].Incoming
-		egtsAuth, err := hex.DecodeString(egtsAuthHex)
-		if err != nil {
-			t.Errorf("Error: %s", err.Error())
-		}
-
-		parsedAuth, authCode := ReadPacket(egtsAuth)
-		if authCode != identities[i].Code {
-			t.Errorf("Auth code should be %d, but got %d", identities[i].Code, authCode)
-		}
-
-		resp := parsedAuth.PrepareAnswer()
-		encodedResp := resp.Encode()
-		hexResp := hex.EncodeToString(encodedResp)
-		trueResp := identities[i].Outcoming
-		if hexResp != trueResp {
-			t.Errorf("Response should be %s, but got %s", trueResp, hexResp)
-		}
-	}
-}
-
 func TestIncomingPacket(t *testing.T) {
 
 	egtsAuthHex := "0100020b00b0000e0001779d001100977c8e5702241100009edd050f02021018009edd050f5fb4b49e8d7da2359b00009bc8550f030012010011040018110000120c000000070000000000000000001307000300000000000014050002860014041b0700400000fbff00001b0700000100000000001b0700010100000000001b07000201006c6300001b0700030100000000001b0700040100000000001b0700050100000000001b0700000200000000001b070001020000000000dc85"
