@@ -1,9 +1,7 @@
 package subrecord
 
 import (
-	"encoding/hex"
 	"fmt"
-	"log"
 	"strconv"
 )
 
@@ -48,9 +46,6 @@ func (subr *SRStateData) Decode(b []byte) {
 	subr.NavigationModuleEnable = flagByteAsBits[5:6]
 	subr.InternalBatteryEnable = flagByteAsBits[6:7]
 	subr.BackupBatteryEnable = flagByteAsBits[7:]
-
-	log.Println(b, hex.EncodeToString(b))
-	log.Println(subr.Encode())
 }
 
 // Encode Parse EGTS_SR_STATE_DATA to array of bytes

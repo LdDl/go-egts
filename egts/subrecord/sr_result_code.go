@@ -15,6 +15,7 @@ func (subr *SRResultCode) Decode(b []byte) {
 
 // Encode Parse EGTS_SR_RESULT_CODE to array of bytes
 func (subr *SRResultCode) Encode() (b []byte) {
+	b = append(b, subr.RCD)
 	return b
 }
 
