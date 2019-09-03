@@ -1,6 +1,9 @@
 package subrecord
 
-import "bytes"
+import (
+	"bytes"
+	"fmt"
+)
 
 // SRResultCode - EGTS_SR_RESULT_CODE
 /*
@@ -12,8 +15,11 @@ type SRResultCode struct {
 
 // Decode Parse array of bytes to EGTS_SR_RESULT_CODE
 func (subr *SRResultCode) Decode(b []byte) (err error) {
-	buffer := new(bytes.Buffer)
-	subr.RCD = uint8(b[0])
+	buffer := bytes.NewReader(b)
+	if subr.RCD, err = buffer.ReadByte(); err != nil {
+		return fmt.Errorf("Error reading RCD")
+	}
+	return nil
 }
 
 // Encode Parse EGTS_SR_RESULT_CODE to array of bytes
