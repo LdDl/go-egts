@@ -56,6 +56,7 @@ func (subr *SRAdSensorsData) Encode() (b []byte) {
 	return b
 }
 
+// Len Returns length of bytes slice
 func (subr *SRAdSensorsData) Len() (l uint16) {
 	l = uint16(len(subr.Encode()))
 	return l

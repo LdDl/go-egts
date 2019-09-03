@@ -6,6 +6,7 @@ import (
 	"strconv"
 )
 
+// BytesData Interface for binary data
 type BytesData interface {
 	Decode([]byte)
 	Encode() []byte
@@ -15,11 +16,12 @@ type BytesData interface {
 // ServicesFrameData SFRD (Services Frame Data)
 type ServicesFrameData []*ServiceDataRecord
 
-// ServiceDataRecord - формат отдельной записи Протокола Уровня Поддержки Услуг.
+// ServiceDataRecord SDR (Service Data Record)
 type ServiceDataRecord struct {
+	/* Header section */
 	RecordLength uint16 `json:"RL"` // RL (Record Length)
 	RecordNumber uint16 `json:"RN"` // RN (Record Number)
-	/* RecordFlags (RFL): SSOD, RSOD, GRP, RPP, TMFE, EVFE, OBFE */
+	/* Flags section */
 	SSOD string `json:"SSOD"` // SSOD Source Service On Device
 	RSOD string `json:"RSOD"` // RSOD Recipient Service On Device
 	GRP  string `json:"GRP"`  // GRP Group
@@ -27,7 +29,7 @@ type ServiceDataRecord struct {
 	TMFE string `json:"TMFE"` // TMFE Time Field Exists
 	EVFE string `json:"EVFE"` // EVFE Event ID Field Exists
 	OBFE string `json:"OBFE"` // OBFE Object ID FieldExists
-	/*                                                          */
+	/* Data section */
 	ObjectIdentifier     uint32      `json:"OID"`  // OID (Object Identifier)
 	EventIdentifier      uint32      `json:"EVID"` // EVID (Event Identifier)
 	Time                 uint32      `json:"TM"`   // TM (Time)
@@ -36,7 +38,7 @@ type ServiceDataRecord struct {
 	RecordsData          RecordsData `json:"RD"`   // RD (Record Data)
 }
 
-// Decode Parse array of bytes to SFRD
+// Decode Parse slice of bytes to SFRD
 func (sfrd *ServicesFrameData) Decode(b []byte) {
 	i := 0
 	for {
@@ -56,10 +58,7 @@ func (sfrd *ServicesFrameData) Decode(b []byte) {
 		// RecordFlags (RFL): SSOD, RSOD, GRP, RPP, TMFE, EVFE, OBFE
 		i += 2
 		flagByte := uint16(b[i])
-		i++
-
 		flagByteAsBits := fmt.Sprintf("%08b", flagByte)
-
 		// OBFE Object ID FieldExists
 		sdr.OBFE = flagByteAsBits[7:]
 		// EVFE Event ID Field Exists
@@ -75,6 +74,7 @@ func (sfrd *ServicesFrameData) Decode(b []byte) {
 		// SSOD Source Service On Device
 		sdr.SSOD = flagByteAsBits[:1]
 
+		i++
 		// OID (Object Identifier)
 		if sdr.OBFE == "1" {
 			sdr.ObjectIdentifier = binary.LittleEndian.Uint32(b[i : i+4])
@@ -102,13 +102,11 @@ func (sfrd *ServicesFrameData) Decode(b []byte) {
 
 		// RD (Record Data)
 		i++
-
 		if len(b[i:i+int(sdr.RecordLength)]) != 0 {
 			sdr.RecordsData = RecordsData{}
 			sdr.RecordsData.Decode(b[i : i+int(sdr.RecordLength)])
 			i += int(sdr.RecordLength)
 		}
-
 		*sfrd = append(*sfrd, &sdr)
 
 		_ = err
@@ -118,7 +116,7 @@ func (sfrd *ServicesFrameData) Decode(b []byte) {
 	}
 }
 
-// Encode Parse SFRD to array of bytes
+// Encode Parse SFRD to slice of bytes
 func (sfrd *ServicesFrameData) Encode() (b []byte) {
 	for _, sdr := range *sfrd {
 		rl := make([]byte, 2)
@@ -160,6 +158,7 @@ func (sfrd *ServicesFrameData) Encode() (b []byte) {
 	return b
 }
 
+// Len Returns length of bytes slice
 func (sfrd *ServicesFrameData) Len() (l uint16) {
 	l = uint16(len(sfrd.Encode()))
 	return l

@@ -101,6 +101,7 @@ func (subr *SRLiquidLevelSensor) Encode() (b []byte) {
 	return b
 }
 
+// Len Returns length of bytes slice
 func (subr *SRLiquidLevelSensor) Len() (l uint16) {
 	l = uint16(len(subr.Encode()))
 	return l

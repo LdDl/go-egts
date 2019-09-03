@@ -149,6 +149,7 @@ func (subr *SRTermIdentity) Encode() (b []byte) {
 	return b
 }
 
+// Len Returns length of bytes slice
 func (subr *SRTermIdentity) Len() (l uint16) {
 	l = uint16(len(subr.Encode()))
 	return l

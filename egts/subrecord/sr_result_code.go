@@ -18,6 +18,7 @@ func (subr *SRResultCode) Encode() (b []byte) {
 	return b
 }
 
+// Len Returns length of bytes slice
 func (subr *SRResultCode) Len() (l uint16) {
 	l = uint16(len(subr.Encode()))
 	return l

@@ -70,6 +70,7 @@ func (subr *SRExPosDataRecord) Encode() (b []byte) {
 	return b
 }
 
+// Len Returns length of bytes slice
 func (subr *SRExPosDataRecord) Len() (l uint16) {
 	l = uint16(len(subr.Encode()))
 	return l

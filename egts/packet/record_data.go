@@ -13,20 +13,24 @@ type RecordData struct {
 	SubrecordData   BytesData `json:"SRD"` // SRD (Subrecord Data)
 }
 
-// RecordsData Array of RecordData
+// RecordsData Slice of RecordData
 type RecordsData []*RecordData
 
-// Decode Parse array of bytes to Service Data Record
+// Decode Parse slice of bytes to Service Data Record
 func (rd *RecordsData) Decode(b []byte) {
 	i := 0
 
 	for i != len(b) {
 		rdEntity := &RecordData{}
 
+		// SRT (Subrecord Туре)
 		rdEntity.SubrecordType = uint8(b[i])
+
+		// SRL (Subrecord Length)
 		i++
 		rdEntity.SubrecordLength = binary.LittleEndian.Uint16(b[i : i+2])
 
+		// SRD (Subrecord Data)
 		i += 2
 		switch rdEntity.SubrecordType {
 		case RecordResponse:
@@ -57,14 +61,13 @@ func (rd *RecordsData) Decode(b []byte) {
 			// err = EGTS_PC_SRVC_NFOUND
 			break
 		}
-		// rdEntity.SubrecordData.Decode(b[3:rdEntity.SubrecordLength])
 		rdEntity.SubrecordData.Decode(b[i : i+int(rdEntity.SubrecordLength)])
 		i += int(rdEntity.SubrecordLength)
 		*rd = append(*rd, rdEntity)
 	}
 }
 
-// Encode Parse Service Data Record to array of bytes
+// Encode Parse Service Data Record to slice of bytes
 func (rd *RecordsData) Encode() (b []byte) {
 	for _, r := range *rd {
 		b = append(b, r.SubrecordType)
@@ -77,6 +80,7 @@ func (rd *RecordsData) Encode() (b []byte) {
 	return b
 }
 
+// Len Returns length of bytes slice
 func (rd *RecordsData) Len() (l uint16) {
 	l = uint16(len(rd.Encode()))
 	return l

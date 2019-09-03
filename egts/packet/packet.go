@@ -3,7 +3,6 @@ package packet
 import (
 	"encoding/binary"
 	"fmt"
-	"log"
 	"strconv"
 
 	"github.com/LdDl/go-egts/egts/subrecord"
@@ -11,42 +10,34 @@ import (
 	"github.com/LdDl/go-egts/crc"
 )
 
-// Packet - Data packet (transport level)
+// Packet EGTS packet
 type Packet struct {
-	/* Header of packet */
+	/* Header section */
 	ProtocolVersion uint8 `json:"PRV"`  // PRV (Protocol Version)
 	SecurityKeyID   uint8 `json:"SKID"` // SKID (Security Key ID)
-	/*                 */
-
-	/* Flags: PRF, PR, CMP, ENA, RTE */
+	/* Flags section */
 	PRF string `json:"PRF"` // PRF (Prefix)
 	PR  string `json:"PR"`  // PR (Priority)
 	CMP string `json:"CMP"` // CMP (Compression)
 	ENA string `json:"ENA"` // ENA (Encryption Algorithm)
 	RTE string `json:"RTE"` // RTE (Route)
-	/*                              */
-
-	HeaderLength     uint8  `json:"HL"`  // HL (Header Length)
-	HeaderEncoding   uint8  `json:"HE"`  // HE (Header Encoding)
-	FrameDataLength  uint16 `json:"FDL"` // FDL (Frame Data Length)
-	PacketID         uint16 `json:"PID"` // PID (Packet Identifier)
-	PacketType       uint8  `json:"PT"`  // PT (Packet Type)
-	PeerAddress      uint16 `json:"PRA"` // PRA (Peer Address)
-	RecipientAddress uint16 `json:"RCA"` // RCA (Recipient Address)
-	TimeToLive       uint8  `json:"TTL"` // TTL (Time To Live)
-	HeaderCheckSum   uint8  `json:"HCS"` // HCS (Header Check Sum)
-	// Data for service level
-	ServicesFrameData BytesData `json:"SFRD"` // SFRD (Services Frame Data)
-	// Check sum for service level
-	ServicesFrameDataCheckSum uint16 `json:"SFRCS"` // SFRCS
-
-	// Response for packet
-	ResponseData []byte `json:"-"`
+	/* Data section */
+	HeaderLength              uint8     `json:"HL"`    // HL (Header Length)
+	HeaderEncoding            uint8     `json:"HE"`    // HE (Header Encoding)
+	FrameDataLength           uint16    `json:"FDL"`   // FDL (Frame Data Length)
+	PacketID                  uint16    `json:"PID"`   // PID (Packet Identifier)
+	PacketType                uint8     `json:"PT"`    // PT (Packet Type)
+	PeerAddress               uint16    `json:"PRA"`   // PRA (Peer Address)
+	RecipientAddress          uint16    `json:"RCA"`   // RCA (Recipient Address)
+	TimeToLive                uint8     `json:"TTL"`   // TTL (Time To Live)
+	HeaderCheckSum            uint8     `json:"HCS"`   // HCS (Header Check Sum)
+	ServicesFrameData         BytesData `json:"SFRD"`  // SFRD (Services Frame Data)
+	ServicesFrameDataCheckSum uint16    `json:"SFRCS"` // SFRCS
 
 	Error uint8 `json:"-"`
 }
 
-//ReadPacket - чтение пакета данных протокола транспортного уровня
+// ReadPacket Parse slice of bytes as EGTS packet
 func ReadPacket(b []byte) (p Packet, err uint8) {
 
 	// PRV (Protocol Version)
@@ -57,6 +48,7 @@ func ReadPacket(b []byte) (p Packet, err uint8) {
 		p.Error = err
 		return
 	}
+
 	// SKID Security Key ID
 	i++
 	p.SecurityKeyID = uint8(b[i])
@@ -70,11 +62,13 @@ func ReadPacket(b []byte) (p Packet, err uint8) {
 	p.RTE = flagByteAsBits[2:3] // 1 bit, RTE
 	p.PRF = flagByteAsBits[:2]  // 1 bit, PRF
 
+	// HL (Header Length)
 	i++
-	p.HeaderLength = uint8(b[i]) // HL (Header Length)
+	p.HeaderLength = uint8(b[i])
 
+	//HE (Header Encoding)
 	i++
-	p.HeaderEncoding = uint8(b[i]) //HE (Header Encoding)
+	p.HeaderEncoding = uint8(b[i])
 
 	// FDL (Frame Data Length)
 	i++
@@ -88,6 +82,7 @@ func ReadPacket(b []byte) (p Packet, err uint8) {
 	i += 2
 	p.PacketType = uint8(b[i])
 
+	// PRA, RCA, TTL
 	i++
 	if p.RTE == "1" {
 		// PRA (Peer Address)
@@ -133,6 +128,7 @@ func ReadPacket(b []byte) (p Packet, err uint8) {
 		return
 	}
 
+	// Check type of packet
 	switch p.PacketType {
 	case EGTS_PT_RESPONSE:
 		p.ServicesFrameData = &PTResponse{}
@@ -149,24 +145,12 @@ func ReadPacket(b []byte) (p Packet, err uint8) {
 	}
 
 	// SFRD (Services Frame Data)
-	log.Println("Start parse packet", p.PacketType, p.HeaderLength, p.FrameDataLength, len(b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength]))
-
 	p.ServicesFrameData.Decode(b[p.HeaderLength : uint16(p.HeaderLength)+p.FrameDataLength])
-
-	// p.ServicesFrameData, err = p.ReadServicesFrameData(b[p.HeaderLength : uint16(p.HeaderLength)+p.FrameDataLength])
-
-	// на EGTS_SR_TERM_IDENTITY в ответ шлем EGTS_SR_RESULT_CODE в остальных случаях шлем EGTS_SR_RECORD_RESPONSE
-
-	// if len(p.ServicesFrameData) == 1 && p.ServicesFrameData[0].RecordData.SubrecordType == 1 {
-	// 	p.ResponseData = p.ResponseAuth(err)
-	// } else {
-	// 	p.ResponseData = p.Response(b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength], err, flagBytes)
-	// }
 
 	return p, err
 }
 
-// Encode Parse EGTS_PT_RESPONSE to array of bytes
+// Encode Parse EGTS_PT_RESPONSE to slice of bytes
 func (p *Packet) Encode() (b []byte) {
 
 	b = append(b, p.ProtocolVersion)
@@ -221,7 +205,6 @@ func (p *Packet) Encode() (b []byte) {
 func (p *Packet) PrepareAnswer() Packet {
 
 	if p.PacketType == EGTS_PT_APPDATA {
-
 		records := RecordsData{}
 		serviceType := uint8(0)
 		for _, r := range *p.ServicesFrameData.(*ServicesFrameData) {
