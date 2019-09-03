@@ -25,8 +25,12 @@ type SRLiquidLevelSensor struct {
 
 // Decode Parse array of bytes to EGTS_SR_LIQUID_LEVEL_SENSOR
 func (subr *SRLiquidLevelSensor) Decode(b []byte) (err error) {
-	buffer := new(bytes.Buffer)
-	flagByte := uint16(b[0])
+	buffer := bytes.NewReader(b)
+
+	flagByte := byte(0)
+	if flagByte, err = buffer.ReadByte(); err != nil {
+		return fmt.Errorf("Error reading flags")
+	}
 	flagByteAsBits := fmt.Sprintf("%08b", flagByte)
 	subr.LiquidLevelSensorErrorFlag = flagByteAsBits[1:2]
 	subr.LiquidLevelSensorValueUnit = flagByteAsBits[2:4]
@@ -35,8 +39,19 @@ func (subr *SRLiquidLevelSensor) Decode(b []byte) (err error) {
 	llsn, _ := strconv.ParseUint(flagByteAsBits[5:], 2, 8)
 	subr.LiquidLevelSensorNumber = uint8(llsn)
 
-	subr.MADDR = binary.LittleEndian.Uint16(b[1:3])
-	subr.LiquidLevelSensorb = binary.LittleEndian.Uint32(b[3:])
+	maddr := make([]byte, 2)
+	if _, err = buffer.Read(maddr); err != nil {
+		return fmt.Errorf("Error reading maddr")
+	}
+	subr.MADDR = binary.LittleEndian.Uint16(maddr)
+
+	sb := make([]byte, 4)
+	if _, err = buffer.Read(sb); err != nil {
+		return fmt.Errorf("Error reading liquid data")
+	}
+	subr.LiquidLevelSensorb = binary.LittleEndian.Uint32(sb)
+
+	return nil
 }
 
 // Encode Parse EGTS_SR_LIQUID_LEVEL_SENSOR to array of bytes
