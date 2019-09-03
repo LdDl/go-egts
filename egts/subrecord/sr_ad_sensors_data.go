@@ -1,6 +1,7 @@
 package subrecord
 
 import (
+	"bytes"
 	"encoding/binary"
 
 	"github.com/LdDl/go-egts/egts/utils"
@@ -23,7 +24,7 @@ type SRAdSensorsData struct {
 
 // Decode Parse array of bytes to EGTS_SR_AD_SENSORS_DATA
 func (subr *SRAdSensorsData) Decode(b []byte) (err error) {
-	// buffer := new(bytes.Buffer)
+	buffer := bytes.NewReader(b)
 	subr.ADI = make([]int, 8)
 	subr.ANS = make([]int, 8)
 	// Digital Outputs
