@@ -17,7 +17,7 @@ type RecordData struct {
 type RecordsData []*RecordData
 
 // Decode Parse slice of bytes to Service Data Record
-func (rd *RecordsData) Decode(b []byte) {
+func (rd *RecordsData) Decode(b []byte) (err error) {
 	i := 0
 
 	for i != len(b) {
@@ -65,6 +65,7 @@ func (rd *RecordsData) Decode(b []byte) {
 		i += int(rdEntity.SubrecordLength)
 		*rd = append(*rd, rdEntity)
 	}
+	return nil
 }
 
 // Encode Parse Service Data Record to slice of bytes

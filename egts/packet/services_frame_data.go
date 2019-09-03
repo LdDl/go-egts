@@ -8,7 +8,7 @@ import (
 
 // BytesData Interface for binary data
 type BytesData interface {
-	Decode([]byte, error)
+	Decode([]byte) error
 	Encode() []byte
 	Len() uint16
 }
@@ -39,7 +39,7 @@ type ServiceDataRecord struct {
 }
 
 // Decode Parse slice of bytes to SFRD
-func (sfrd *ServicesFrameData) Decode(b []byte) {
+func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 	i := 0
 	for {
 		sdr := ServiceDataRecord{}
@@ -114,6 +114,7 @@ func (sfrd *ServicesFrameData) Decode(b []byte) {
 			break
 		}
 	}
+	return nil
 }
 
 // Encode Parse SFRD to slice of bytes

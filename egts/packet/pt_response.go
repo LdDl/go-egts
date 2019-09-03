@@ -12,7 +12,7 @@ type PTResponse struct {
 }
 
 // Decode Parse slice of bytes to EGTS_PT_RESPONSE
-func (response *PTResponse) Decode(b []byte) {
+func (response *PTResponse) Decode(b []byte) (err error) {
 	//  RPID Response Packet ID
 	response.ResponsePacketID = binary.LittleEndian.Uint16(b[0:2])
 	// PR Processing Result
@@ -22,6 +22,7 @@ func (response *PTResponse) Decode(b []byte) {
 		response.SDR = &ServicesFrameData{}
 		response.SDR.Decode(b[3:])
 	}
+	return nil
 }
 
 // Encode Parse EGTS_PT_RESPONSE to slice of bytes

@@ -21,10 +21,12 @@ type SRPosData struct {
 	Longitude          float64   `json:"LONG"`        // LONG , degree,  (WGS - 84) / 180 * 0xFFFFFFFF
 	Speed              int       `json:"SPD"`         // SPD , 0.1 miles , 14 bit only
 	Direction          uint8     `json:"DIR"`         // DIR Direction
-	Odometer           int       `json:"ODM"`         // ODM Odometer, 3b
-	DigitalInputs      uint8     `json:"DIN"`         // DIN Digital Inputs
-	Source             uint8     `json:"SRC"`         // SRC Source
-	Altitude           uint32    `json:"ALT"`         // ALT Altitude, 3b
+	Odometer           int       `json:"ODM_value"`   // ODM Odometer, 3b
+	OdometerBytes      []byte    `json:"ODM"`
+	DigitalInputs      uint8     `json:"DIN"`       // DIN Digital Inputs
+	Source             uint8     `json:"SRC"`       // SRC Source
+	Altitude           uint32    `json:"ALT_value"` // ALT Altitude, 3b
+	AltitudeBytes      []byte    `json:"ALT"`
 
 	SourceDataExists uint8 `json:"SRCDE"` // SRCD exists
 	SourceData       int16 `json:"SRCD"`  // SRDC Source Data
@@ -112,12 +114,11 @@ func (subr *SRPosData) Decode(b []byte) (err error) {
 	}
 
 	// ODM Odometer, 3b
-	odm := make([]byte, 3)
-	if _, err = buffer.Read(odm); err != nil {
+	subr.OdometerBytes = make([]byte, 3)
+	if _, err = buffer.Read(subr.OdometerBytes); err != nil {
 		return fmt.Errorf("Error reading odm")
 	}
-	// odm := append([]byte{0}, b[16:19]...)
-	subr.Odometer = int(binary.LittleEndian.Uint32(odm)) / 10
+	subr.Odometer = int(binary.LittleEndian.Uint32(append([]byte{0}, subr.OdometerBytes...))) / 10
 
 	// DIN Digital Inputs
 	if subr.DigitalInputs, err = buffer.ReadByte(); err != nil {
@@ -130,14 +131,11 @@ func (subr *SRPosData) Decode(b []byte) (err error) {
 	}
 
 	if subr.AltitudeExists == "1" {
-		alt := make([]byte, 3)
-		if _, err = buffer.Read(alt); err != nil {
+		subr.AltitudeBytes = make([]byte, 3)
+		if _, err = buffer.Read(subr.AltitudeBytes); err != nil {
 			return fmt.Errorf("Error reading altitude")
 		}
-		// alt := make([]byte, len(b[21:24]))
-		// copy(alt, b[21:24])
-		// alt = append(alt, byte(0))
-		subr.Altitude = binary.LittleEndian.Uint32(alt)
+		subr.Altitude = binary.LittleEndian.Uint32(append(subr.AltitudeBytes, byte(0)))
 	}
 
 	return nil

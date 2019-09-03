@@ -1,7 +1,6 @@
 package subrecord
 
 import (
-	"bytes"
 	"encoding/binary"
 
 	"github.com/LdDl/go-egts/egts/utils"
@@ -23,7 +22,7 @@ type SRExPosDataRecord struct {
 
 // Decode Parse array of bytes to EGTS_SR_EXT_POS_DATA
 func (subr *SRExPosDataRecord) Decode(b []byte) (err error) {
-	buffer := new(bytes.Buffer)
+	// buffer := new(bytes.Buffer)
 
 	// Flags
 	flagBytes := uint16(b[0])
@@ -66,6 +65,7 @@ func (subr *SRExPosDataRecord) Decode(b []byte) (err error) {
 		128 - QZSS.
 		Остальные значения зарезервированы.
 	*/
+	return nil
 }
 
 // Encode Parse EGTS_SR_EXT_POS_DATA to array of bytes
