@@ -17,7 +17,7 @@ type SRCountersData struct {
 }
 
 // Decode Parse array of bytes to EGTS_SR_COUNTERS_DATA
-func (subr *SRCountersData) Decode(b []byte) {
+func (subr *SRCountersData) Decode(b []byte) (err error) {
 	buffer := new(bytes.Buffer)
 	subr.Counters = make([]int, 8)
 	// CFE1 ... CFE8 - (Counter Field Exists)

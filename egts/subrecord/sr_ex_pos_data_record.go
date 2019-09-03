@@ -22,7 +22,7 @@ type SRExPosDataRecord struct {
 }
 
 // Decode Parse array of bytes to EGTS_SR_EXT_POS_DATA
-func (subr *SRExPosDataRecord) Decode(b []byte, err error) {
+func (subr *SRExPosDataRecord) Decode(b []byte) (err error) {
 	buffer := new(bytes.Buffer)
 
 	// Flags

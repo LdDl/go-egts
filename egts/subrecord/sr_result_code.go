@@ -11,7 +11,7 @@ type SRResultCode struct {
 }
 
 // Decode Parse array of bytes to EGTS_SR_RESULT_CODE
-func (subr *SRResultCode) Decode(b []byte) {
+func (subr *SRResultCode) Decode(b []byte) (err error) {
 	buffer := new(bytes.Buffer)
 	subr.RCD = uint8(b[0])
 }

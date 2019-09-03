@@ -31,78 +31,94 @@ type SRTermIdentity struct {
 }
 
 // Decode Parse array of bytes to EGTS_SR_TERM_IDENTITY
-func (subr *SRTermIdentity) Decode(b []byte, err error) {
-	buffer := new(bytes.Buffer)
+func (subr *SRTermIdentity) Decode(b []byte) (err error) {
+	buffer := bytes.NewReader(b)
 
 	// TID (Terminal Identifier)
-	i := 0
-	subr.TerminalIdentifier = binary.LittleEndian.Uint32(b[i : i+4])
+	tid := make([]byte, 4)
+	if _, err = buffer.Read(tid); err != nil {
+		return fmt.Errorf("Error reading TID")
+	}
+	subr.TerminalIdentifier = binary.LittleEndian.Uint32(tid)
 
 	// Flags: MNE, BSE, NIDE, SSRA, LNGCE, IMSIE, IMEIE, HDIDE
-	i += 4
-	flagByte := uint16(b[i])
+	flagByte := byte(0)
+	if flagByte, err = buffer.ReadByte(); err != nil {
+		return fmt.Errorf("Error reading flags: %v", err)
+	}
 	flagByteAsBits := fmt.Sprintf("%08b", flagByte)
-
-	// HDIDE
 	subr.HDIDE = flagByteAsBits[7:]
-	// IMEIE
 	subr.IMEIE = flagByteAsBits[6:7]
-	// IMSIE
 	subr.IMSIE = flagByteAsBits[5:6]
-	// LNGCE
 	subr.LNGCE = flagByteAsBits[4:5]
-	// SSRA
 	subr.SSRA = flagByteAsBits[3:4]
-	// NIDE
 	subr.NIDE = flagByteAsBits[2:3]
-	// BSE
 	subr.BSE = flagByteAsBits[1:2]
-	// MNE
 	subr.MNE = flagByteAsBits[:1]
 
 	// HDID (Home Dispatcher Identifier)
-	i++
 	if subr.HDIDE == "1" {
-		subr.HomeDispatcherIdentifier = binary.LittleEndian.Uint16(b[i : i+2])
-		i += 2
+		hdid := make([]byte, 2)
+		if _, err = buffer.Read(hdid); err != nil {
+			return fmt.Errorf("Error reading HDID")
+		}
+		subr.HomeDispatcherIdentifier = binary.LittleEndian.Uint16(hdid)
 	}
 
 	// IMEI (International Mobile Equipment Identity)
 	if subr.IMEIE == "1" {
-		subr.InternationalMobileEquipmentIdentity = string(b[i : i+15])
-		i += 15
+		imei := make([]byte, 15)
+		if _, err = buffer.Read(imei); err != nil {
+			return fmt.Errorf("Error reading IMEI")
+		}
+		subr.InternationalMobileEquipmentIdentity = string(imei)
 	}
 
 	// IMSI (International Mobile Subscriber Identity)
 	if subr.IMSIE == "1" {
-		subr.InternationalMobileSubscriberIdentity = string(b[i : i+16])
-		i += 16
+		imsi := make([]byte, 16)
+		if _, err = buffer.Read(imsi); err != nil {
+			return fmt.Errorf("Error reading IMSI")
+		}
+		subr.InternationalMobileSubscriberIdentity = string(imsi)
 	}
 
 	// LNGC (Language Code)
 	if subr.LNGCE == "1" {
-		subr.LanguageCode = string(b[i : i+3])
-		i += 3
+		lang := make([]byte, 3)
+		if _, err = buffer.Read(lang); err != nil {
+			return fmt.Errorf("Error reading LNGC")
+		}
+		subr.LanguageCode = string(lang)
 	}
 
 	// NID (Network Identifier)
 	if subr.NIDE == "1" {
 		subr.NetworkIdentifier = make([]byte, 3)
-		copy(subr.NetworkIdentifier, b[i:i+3])
-		i += 3
+		if _, err = buffer.Read(subr.NetworkIdentifier); err != nil {
+			return fmt.Errorf("Error reading NID")
+		}
 	}
 
 	// BS (Buffer Size)
 	if subr.BSE == "1" {
-		subr.BufferSize = binary.LittleEndian.Uint16(b[i : i+2])
-		i += 2
+		bufSize := make([]byte, 2)
+		if _, err = buffer.Read(bufSize); err != nil {
+			return fmt.Errorf("Error reading BufferSize")
+		}
+		subr.BufferSize = binary.LittleEndian.Uint16(bufSize)
 	}
 
 	// MSISDN (Mobile Station Integrated Services Digital Network Number)
 	if subr.MNE == "1" {
-		subr.MobileStationIntegratedServicesDigitalNetworkNumber = string(b[i : i+15])
-		i += 15
+		mne := make([]byte, 15)
+		if _, err = buffer.Read(mne); err != nil {
+			return fmt.Errorf("Error reading SIM number")
+		}
+		subr.MobileStationIntegratedServicesDigitalNetworkNumber = string(mne)
 	}
+
+	return nil
 }
 
 // Encode Parse EGTS_SR_TERM_IDENTITY to array of bytes
