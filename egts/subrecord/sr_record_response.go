@@ -3,6 +3,7 @@ package subrecord
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 )
 
 // SRRecordResponse EGTS_SR_RECORD_RESPONSE
@@ -17,9 +18,18 @@ type SRRecordResponse struct {
 
 // Decode Parse array of bytes to EGTS_SR_RECORD_RESPONSE
 func (subr *SRRecordResponse) Decode(b []byte) (err error) {
-	buffer := new(bytes.Buffer)
-	subr.ConfirmedRecordNumber = binary.LittleEndian.Uint16(b[0:2])
-	subr.RecordStatus = uint8(b[2])
+
+	buffer := bytes.NewReader(b)
+	crn := make([]byte, 4)
+	if _, err = buffer.Read(crn); err != nil {
+		return fmt.Errorf("Error reading CRN")
+	}
+	subr.ConfirmedRecordNumber = binary.LittleEndian.Uint16(crn)
+	if subr.RecordStatus, err = buffer.ReadByte(); err != nil {
+		return fmt.Errorf("Error reading record status")
+	}
+
+	return nil
 }
 
 // Encode Parse EGTS_SR_RECORD_RESPONSE to array of bytes
