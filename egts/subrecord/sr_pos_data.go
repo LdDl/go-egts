@@ -45,13 +45,34 @@ type SRPosData struct {
 
 // Decode Parse array of bytes to EGTS_SR_POS_DATA
 func (subr *SRPosData) Decode(b []byte) (err error) {
-	buffer := new(bytes.Buffer)
+	buffer := bytes.NewReader(b)
+
 	// Navigation Time , seconds since 00:00:00 01.01.2010 UTC - specification from EGTS
-	t1, _ := time.Parse(time.RFC3339, "2010-01-01T00:00:00+00:00")
-	subr.NavigationTimeUint = binary.LittleEndian.Uint32(b[0:4])
-	subr.NavigationTime = t1.Add(time.Duration(int(subr.NavigationTimeUint)) * time.Second)
+	timestamp, _ := time.Parse(time.RFC3339, "2010-01-01T00:00:00+00:00")
+	nt := make([]byte, 4)
+	if _, err = buffer.Read(nt); err != nil {
+		return fmt.Errorf("Error reading NT")
+	}
+	subr.NavigationTimeUint = binary.LittleEndian.Uint32(nt)
+	subr.NavigationTime = timestamp.Add(time.Duration(int(subr.NavigationTimeUint)) * time.Second)
+
+	lat := make([]byte, 4)
+	if _, err = buffer.Read(lat); err != nil {
+		return fmt.Errorf("Error reading latitude")
+	}
+
+	lon := make([]byte, 4)
+	if _, err = buffer.Read(lon); err != nil {
+		return fmt.Errorf("Error reading longitude")
+	}
+	// Longitude , degree,  (WGS - 84) / 180 * 0xFFFFFFFF
+	subr.Longitude = 180.0 * float64(binary.LittleEndian.Uint32(lon)) / 0xFFFFFFFF
+
 	// Flags
-	flagByte := uint16(b[12])
+	flagByte := byte(0)
+	if flagByte, err = buffer.ReadByte(); err != nil {
+		return fmt.Errorf("Error reading flags")
+	}
 	flagByteAsBits := fmt.Sprintf("%08b", flagByte)
 	subr.Valid = flagByteAsBits[7:]
 	subr.Fix = flagByteAsBits[6:7]
@@ -64,38 +85,62 @@ func (subr *SRPosData) Decode(b []byte) (err error) {
 
 	if subr.Valid == "1" {
 		// Latitude , degree,  (WGS - 84) / 90 * 0xFFFFFFFF
-		subr.Latitude = 90.0 * float64(binary.LittleEndian.Uint32(b[4:8])) / 0xFFFFFFFF
+		subr.Latitude = 90.0 * float64(binary.LittleEndian.Uint32(lat)) / 0xFFFFFFFF
 		if subr.LAHS == "1" {
 			subr.Latitude = subr.Latitude * -1
 		}
 		// Longitude , degree,  (WGS - 84) / 180 * 0xFFFFFFFF
-		subr.Longitude = 180.0 * float64(binary.LittleEndian.Uint32(b[8:12])) / 0xFFFFFFFF
+		subr.Longitude = 180.0 * float64(binary.LittleEndian.Uint32(lon)) / 0xFFFFFFFF
 		if subr.LOHS == "1" {
 			subr.Longitude = subr.Longitude * -1
 		}
 	}
 
-	speedBytes := binary.LittleEndian.Uint16(b[13:15])
-	subr.Speed = utils.BitField(speedBytes, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13).(int) / 10
+	speedBytes := make([]byte, 2)
+	if _, err = buffer.Read(speedBytes); err != nil {
+		return fmt.Errorf("Error reading speed")
+	}
 
-	subr.AltsFlag = utils.BitField(speedBytes, 14).(bool)
-	subr.DirhFlag = utils.BitField(speedBytes, 15).(bool)
+	speed := binary.LittleEndian.Uint16(speedBytes)
+	subr.Speed = utils.BitField(speed, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13).(int) / 10
+
+	subr.AltsFlag = utils.BitField(speed, 14).(bool)
+	subr.DirhFlag = utils.BitField(speed, 15).(bool)
 	// DIR Direction
-	subr.Direction = uint8(b[15])
+	if subr.Direction, err = buffer.ReadByte(); err != nil {
+		return fmt.Errorf("Error reading direction")
+	}
+
 	// ODM Odometer, 3b
-	odm := append([]byte{0}, b[16:19]...)
+	odm := make([]byte, 3)
+	if _, err = buffer.Read(odm); err != nil {
+		return fmt.Errorf("Error reading odm")
+	}
+	// odm := append([]byte{0}, b[16:19]...)
 	subr.Odometer = int(binary.LittleEndian.Uint32(odm)) / 10
+
 	// DIN Digital Inputs
-	subr.DigitalInputs = uint8(b[19])
+	if subr.DigitalInputs, err = buffer.ReadByte(); err != nil {
+		return fmt.Errorf("Error reading digital input")
+	}
+
 	// SRC Source
-	subr.Source = uint8(b[20])
+	if subr.Source, err = buffer.ReadByte(); err != nil {
+		return fmt.Errorf("Error reading source")
+	}
 
 	if subr.AltitudeExists == "1" {
-		alt := make([]byte, len(b[21:24]))
-		copy(alt, b[21:24])
-		alt = append(alt, byte(0))
+		alt := make([]byte, 3)
+		if _, err = buffer.Read(alt); err != nil {
+			return fmt.Errorf("Error reading altitude")
+		}
+		// alt := make([]byte, len(b[21:24]))
+		// copy(alt, b[21:24])
+		// alt = append(alt, byte(0))
 		subr.Altitude = binary.LittleEndian.Uint32(alt)
 	}
+
+	return nil
 }
 
 // Encode Parse EGTS_SR_POS_DATA to array of bytes
