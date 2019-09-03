@@ -1,6 +1,7 @@
 package subrecord
 
 import (
+	"bytes"
 	"encoding/binary"
 
 	"github.com/LdDl/go-egts/egts/utils"
@@ -21,7 +22,9 @@ type SRExPosDataRecord struct {
 }
 
 // Decode Parse array of bytes to EGTS_SR_EXT_POS_DATA
-func (subr *SRExPosDataRecord) Decode(b []byte) {
+func (subr *SRExPosDataRecord) Decode(b []byte, err error) {
+	buffer := new(bytes.Buffer)
+
 	// Flags
 	flagBytes := uint16(b[0])
 	VDOP := utils.BitField(flagBytes, 0).(bool)

@@ -1,6 +1,7 @@
 package subrecord
 
 import (
+	"bytes"
 	"encoding/binary"
 )
 
@@ -16,6 +17,7 @@ type SRRecordResponse struct {
 
 // Decode Parse array of bytes to EGTS_SR_RECORD_RESPONSE
 func (subr *SRRecordResponse) Decode(b []byte) {
+	buffer := new(bytes.Buffer)
 	subr.ConfirmedRecordNumber = binary.LittleEndian.Uint16(b[0:2])
 	subr.RecordStatus = uint8(b[2])
 }

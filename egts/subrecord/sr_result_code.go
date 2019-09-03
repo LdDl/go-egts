@@ -1,5 +1,7 @@
 package subrecord
 
+import "bytes"
+
 // SRResultCode - EGTS_SR_RESULT_CODE
 /*
 	Код результата для подзаписей сервиса EGTS_AUTH_SERVICE
@@ -10,6 +12,7 @@ type SRResultCode struct {
 
 // Decode Parse array of bytes to EGTS_SR_RESULT_CODE
 func (subr *SRResultCode) Decode(b []byte) {
+	buffer := new(bytes.Buffer)
 	subr.RCD = uint8(b[0])
 }
 

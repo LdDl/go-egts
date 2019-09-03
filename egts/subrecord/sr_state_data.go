@@ -1,6 +1,7 @@
 package subrecord
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 )
@@ -28,7 +29,8 @@ type SRStateData struct {
 }
 
 // Decode Parse array of bytes to EGTS_SR_STATE_DATA
-func (subr *SRStateData) Decode(b []byte) {
+func (subr *SRStateData) Decode(b []byte, err error) {
+	buffer := new(bytes.Buffer)
 
 	states := []string{"Idle", "EraGlonass", "Active", "EmergencyCall", "EmergencyMonitor", "Testing", "Service", "FirmwareUpdate"}
 	subr.State = states[int(b[0])]

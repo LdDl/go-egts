@@ -1,6 +1,7 @@
 package subrecord
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"strconv"
@@ -30,7 +31,9 @@ type SRTermIdentity struct {
 }
 
 // Decode Parse array of bytes to EGTS_SR_TERM_IDENTITY
-func (subr *SRTermIdentity) Decode(b []byte) {
+func (subr *SRTermIdentity) Decode(b []byte, err error) {
+	buffer := new(bytes.Buffer)
+
 	// TID (Terminal Identifier)
 	i := 0
 	subr.TerminalIdentifier = binary.LittleEndian.Uint32(b[i : i+4])

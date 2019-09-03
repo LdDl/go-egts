@@ -1,6 +1,7 @@
 package subrecord
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"time"
@@ -44,6 +45,7 @@ type SRPosData struct {
 
 // Decode Parse array of bytes to EGTS_SR_POS_DATA
 func (subr *SRPosData) Decode(b []byte) {
+	buffer := new(bytes.Buffer)
 	// Navigation Time , seconds since 00:00:00 01.01.2010 UTC - specification from EGTS
 	t1, _ := time.Parse(time.RFC3339, "2010-01-01T00:00:00+00:00")
 	subr.NavigationTimeUint = binary.LittleEndian.Uint32(b[0:4])

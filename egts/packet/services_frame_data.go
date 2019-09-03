@@ -8,7 +8,7 @@ import (
 
 // BytesData Interface for binary data
 type BytesData interface {
-	Decode([]byte)
+	Decode([]byte, error)
 	Encode() []byte
 	Len() uint16
 }
