@@ -44,7 +44,7 @@ func (subr *SRTermIdentity) Decode(b []byte) (err error) {
 	// Flags: MNE, BSE, NIDE, SSRA, LNGCE, IMSIE, IMEIE, HDIDE
 	flagByte := byte(0)
 	if flagByte, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading flags: %v", err)
+		return fmt.Errorf("Error reading flags")
 	}
 	flagByteAsBits := fmt.Sprintf("%08b", flagByte)
 	subr.HDIDE = flagByteAsBits[7:]

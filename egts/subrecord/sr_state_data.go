@@ -23,31 +23,56 @@ type SRStateData struct {
 	MainPowerSourceVoltage     float32 `json:"MPSV_value"` /* Main Power Source Voltage, in 0.1V */
 	BackupBatteryVoltage       float32 `json:"BBV_value"`  /* Back Up Battery Voltage, in 0.1V */
 	InternalBatteryVoltage     float32 `json:"IBV_value"`  /* Internal Battery Voltage, in 0.1V */
-	MainPowerSourceVoltageByte uint8   `json:"MPSV"`       /* Main Power Source Voltage, in 0.1V */
-	BackupBatteryVoltageByte   uint8   `json:"BBV"`        /* Back Up Battery Voltage, in 0.1V */
-	InternalBatteryVoltageByte uint8   `json:"IBV"`        /* Internal Battery Voltage, in 0.1V */
+	MainPowerSourceVoltageByte uint8   `json:"MPSV"`
+	BackupBatteryVoltageByte   uint8   `json:"BBV"`
+	InternalBatteryVoltageByte uint8   `json:"IBV"`
 }
+
+var (
+	// Possible states
+	states = [8]string{"Idle", "EraGlonass", "Active", "EmergencyCall", "EmergencyMonitor", "Testing", "Service", "FirmwareUpdate"}
+)
 
 // Decode Parse array of bytes to EGTS_SR_STATE_DATA
 func (subr *SRStateData) Decode(b []byte) (err error) {
-	buffer := new(bytes.Buffer)
 
-	states := []string{"Idle", "EraGlonass", "Active", "EmergencyCall", "EmergencyMonitor", "Testing", "Service", "FirmwareUpdate"}
-	subr.State = states[int(b[0])]
+	buffer := bytes.NewReader(b)
+	if subr.StateByte, err = buffer.ReadByte(); err != nil {
+		return fmt.Errorf("Error reading state")
+	}
+	if subr.StateByte < 0 || subr.StateByte > 8 {
+		return fmt.Errorf("Wrong state")
+	}
+	subr.State = states[subr.StateByte]
 	subr.StateByte = b[0]
 
-	subr.MainPowerSourceVoltage = float32(b[1]) * 0.1
-	subr.BackupBatteryVoltage = float32(b[2]) * 0.1
-	subr.InternalBatteryVoltage = float32(b[3]) * 0.1
 	subr.MainPowerSourceVoltageByte = b[1]
+	if subr.MainPowerSourceVoltageByte, err = buffer.ReadByte(); err != nil {
+		return fmt.Errorf("Error reading MPSV")
+	}
 	subr.BackupBatteryVoltageByte = b[2]
+	if subr.BackupBatteryVoltageByte, err = buffer.ReadByte(); err != nil {
+		return fmt.Errorf("Error reading BBV")
+	}
 	subr.InternalBatteryVoltageByte = b[3]
+	if subr.InternalBatteryVoltageByte, err = buffer.ReadByte(); err != nil {
+		return fmt.Errorf("Error reading IBV")
+	}
 
-	flagByte := uint16(b[4])
+	subr.MainPowerSourceVoltage = float32(subr.MainPowerSourceVoltageByte) * 0.1
+	subr.BackupBatteryVoltage = float32(subr.BackupBatteryVoltageByte) * 0.1
+	subr.InternalBatteryVoltage = float32(subr.InternalBatteryVoltageByte) * 0.1
+
+	flagByte := byte(0)
+	if flagByte, err = buffer.ReadByte(); err != nil {
+		return fmt.Errorf("Error reading flags")
+	}
 	flagByteAsBits := fmt.Sprintf("%08b", flagByte)
 	subr.NavigationModuleEnable = flagByteAsBits[5:6]
 	subr.InternalBatteryEnable = flagByteAsBits[6:7]
 	subr.BackupBatteryEnable = flagByteAsBits[7:]
+
+	return nil
 }
 
 // Encode Parse EGTS_SR_STATE_DATA to array of bytes
