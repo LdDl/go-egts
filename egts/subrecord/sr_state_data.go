@@ -11,7 +11,8 @@ import (
 */
 type SRStateData struct {
 	/* Header section */
-	State string `json:"ST"` /* State */
+	State     string `json:"ST_value"` /* State (string representation) */
+	StateByte uint8  `json:"ST"`       /* State */
 	/* Flags section */
 	NavigationModuleEnable string `json:"NMS"` /* Navigation Module State */
 	InternalBatteryEnable  string `json:"IBU"` /* Internal Battery Used */
@@ -26,6 +27,7 @@ type SRStateData struct {
 func (subr *SRStateData) Decode(b []byte) {
 	states := []string{"Idle", "EraGlonass", "Active", "EmergencyCall", "EmergencyMonitor", "Testing", "Service", "FirmwareUpdate"}
 	subr.State = states[int(b[0])]
+	subr.StateByte = b[0]
 	subr.MainPowerSourceVoltage = float32(b[1]) * 0.1
 	subr.BackupBatteryVoltage = float32(b[2]) * 0.1
 	subr.InternalBatteryVoltage = float32(b[3]) * 0.1
