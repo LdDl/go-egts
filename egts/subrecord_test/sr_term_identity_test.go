@@ -1,8 +1,10 @@
-package packet
+package subrecord_test
 
 import (
 	"encoding/hex"
 	"testing"
+
+	"github.com/LdDl/go-egts/egts/packet"
 )
 
 type IdentityCheck struct {
@@ -34,7 +36,7 @@ func TestIdentity(t *testing.T) {
 			t.Errorf("Error: %s", err.Error())
 		}
 
-		parsedAuth := ReadPacket(egtsAuth)
+		parsedAuth := packet.ReadPacket(egtsAuth)
 
 		resp := parsedAuth.PrepareAnswer()
 		encodedResp := resp.Encode()
