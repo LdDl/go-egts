@@ -35,10 +35,10 @@ func (subr *SRRecordResponse) Decode(b []byte) (err error) {
 func (subr *SRRecordResponse) Encode() (b []byte, err error) {
 	buffer := new(bytes.Buffer)
 	if err = binary.Write(buffer, binary.LittleEndian, subr.ConfirmedRecordNumber); err != nil {
-		return nil, fmt.Errorf("EGTS_PT_RESPONSE; Error writing CRN")
+		return nil, fmt.Errorf("EGTS_SR_RECORD_RESPONSE; Error writing CRN")
 	}
 	if err = buffer.WriteByte(subr.RecordStatus); err != nil {
-		return nil, fmt.Errorf("EGTS_PT_RESPONSE; Error writing RST")
+		return nil, fmt.Errorf("EGTS_SR_RECORD_RESPONSE; Error writing RST")
 	}
 	return buffer.Bytes(), nil
 }
