@@ -1,6 +1,7 @@
 package packet
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"strconv"
@@ -40,24 +41,34 @@ type ServiceDataRecord struct {
 
 // Decode Parse slice of bytes to SFRD
 func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
-	i := 0
-	for {
+	buffer := bytes.NewReader(b)
+
+	for buffer.Len() > 0 {
 		sdr := ServiceDataRecord{}
-		err := uint8(0)
+
 		// RL (Record Length)
-		sdr.RecordLength = binary.LittleEndian.Uint16(b[i : i+2])
+		rl := make([]byte, 2)
+		if _, err = buffer.Read(rl); err != nil {
+			return fmt.Errorf("SFRD; Error reading RL")
+		}
+		sdr.RecordLength = binary.LittleEndian.Uint16(rl)
 		if sdr.RecordLength == 0 {
-			err = EGTS_PC_INC_DATAFORM
+			return fmt.Errorf("SFRD;EGTS_PC_INC_DATAFORM")
 			break
 		}
 
 		// RN (Record Number)
-		i += 2
-		sdr.RecordNumber = binary.LittleEndian.Uint16(b[i : i+2])
+		rn := make([]byte, 2)
+		if _, err = buffer.Read(rn); err != nil {
+			return fmt.Errorf("SFRD; Error reading RN")
+		}
+		sdr.RecordNumber = binary.LittleEndian.Uint16(rn)
 
 		// RecordFlags (RFL): SSOD, RSOD, GRP, RPP, TMFE, EVFE, OBFE
-		i += 2
-		flagByte := uint16(b[i])
+		flagByte := byte(0)
+		if flagByte, err = buffer.ReadByte(); err != nil {
+			return fmt.Errorf("SFRD; Error reading flags")
+		}
 		flagByteAsBits := fmt.Sprintf("%08b", flagByte)
 		// OBFE Object ID FieldExists
 		sdr.OBFE = flagByteAsBits[7:]
@@ -74,48 +85,56 @@ func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 		// SSOD Source Service On Device
 		sdr.SSOD = flagByteAsBits[:1]
 
-		i++
 		// OID (Object Identifier)
 		if sdr.OBFE == "1" {
-			sdr.ObjectIdentifier = binary.LittleEndian.Uint32(b[i : i+4])
-			i += 4
+			oid := make([]byte, 4)
+			if _, err = buffer.Read(oid); err != nil {
+				return fmt.Errorf("SFRD; Error reading OID")
+			}
+			sdr.ObjectIdentifier = binary.LittleEndian.Uint32(oid)
 		}
 
 		// EVID (Event Identifier)
 		if sdr.EVFE == "1" {
-			sdr.EventIdentifier = binary.LittleEndian.Uint32(b[i : i+4])
-			i += 4
+			evid := make([]byte, 4)
+			if _, err = buffer.Read(evid); err != nil {
+				return fmt.Errorf("SFRD; Error reading EVID")
+			}
+			sdr.EventIdentifier = binary.LittleEndian.Uint32(evid)
 		}
 
 		// TM (Time)
 		if sdr.TMFE == "1" {
-			sdr.Time = binary.LittleEndian.Uint32(b[i : i+4])
-			i += 4
+			tm := make([]byte, 4)
+			if _, err = buffer.Read(tm); err != nil {
+				return fmt.Errorf("SFRD; Error reading TM")
+			}
+			sdr.Time = binary.LittleEndian.Uint32(tm)
 		}
 
 		// SST (Source Service Type)
-		sdr.SourceServiceType = uint8(b[i])
+		if sdr.SourceServiceType, err = buffer.ReadByte(); err != nil {
+			return fmt.Errorf("SFRD; Error reading SST")
+		}
 
 		// RST (Recipient Service Type)
-		i++
-		sdr.RecipientServiceType = uint8(b[i])
+		if sdr.RecipientServiceType, err = buffer.ReadByte(); err != nil {
+			return fmt.Errorf("SFRD; Error reading RST")
+		}
 
 		// RD (Record Data)
-		i++
-		if len(b[i:i+int(sdr.RecordLength)]) != 0 {
+		if buffer.Len() != 0 {
 			sdr.RecordsData = RecordsData{}
-			err := sdr.RecordsData.Decode(b[i : i+int(sdr.RecordLength)])
+			bb := make([]byte, sdr.RecordLength)
+			if _, err = buffer.Read(bb); err != nil {
+				return err
+			}
+			err := sdr.RecordsData.Decode(bb)
 			if err != nil {
 				return fmt.Errorf("SFRD;" + err.Error())
 			}
-			i += int(sdr.RecordLength)
 		}
 		*sfrd = append(*sfrd, &sdr)
-
-		_ = err
-		if i == len(b) {
-			break
-		}
 	}
 	return nil
 }

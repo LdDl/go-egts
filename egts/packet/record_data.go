@@ -34,7 +34,7 @@ func (rd *RecordsData) Decode(b []byte) (err error) {
 		// SRL (Subrecord Length)
 		srl := make([]byte, 2)
 		if _, err = buffer.Read(srl); err != nil {
-			return fmt.Errorf("EGTS_SR_LIQUID_LEVEL_SENSOR; Error reading SRL")
+			return fmt.Errorf("SRD; Error reading SRL")
 		}
 		rdEntity.SubrecordLength = binary.LittleEndian.Uint16(srl)
 
