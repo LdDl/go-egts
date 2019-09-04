@@ -52,7 +52,10 @@ func (response *PTResponse) Encode() (b []byte, err error) {
 		return nil, fmt.Errorf("EGTS_PT_RESPONSE; Error writing PR")
 	}
 	if response.SDR != nil {
-		sdr, _ := response.SDR.Encode()
+		sdr, err := response.SDR.Encode()
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_PT_RESPONSE;" + err.Error())
+		}
 		buffer.Write(sdr)
 	}
 	return buffer.Bytes(), nil

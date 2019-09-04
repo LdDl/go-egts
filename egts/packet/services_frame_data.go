@@ -53,8 +53,7 @@ func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 		}
 		sdr.RecordLength = binary.LittleEndian.Uint16(rl)
 		if sdr.RecordLength == 0 {
-			return fmt.Errorf("SFRD;EGTS_PC_INC_DATAFORM")
-			break
+			return fmt.Errorf("SFRD; EGTS_PC_INC_DATAFORM")
 		}
 
 		// RN (Record Number)
@@ -141,44 +140,52 @@ func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 
 // Encode Parse SFRD to slice of bytes
 func (sfrd *ServicesFrameData) Encode() (b []byte, err error) {
+	buffer := new(bytes.Buffer)
 	for _, sdr := range *sfrd {
-		rl := make([]byte, 2)
-		binary.LittleEndian.PutUint16(rl, sdr.RecordLength)
-		b = append(b, rl...)
-
-		rn := make([]byte, 2)
-		binary.LittleEndian.PutUint16(rn, sdr.RecordNumber)
-		b = append(b, rn...)
+		if err = binary.Write(buffer, binary.LittleEndian, sdr.RecordLength); err != nil {
+			return nil, fmt.Errorf("SFRD; Error writing RL")
+		}
+		if err = binary.Write(buffer, binary.LittleEndian, sdr.RecordNumber); err != nil {
+			return nil, fmt.Errorf("SFRD; Error writing RN")
+		}
 
 		flagsBits := sdr.SSOD + sdr.RSOD + sdr.GRP + sdr.RPP + sdr.TMFE + sdr.EVFE + sdr.OBFE
 		flags := uint64(0)
 		flags, _ = strconv.ParseUint(flagsBits, 2, 8)
-		b = append(b, uint8(flags))
+		if err = buffer.WriteByte(uint8(flags)); err != nil {
+			return nil, fmt.Errorf("SFRD; Error writing flags")
+		}
 
 		if sdr.OBFE == "1" {
-			obfe := make([]byte, 4)
-			binary.LittleEndian.PutUint32(obfe, sdr.ObjectIdentifier)
-			b = append(b, obfe...)
+			if err = binary.Write(buffer, binary.LittleEndian, sdr.ObjectIdentifier); err != nil {
+				return nil, fmt.Errorf("SFRD; Error writing OID")
+			}
 		}
 		if sdr.EVFE == "1" {
-			evfe := make([]byte, 4)
-			binary.LittleEndian.PutUint32(evfe, sdr.EventIdentifier)
-			b = append(b, evfe...)
+			if err = binary.Write(buffer, binary.LittleEndian, sdr.EventIdentifier); err != nil {
+				return nil, fmt.Errorf("SFRD; Error writing EVID")
+			}
 		}
 		if sdr.TMFE == "1" {
-			tmfe := make([]byte, 4)
-			binary.LittleEndian.PutUint32(tmfe, sdr.Time)
-			b = append(b, tmfe...)
+			if err = binary.Write(buffer, binary.LittleEndian, sdr.Time); err != nil {
+				return nil, fmt.Errorf("SFRD; Error writing TM")
+			}
 		}
 
-		b = append(b, sdr.SourceServiceType)
-		b = append(b, sdr.RecipientServiceType)
+		if err = buffer.WriteByte(sdr.SourceServiceType); err != nil {
+			return nil, fmt.Errorf("SFRD; Error writing SST")
+		}
+		if err = buffer.WriteByte(sdr.RecipientServiceType); err != nil {
+			return nil, fmt.Errorf("SFRD; Error writing RST")
+		}
 
-		rd, _ := sdr.RecordsData.Encode()
-
-		b = append(b, rd...)
+		rd, err := sdr.RecordsData.Encode()
+		if err != nil {
+			return nil, fmt.Errorf("SFRD;" + err.Error())
+		}
+		buffer.Write(rd)
 	}
-	return b, nil
+	return buffer.Bytes(), nil
 }
 
 // Len Returns length of bytes slice

@@ -89,7 +89,10 @@ func (rd *RecordsData) Encode() (b []byte, err error) {
 		if err = binary.Write(buffer, binary.LittleEndian, r.SubrecordLength); err != nil {
 			return nil, fmt.Errorf("SRD; Error writing SRL")
 		}
-		sd, _ := r.SubrecordData.Encode()
+		sd, err := r.SubrecordData.Encode()
+		if err != nil {
+			return nil, fmt.Errorf("SRD;" + err.Error())
+		}
 		buffer.Write(sd)
 	}
 	return buffer.Bytes(), nil
