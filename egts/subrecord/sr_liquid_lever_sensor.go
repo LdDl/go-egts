@@ -26,6 +26,7 @@ type SRLiquidLevelSensor struct {
 
 // Decode Parse array of bytes to EGTS_SR_LIQUID_LEVEL_SENSOR
 func (subr *SRLiquidLevelSensor) Decode(b []byte) (err error) {
+
 	buffer := bytes.NewReader(b)
 
 	flagByte := byte(0)

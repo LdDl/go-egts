@@ -52,6 +52,7 @@ func (subr *SRCountersData) Decode(b []byte) (err error) {
 
 // Encode Parse EGTS_SR_COUNTERS_DATA to array of bytes
 func (subr *SRCountersData) Encode() (b []byte, err error) {
+
 	buffer := new(bytes.Buffer)
 
 	flags := uint64(0)

@@ -8,22 +8,24 @@ import (
 )
 
 var (
-	SRStateDataCheckIncome = "0286001404"
+	SRStateDataCheckIncome = []string{"0286001404"}
 )
 
 func TestSRStateDataDecoding(t *testing.T) {
-	pkgHex := SRStateDataCheckIncome
-	pkgBytes, err := hex.DecodeString(pkgHex)
-	if err != nil {
-		t.Errorf("Error: %s", err.Error())
-	}
-	subr := subrecord.SRStateData{}
-	subr.Decode(pkgBytes)
-	hexed, err := subr.Encode()
-	if err != nil {
-		t.Errorf("Error: %s", err.Error())
-	}
-	if hex.EncodeToString(hexed) != SRStateDataCheckIncome {
-		t.Errorf("Have to be %s, but got %s", SRStateDataCheckIncome, string(hexed))
+	for i := range SRStateDataCheckIncome {
+		pkgHex := SRStateDataCheckIncome[i]
+		pkgBytes, err := hex.DecodeString(pkgHex)
+		if err != nil {
+			t.Errorf("Error: %s", err.Error())
+		}
+		subr := subrecord.SRStateData{}
+		subr.Decode(pkgBytes)
+		hexed, err := subr.Encode()
+		if err != nil {
+			t.Errorf("Error: %s", err.Error())
+		}
+		if hex.EncodeToString(hexed) != SRStateDataCheckIncome[i] {
+			t.Errorf("Have to be %s, but got %s", SRStateDataCheckIncome[i], string(hexed))
+		}
 	}
 }

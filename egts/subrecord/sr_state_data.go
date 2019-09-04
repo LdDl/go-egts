@@ -36,7 +36,6 @@ var (
 
 // Decode Parse array of bytes to EGTS_SR_STATE_DATA
 func (subr *SRStateData) Decode(b []byte) (err error) {
-
 	buffer := bytes.NewReader(b)
 	if subr.StateByte, err = buffer.ReadByte(); err != nil {
 		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading ST")
