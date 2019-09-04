@@ -96,6 +96,12 @@ func (subr *SRAdSensorsData) Encode() (b []byte, err error) {
 	buffer := new(bytes.Buffer)
 
 	flagsDIO := uint64(0)
+
+	for i := len(subr.DIOExists)/2 - 1; i >= 0; i-- { // reversed order of DIO
+		opp := len(subr.DIOExists) - 1 - i
+		subr.DIOExists[i], subr.DIOExists[opp] = subr.DIOExists[opp], subr.DIOExists[i]
+	}
+
 	flagsDIO, err = strconv.ParseUint(strings.Join(subr.DIOExists, ""), 2, 8)
 	if err != nil {
 		return nil, fmt.Errorf("Error writing bits in flags")
@@ -103,7 +109,6 @@ func (subr *SRAdSensorsData) Encode() (b []byte, err error) {
 	if err = buffer.WriteByte(uint8(flagsDIO)); err != nil {
 		return nil, fmt.Errorf("Error writing flags")
 	}
-
 	if err = buffer.WriteByte(subr.DigitalOutputs); err != nil {
 		return nil, fmt.Errorf("Error writing DOUT")
 	}
