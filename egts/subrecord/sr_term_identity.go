@@ -123,49 +123,62 @@ func (subr *SRTermIdentity) Decode(b []byte) (err error) {
 
 // Encode Parse EGTS_SR_TERM_IDENTITY to array of bytes
 func (subr *SRTermIdentity) Encode() (b []byte, err error) {
+	buffer := new(bytes.Buffer)
 
-	tid := make([]byte, 4)
-	binary.LittleEndian.PutUint32(tid, subr.TerminalIdentifier)
-	b = append(b, tid...)
+	if err = binary.Write(buffer, binary.LittleEndian, subr.TerminalIdentifier); err != nil {
+		return nil, fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error writing TID")
+	}
 
 	flagsBits := subr.MNE + subr.BSE + subr.NIDE + subr.SSRA + subr.LNGCE + subr.IMSIE + subr.IMEIE + subr.HDIDE
 	flags := uint64(0)
 	flags, _ = strconv.ParseUint(flagsBits, 2, 8)
-	b = append(b, uint8(flags))
+	if err = buffer.WriteByte(uint8(flags)); err != nil {
+		return nil, fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error writing flags")
+	}
 
 	if subr.HDIDE == "1" {
-		hdid := make([]byte, 2)
-		binary.LittleEndian.PutUint16(hdid, subr.HomeDispatcherIdentifier)
-		b = append(b, hdid...)
+		if err = binary.Write(buffer, binary.LittleEndian, subr.HomeDispatcherIdentifier); err != nil {
+			return nil, fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error writing HDID")
+		}
 	}
 
 	if subr.IMEIE == "1" {
-		b = append(b, []byte(subr.InternationalMobileEquipmentIdentity)...)
+		if _, err = buffer.Write([]byte(subr.InternationalMobileEquipmentIdentity)); err != nil {
+			return nil, fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error writing IMEI")
+		}
 	}
 
 	if subr.IMSIE == "1" {
-		b = append(b, []byte(subr.InternationalMobileSubscriberIdentity)...)
+		if _, err = buffer.Write([]byte(subr.InternationalMobileSubscriberIdentity)); err != nil {
+			return nil, fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error writing IMSI")
+		}
 	}
 
 	if subr.LNGCE == "1" {
-		b = append(b, []byte(subr.LanguageCode)...)
+		if _, err = buffer.Write([]byte(subr.LanguageCode)); err != nil {
+			return nil, fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error writing LNGC")
+		}
 	}
 
 	if subr.NIDE == "1" {
-		b = append(b, subr.NetworkIdentifier...)
+		if _, err = buffer.Write([]byte(subr.NetworkIdentifier)); err != nil {
+			return nil, fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error writing NID")
+		}
 	}
 
 	if subr.BSE == "1" {
-		nid := make([]byte, 2)
-		binary.LittleEndian.PutUint16(nid, subr.BufferSize)
-		b = append(b, nid...)
+		if err = binary.Write(buffer, binary.LittleEndian, subr.BufferSize); err != nil {
+			return nil, fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error writing NID")
+		}
 	}
 
 	if subr.MNE == "1" {
-		b = append(b, []byte(subr.MobileStationIntegratedServicesDigitalNetworkNumber)...)
+		if _, err = buffer.Write([]byte(subr.MobileStationIntegratedServicesDigitalNetworkNumber)); err != nil {
+			return nil, fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error writing MSISDN")
+		}
 	}
 
-	return b, nil
+	return buffer.Bytes(), nil
 }
 
 // Len Returns length of bytes slice
