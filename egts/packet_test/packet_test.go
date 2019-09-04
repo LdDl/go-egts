@@ -1,4 +1,4 @@
-package packet
+package packet_test
 
 import (
 	"encoding/hex"
@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"testing"
+
+	"github.com/LdDl/go-egts/egts/packet"
 )
 
 func TestIncomingPacket(t *testing.T) {
@@ -17,7 +19,7 @@ func TestIncomingPacket(t *testing.T) {
 
 	fmt.Println("Income", egtsAuth)
 
-	parsedAuth := ReadPacket(egtsAuth)
+	parsedAuth := packet.ReadPacket(egtsAuth)
 	encoded := parsedAuth.Encode()
 	log.Println(hex.EncodeToString(encoded))
 
@@ -49,7 +51,7 @@ func TestPTresponsePacket(t *testing.T) {
 	egtsAuth, _ := hex.DecodeString(egtsAuthHex)
 
 	fmt.Println("Income", egtsAuth)
-	parsedAuth := ReadPacket(egtsAuth)
+	parsedAuth := packet.ReadPacket(egtsAuth)
 
 	str, _ := json.Marshal(parsedAuth)
 	fmt.Println(string(str))
@@ -68,7 +70,7 @@ func TestAuthResponsePacket(t *testing.T) {
 	egtsAuth, _ := hex.DecodeString(egtsAuthHex)
 
 	fmt.Println("Income", egtsAuth)
-	parsedAuth := ReadPacket(egtsAuth)
+	parsedAuth := packet.ReadPacket(egtsAuth)
 
 	str, _ := json.Marshal(parsedAuth)
 

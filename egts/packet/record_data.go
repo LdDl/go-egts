@@ -20,7 +20,6 @@ type RecordsData []*RecordData
 
 // Decode Parse slice of bytes to Service Data Record
 func (rd *RecordsData) Decode(b []byte) (err error) {
-
 	buffer := bytes.NewBuffer(b)
 
 	for buffer.Len() > 0 {

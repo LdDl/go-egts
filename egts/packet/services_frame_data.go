@@ -3,7 +3,9 @@ package packet
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
+	"log"
 	"strconv"
 )
 
@@ -41,6 +43,8 @@ type ServiceDataRecord struct {
 
 // Decode Parse slice of bytes to SFRD
 func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
+	log.Println("what", hex.EncodeToString(b))
+
 	buffer := bytes.NewReader(b)
 
 	for buffer.Len() > 0 {
