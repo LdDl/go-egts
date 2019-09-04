@@ -76,7 +76,7 @@ func (subr *SRStateData) Decode(b []byte) (err error) {
 }
 
 // Encode Parse EGTS_SR_STATE_DATA to array of bytes
-func (subr *SRStateData) Encode() (b []byte) {
+func (subr *SRStateData) Encode() (b []byte, err error) {
 	b = append(b, subr.StateByte)
 	b = append(b, subr.MainPowerSourceVoltageByte)
 	b = append(b, subr.BackupBatteryVoltageByte)
@@ -86,11 +86,12 @@ func (subr *SRStateData) Encode() (b []byte) {
 	flags := uint64(0)
 	flags, _ = strconv.ParseUint(flagsBits, 2, 8)
 	b = append(b, uint8(flags))
-	return b
+	return b, nil
 }
 
 // Len Returns length of bytes slice
 func (subr *SRStateData) Len() (l uint16) {
-	l = uint16(len(subr.Encode()))
+	encoded, _ := subr.Encode()
+	l = uint16(len(encoded))
 	return l
 }

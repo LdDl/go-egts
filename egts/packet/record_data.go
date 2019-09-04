@@ -2,6 +2,7 @@ package packet
 
 import (
 	"encoding/binary"
+	"log"
 
 	"github.com/LdDl/go-egts/egts/subrecord"
 )
@@ -69,20 +70,22 @@ func (rd *RecordsData) Decode(b []byte) (err error) {
 }
 
 // Encode Parse Service Data Record to slice of bytes
-func (rd *RecordsData) Encode() (b []byte) {
+func (rd *RecordsData) Encode() (b []byte, err error) {
 	for _, r := range *rd {
 		b = append(b, r.SubrecordType)
 		sl := make([]byte, 2)
 		binary.LittleEndian.PutUint16(sl, r.SubrecordLength)
 		b = append(b, sl...)
-		sd := r.SubrecordData.Encode()
+		sd, _ := r.SubrecordData.Encode()
+		log.Println("sdr encode", r.SubrecordType, sd)
 		b = append(b, sd...)
 	}
-	return b
+	return b, nil
 }
 
 // Len Returns length of bytes slice
 func (rd *RecordsData) Len() (l uint16) {
-	l = uint16(len(rd.Encode()))
+	encoded, _ := rd.Encode()
+	l = uint16(len(encoded))
 	return l
 }

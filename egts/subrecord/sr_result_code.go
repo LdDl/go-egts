@@ -23,13 +23,14 @@ func (subr *SRResultCode) Decode(b []byte) (err error) {
 }
 
 // Encode Parse EGTS_SR_RESULT_CODE to array of bytes
-func (subr *SRResultCode) Encode() (b []byte) {
+func (subr *SRResultCode) Encode() (b []byte, err error) {
 	b = append(b, subr.RCD)
-	return b
+	return b, nil
 }
 
 // Len Returns length of bytes slice
 func (subr *SRResultCode) Len() (l uint16) {
-	l = uint16(len(subr.Encode()))
+	encoded, _ := subr.Encode()
+	l = uint16(len(encoded))
 	return l
 }

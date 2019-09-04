@@ -9,7 +9,7 @@ import (
 // BytesData Interface for binary data
 type BytesData interface {
 	Decode([]byte) error
-	Encode() []byte
+	Encode() ([]byte, error)
 	Len() uint16
 }
 
@@ -118,7 +118,7 @@ func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 }
 
 // Encode Parse SFRD to slice of bytes
-func (sfrd *ServicesFrameData) Encode() (b []byte) {
+func (sfrd *ServicesFrameData) Encode() (b []byte, err error) {
 	for _, sdr := range *sfrd {
 		rl := make([]byte, 2)
 		binary.LittleEndian.PutUint16(rl, sdr.RecordLength)
@@ -134,17 +134,17 @@ func (sfrd *ServicesFrameData) Encode() (b []byte) {
 		b = append(b, uint8(flags))
 
 		if sdr.OBFE == "1" {
-			obfe := make([]byte, 2)
+			obfe := make([]byte, 4)
 			binary.LittleEndian.PutUint32(obfe, sdr.ObjectIdentifier)
 			b = append(b, obfe...)
 		}
 		if sdr.EVFE == "1" {
-			evfe := make([]byte, 2)
+			evfe := make([]byte, 4)
 			binary.LittleEndian.PutUint32(evfe, sdr.EventIdentifier)
 			b = append(b, evfe...)
 		}
 		if sdr.TMFE == "1" {
-			tmfe := make([]byte, 2)
+			tmfe := make([]byte, 4)
 			binary.LittleEndian.PutUint32(tmfe, sdr.Time)
 			b = append(b, tmfe...)
 		}
@@ -152,15 +152,16 @@ func (sfrd *ServicesFrameData) Encode() (b []byte) {
 		b = append(b, sdr.SourceServiceType)
 		b = append(b, sdr.RecipientServiceType)
 
-		rd := sdr.RecordsData.Encode()
+		rd, _ := sdr.RecordsData.Encode()
 
 		b = append(b, rd...)
 	}
-	return b
+	return b, nil
 }
 
 // Len Returns length of bytes slice
 func (sfrd *ServicesFrameData) Len() (l uint16) {
-	l = uint16(len(sfrd.Encode()))
+	encoded, _ := sfrd.Encode()
+	l = uint16(len(encoded))
 	return l
 }

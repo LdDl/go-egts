@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/LdDl/go-egts/egts/utils"
@@ -40,8 +41,8 @@ type SRPosData struct {
 	LAHS             string `json:"LAHS"`
 	LOHS             string `json:"LOHS"`
 	AltitudeExists   string `json:"ALTE"`
-	AltsFlag         bool   `json:"ALTS"` //		определяет высоту относительно уровня моря и имеет смысл только при установленном флаге ALTE: 0 - точка выше уровня моря; 1 - ниже уровня моря;
-	DirhFlag         bool   `json:"DIRH"` //	(Direction the Highest bit) старший бит (8) параметра DIR;
+	AltsFlag         uint8  `json:"ALTS"` //		определяет высоту относительно уровня моря и имеет смысл только при установленном флаге ALTE: 0 - точка выше уровня моря; 1 - ниже уровня моря;
+	DirhFlag         uint8  `json:"DIRH"` //	(Direction the Highest bit) старший бит (8) параметра DIR;
 
 }
 
@@ -102,16 +103,16 @@ func (subr *SRPosData) Decode(b []byte) (err error) {
 	if _, err = buffer.Read(speedBytes); err != nil {
 		return fmt.Errorf("Error reading speed")
 	}
-
 	speed := binary.LittleEndian.Uint16(speedBytes)
 	subr.Speed = utils.BitField(speed, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13).(int) / 10
 
-	subr.AltsFlag = utils.BitField(speed, 14).(bool)
-	subr.DirhFlag = utils.BitField(speed, 15).(bool)
+	subr.AltsFlag = uint8(speed >> 14 & 0x1) // utils.BitField(speed, 14).(bool)
+	subr.DirhFlag = uint8(speed >> 15 & 0x1) // utils.BitField(speed, 15).(bool)
 	// DIR Direction
 	if subr.Direction, err = buffer.ReadByte(); err != nil {
 		return fmt.Errorf("Error reading direction")
 	}
+	subr.Direction |= subr.DirhFlag << 7
 
 	// ODM Odometer, 3b
 	subr.OdometerBytes = make([]byte, 3)
@@ -142,12 +143,64 @@ func (subr *SRPosData) Decode(b []byte) (err error) {
 }
 
 // Encode Parse EGTS_SR_POS_DATA to array of bytes
-func (subr *SRPosData) Encode() (b []byte) {
-	return b
+func (subr *SRPosData) Encode() (b []byte, err error) {
+	buffer := new(bytes.Buffer)
+	timestamp, _ := time.Parse(time.RFC3339, "2010-01-01T00:00:00+00:00")
+	if err = binary.Write(buffer, binary.LittleEndian, uint32(subr.NavigationTime.Sub(timestamp).Seconds())); err != nil {
+		return nil, fmt.Errorf("Error writing time")
+	}
+	if err = binary.Write(buffer, binary.LittleEndian, uint32(subr.Latitude/90*0xFFFFFFFF)); err != nil {
+		return nil, fmt.Errorf("Error writing latitude")
+	}
+	if err = binary.Write(buffer, binary.LittleEndian, uint32(subr.Longitude/180*0xFFFFFFFF)); err != nil {
+		return nil, fmt.Errorf("Error writing longitude")
+	}
+	flags := uint64(0)
+	flags, err = strconv.ParseUint(subr.AltitudeExists+subr.LOHS+subr.LAHS+subr.Move+subr.BlackBox+subr.CoordinateSystem+subr.Fix+subr.Valid, 2, 8)
+	if err != nil {
+		return nil, fmt.Errorf("Error writing bits in flags")
+	}
+	if err = buffer.WriteByte(uint8(flags)); err != nil {
+		return nil, fmt.Errorf("Error writing flags")
+	}
+
+	speed := uint16(subr.Speed*10) | uint16(subr.DirhFlag)<<15 // 15 бит
+	speed = speed | uint16(subr.AltsFlag)<<14                  //14 бит
+	spd := make([]byte, 2)
+	binary.LittleEndian.PutUint16(spd, speed)
+	if _, err = buffer.Write(spd); err != nil {
+		return nil, fmt.Errorf("Error writing speed")
+	}
+
+	dir := subr.Direction &^ (1 << 7)
+	if err = binary.Write(buffer, binary.LittleEndian, dir); err != nil {
+		return nil, fmt.Errorf("Error writing DIR")
+	}
+
+	if _, err = buffer.Write(subr.OdometerBytes); err != nil {
+		return nil, fmt.Errorf("Error writing ODM")
+	}
+
+	if err = binary.Write(buffer, binary.LittleEndian, subr.DigitalInputs); err != nil {
+		return nil, fmt.Errorf("Error writing digital")
+	}
+
+	if err = binary.Write(buffer, binary.LittleEndian, subr.Source); err != nil {
+		return nil, fmt.Errorf("Error writing source")
+	}
+
+	if subr.AltitudeExists == "1" {
+		if _, err = buffer.Write(subr.AltitudeBytes); err != nil {
+			return nil, fmt.Errorf("Error writing altitude")
+		}
+	}
+
+	return buffer.Bytes(), nil
 }
 
 // Len Returns length of bytes slice
 func (subr *SRPosData) Len() (l uint16) {
-	l = uint16(len(subr.Encode()))
+	encoded, _ := subr.Encode()
+	l = uint16(len(encoded))
 	return l
 }

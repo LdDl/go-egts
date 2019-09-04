@@ -33,16 +33,17 @@ func (subr *SRRecordResponse) Decode(b []byte) (err error) {
 }
 
 // Encode Parse EGTS_SR_RECORD_RESPONSE to array of bytes
-func (subr *SRRecordResponse) Encode() (b []byte) {
+func (subr *SRRecordResponse) Encode() (b []byte, err error) {
 	crn := make([]byte, 2)
 	binary.LittleEndian.PutUint16(crn, subr.ConfirmedRecordNumber)
 	b = append(b, crn...)
 	b = append(b, subr.RecordStatus)
-	return b
+	return b, nil
 }
 
 // Len Returns length of bytes slice
 func (subr *SRRecordResponse) Len() (l uint16) {
-	l = uint16(len(subr.Encode()))
+	encoded, _ := subr.Encode()
+	l = uint16(len(encoded))
 	return l
 }

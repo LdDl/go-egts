@@ -35,12 +35,13 @@ func (subr *SRCountersData) Decode(b []byte) (err error) {
 }
 
 // Encode Parse EGTS_SR_COUNTERS_DATA to array of bytes
-func (subr *SRCountersData) Encode() (b []byte) {
-	return b
+func (subr *SRCountersData) Encode() (b []byte, err error) {
+	return b, nil
 }
 
 // Len Returns length of bytes slice
 func (subr *SRCountersData) Len() (l uint16) {
-	l = uint16(len(subr.Encode()))
+	encoded, _ := subr.Encode()
+	l = uint16(len(encoded))
 	return l
 }

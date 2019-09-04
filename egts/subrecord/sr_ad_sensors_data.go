@@ -1,9 +1,11 @@
 package subrecord
 
 import (
+	"bytes"
 	"encoding/binary"
-
-	"github.com/LdDl/go-egts/egts/utils"
+	"fmt"
+	"strconv"
+	"strings"
 )
 
 // SRAdSensorsData EGTS_SR_AD_SENSORS_DATA
@@ -14,52 +16,130 @@ import (
 */
 type SRAdSensorsData struct {
 	// Digital Outputs
-	DigitalOutputs uint8
+	DigitalOutputs uint8 `json:"DOUT"`
+
 	// Additional Digital Inputs Octets 1-8
-	ADI []int
+	ADI [8]uint8 `json:"ADI"`
 	// Analog Sensors 1-8
-	ANS []int
+	ANS [8]uint32 `json:"ANS"`
+
+	DIOExists []string `json:"DIOE"`
+	ANSExists []string `json:"ANSE"`
 }
 
 // Decode Parse array of bytes to EGTS_SR_AD_SENSORS_DATA
 func (subr *SRAdSensorsData) Decode(b []byte) (err error) {
-	// buffer := bytes.NewReader(b)
-	subr.ADI = make([]int, 8)
-	subr.ANS = make([]int, 8)
-	// Digital Outputs
-	subr.DigitalOutputs = uint8(b[1])
+	buffer := bytes.NewReader(b)
+
+	flagByteADI := byte(0)
+	if flagByteADI, err = buffer.ReadByte(); err != nil {
+		return fmt.Errorf("Error reading flags")
+	}
+	flagByteAsBitsADI := fmt.Sprintf("%08b", flagByteADI)
+
 	// DIOE1 ... DIOE8 - Digital Inputs Octet Exists
-	dioeFlag := uint16(b[0])
-	n := 3
-	for i := 0; i < 8; i++ {
-		if utils.BitField(dioeFlag, i).(bool) {
-			subr.ADI[i] = int(b[n])
-			n++
-		} else {
-			subr.ADI[i] = int(-1)
-		}
+	subr.DIOExists = make([]string, 8) // not [8]string{}, because slice is needed in Encode() method
+	subr.DIOExists[0] = flagByteAsBitsADI[7:]
+	subr.DIOExists[1] = flagByteAsBitsADI[6:7]
+	subr.DIOExists[2] = flagByteAsBitsADI[5:6]
+	subr.DIOExists[3] = flagByteAsBitsADI[4:5]
+	subr.DIOExists[4] = flagByteAsBitsADI[3:4]
+	subr.DIOExists[5] = flagByteAsBitsADI[2:3]
+	subr.DIOExists[6] = flagByteAsBitsADI[1:2]
+	subr.DIOExists[7] = flagByteAsBitsADI[:1]
+
+	// Digital Outputs
+	if subr.DigitalOutputs, err = buffer.ReadByte(); err != nil {
+		return fmt.Errorf("Error reading DOUT")
 	}
+
+	flagByteANS := byte(0)
+	if flagByteANS, err = buffer.ReadByte(); err != nil {
+		return fmt.Errorf("Error reading flags")
+	}
+	flagByteAsBitsANS := fmt.Sprintf("%08b", flagByteANS)
 	// ASFE1 ... ASFE8 - (Analog Sensor Field Exists)
-	asfeFlag := uint16(b[2])
-	for i := 0; i < 8; i++ {
-		if utils.BitField(asfeFlag, i).(bool) {
-			b := append([]byte{0}, b[n:n+3]...)
-			subr.ANS[i] = int(binary.LittleEndian.Uint32(b))
-			n += 3
-		} else {
-			subr.ANS[i] = int(-1)
+	subr.ANSExists = make([]string, 8) // not [8]string{}, because slice is needed in Encode() method
+	subr.ANSExists[0] = flagByteAsBitsANS[7:]
+	subr.ANSExists[1] = flagByteAsBitsANS[6:7]
+	subr.ANSExists[2] = flagByteAsBitsANS[5:6]
+	subr.ANSExists[3] = flagByteAsBitsANS[4:5]
+	subr.ANSExists[4] = flagByteAsBitsANS[3:4]
+	subr.ANSExists[5] = flagByteAsBitsANS[2:3]
+	subr.ANSExists[6] = flagByteAsBitsANS[1:2]
+	subr.ANSExists[7] = flagByteAsBitsANS[:1]
+
+	for i := range subr.DIOExists {
+		if subr.DIOExists[i] == "1" {
+			if subr.ADI[i], err = buffer.ReadByte(); err != nil {
+				return fmt.Errorf("Error reading ADI")
+			}
 		}
 	}
+
+	for i := range subr.ANSExists {
+		if subr.ANSExists[i] == "1" {
+			ans := make([]byte, 3)
+			if _, err = buffer.Read(ans); err != nil {
+				return fmt.Errorf("Error reading ANS")
+			}
+			ans = append(ans, 0x00)
+			subr.ANS[i] = binary.LittleEndian.Uint32(ans)
+		}
+	}
+
 	return nil
 }
 
 // Encode Parse EGTS_SR_AD_SENSORS_DATA to array of bytes
-func (subr *SRAdSensorsData) Encode() (b []byte) {
-	return b
+func (subr *SRAdSensorsData) Encode() (b []byte, err error) {
+	buffer := new(bytes.Buffer)
+
+	flagsDIO := uint64(0)
+	flagsDIO, err = strconv.ParseUint(strings.Join(subr.DIOExists, ""), 2, 8)
+	if err != nil {
+		return nil, fmt.Errorf("Error writing bits in flags")
+	}
+	if err = buffer.WriteByte(uint8(flagsDIO)); err != nil {
+		return nil, fmt.Errorf("Error writing flags")
+	}
+
+	if err = buffer.WriteByte(subr.DigitalOutputs); err != nil {
+		return nil, fmt.Errorf("Error writing DOUT")
+	}
+
+	flagsANS := uint64(0)
+	flagsANS, err = strconv.ParseUint(strings.Join(subr.ANSExists, ""), 2, 8)
+	if err != nil {
+		return nil, fmt.Errorf("Error writing bits in flags")
+	}
+	if err = buffer.WriteByte(uint8(flagsANS)); err != nil {
+		return nil, fmt.Errorf("Error writing flags")
+	}
+
+	for i := range subr.DIOExists {
+		if subr.DIOExists[i] == "1" {
+			if err = buffer.WriteByte(subr.ADI[i]); err != nil {
+				return nil, fmt.Errorf("Error writing ADI")
+			}
+		}
+	}
+	for i := range subr.ANSExists {
+		if subr.ANSExists[i] == "1" {
+			ans := make([]byte, 4)
+			binary.LittleEndian.PutUint32(ans, subr.ANS[i])
+			if _, err = buffer.Write(ans[:3]); err != nil {
+				return nil, fmt.Errorf("Error writing ANS")
+			}
+		}
+	}
+
+	return buffer.Bytes(), nil
 }
 
 // Len Returns length of bytes slice
 func (subr *SRAdSensorsData) Len() (l uint16) {
-	l = uint16(len(subr.Encode()))
+	encoded, _ := subr.Encode()
+	l = uint16(len(encoded))
 	return l
 }

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"strconv"
+	"strings"
 )
 
 // SRExPosDataRecord EGTS_SR_EXT_POS_DATA
@@ -92,12 +94,53 @@ func (subr *SRExPosDataRecord) Decode(b []byte) (err error) {
 }
 
 // Encode Parse EGTS_SR_EXT_POS_DATA to array of bytes
-func (subr *SRExPosDataRecord) Encode() (b []byte) {
-	return b
+func (subr *SRExPosDataRecord) Encode() (b []byte, err error) {
+	buffer := new(bytes.Buffer)
+
+	flags := uint64(0)
+	flags, err = strconv.ParseUint(strings.Repeat("0", 3)+subr.NavigationSystemExists+subr.SatellitesExists+subr.PositionDiluptionOfPrecisionExists+subr.HorizontalDiluptionOfPrecisionExists+subr.VerticalDiluptionOfPrecisionExists, 2, 8)
+	if err != nil {
+		return nil, fmt.Errorf("Error writing bits in flags")
+	}
+	if err = buffer.WriteByte(uint8(flags)); err != nil {
+		return nil, fmt.Errorf("Error writing bits in flags")
+	}
+
+	if subr.VerticalDiluptionOfPrecisionExists == "1" {
+		if err = binary.Write(buffer, binary.LittleEndian, subr.VerticalDiluptionOfPrecision); err != nil {
+			return nil, fmt.Errorf("Error writing bits in flags")
+		}
+	}
+
+	if subr.HorizontalDiluptionOfPrecisionExists == "1" {
+		if err = binary.Write(buffer, binary.LittleEndian, subr.HorizontalDiluptionOfPrecision); err != nil {
+			return nil, fmt.Errorf("Error writing bits in flags")
+		}
+	}
+
+	if subr.PositionDiluptionOfPrecisionExists == "1" {
+		if err = binary.Write(buffer, binary.LittleEndian, subr.PositionDiluptionOfPrecision); err != nil {
+			return nil, fmt.Errorf("Error writing bits in flags")
+		}
+	}
+
+	if subr.SatellitesExists == "1" {
+		if err = buffer.WriteByte(subr.Satellites); err != nil {
+			return nil, fmt.Errorf("Error writing bits in flags")
+		}
+	}
+
+	if subr.NavigationSystemExists == "1" {
+		if err = binary.Write(buffer, binary.LittleEndian, subr.NavigationSystem); err != nil {
+			return nil, fmt.Errorf("Error writing bits in flags")
+		}
+	}
+	return buffer.Bytes(), nil
 }
 
 // Len Returns length of bytes slice
 func (subr *SRExPosDataRecord) Len() (l uint16) {
-	l = uint16(len(subr.Encode()))
+	encoded, _ := subr.Encode()
+	l = uint16(len(encoded))
 	return l
 }

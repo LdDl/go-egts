@@ -26,20 +26,21 @@ func (response *PTResponse) Decode(b []byte) (err error) {
 }
 
 // Encode Parse EGTS_PT_RESPONSE to slice of bytes
-func (response *PTResponse) Encode() (b []byte) {
+func (response *PTResponse) Encode() (b []byte, err error) {
 	rpid := make([]byte, 2)
 	binary.LittleEndian.PutUint16(rpid, response.ResponsePacketID)
 	b = append(b, rpid...)
 	b = append(b, response.ProcessingResult)
 	if response.SDR != nil {
-		sdr := response.SDR.Encode()
+		sdr, _ := response.SDR.Encode()
 		b = append(b, sdr...)
 	}
-	return b
+	return b, nil
 }
 
 // Len Returns length of bytes slice
 func (response *PTResponse) Len() (l uint16) {
-	l = uint16(len(response.Encode()))
+	encoded, _ := response.Encode()
+	l = uint16(len(encoded))
 	return l
 }

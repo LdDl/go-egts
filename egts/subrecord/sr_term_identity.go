@@ -122,7 +122,7 @@ func (subr *SRTermIdentity) Decode(b []byte) (err error) {
 }
 
 // Encode Parse EGTS_SR_TERM_IDENTITY to array of bytes
-func (subr *SRTermIdentity) Encode() (b []byte) {
+func (subr *SRTermIdentity) Encode() (b []byte, err error) {
 
 	tid := make([]byte, 4)
 	binary.LittleEndian.PutUint32(tid, subr.TerminalIdentifier)
@@ -165,11 +165,12 @@ func (subr *SRTermIdentity) Encode() (b []byte) {
 		b = append(b, []byte(subr.MobileStationIntegratedServicesDigitalNetworkNumber)...)
 	}
 
-	return b
+	return b, nil
 }
 
 // Len Returns length of bytes slice
 func (subr *SRTermIdentity) Len() (l uint16) {
-	l = uint16(len(subr.Encode()))
+	encoded, _ := subr.Encode()
+	l = uint16(len(encoded))
 	return l
 }

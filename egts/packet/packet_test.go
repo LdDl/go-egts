@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"testing"
 )
 
@@ -18,17 +19,20 @@ func TestIncomingPacket(t *testing.T) {
 
 	parsedAuth, authCode := ReadPacket(egtsAuth)
 	fmt.Println("auth code:", authCode)
+	encoded := parsedAuth.Encode()
+	log.Println(hex.EncodeToString(encoded))
 
-	str, _ := json.Marshal(parsedAuth)
-	fmt.Println(string(str))
-
-	resp := parsedAuth.PrepareAnswer()
-	encodedResp := resp.Encode()
-	hexResp := hex.EncodeToString(encodedResp)
-	trueResp := ""
-	if hexResp != trueResp {
-		t.Errorf("Response should be %s, but got %s", trueResp, hexResp)
-	}
+	// 0100020b00b0000e0001779d001100977c8e5702241100009edd050f02021018009edd050f5fb4b49e8d7da2359b00001bc8550f0300120100110400120c0013070014050002860014041b07001b07001b07001b07001b07001b07001b07001b07001b070020c1
+	// 0100020b00b0000e0001779d001100977c8e5702241100009edd050f02021018009edd050f5fb4b49e8d7da2359b00009bc8550f030012010011040018110000120c000000070000000000000000001307000300000000000014050002860014041b0700400000fbff00001b0700000100000000001b0700010100000000001b07000201006c6300001b0700030100000000001b0700040100000000001b0700050100000000001b0700000200000000001b070001020000000000dc85
+	// str, _ := json.Marshal(parsedAuth)
+	// fmt.Println(string(str))
+	// resp := parsedAuth.PrepareAnswer()
+	// encodedResp := resp.Encode()
+	// hexResp := hex.EncodeToString(encodedResp)
+	// trueResp := ""
+	// if hexResp != trueResp {
+	// 	t.Errorf("Response should be %s, but got %s", trueResp, hexResp)
+	// }
 
 	// 0100030b002200010000e601000018000000580202000300000000000300010000000300020000000300030000ce79
 	// 0100030b0037000100005601000006000000580202000300000000060001005802020003000100000600020058020200030002000006000300580202000300030000c09d

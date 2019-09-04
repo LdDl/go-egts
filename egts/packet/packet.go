@@ -189,7 +189,7 @@ func (p *Packet) Encode() (b []byte) {
 	crc8 := uint8(crc.Crc(8, b))
 	b = append(b, crc8)
 	if p.ServicesFrameData != nil {
-		sfrd := p.ServicesFrameData.Encode()
+		sfrd, _ := p.ServicesFrameData.Encode()
 		if len(sfrd) > 1 {
 			b = append(b, sfrd...)
 			crc16 := uint16(crc.Crc(16, sfrd))
