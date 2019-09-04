@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // SRStateData EGTS_SR_STATE_DATA
@@ -38,25 +39,25 @@ func (subr *SRStateData) Decode(b []byte) (err error) {
 
 	buffer := bytes.NewReader(b)
 	if subr.StateByte, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading state")
+		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading ST")
 	}
 	if subr.StateByte < 0 || subr.StateByte > 8 {
-		return fmt.Errorf("Wrong state")
+		return fmt.Errorf("EGTS_SR_STATE_DATA; Such ST does not exists")
 	}
 	subr.State = states[subr.StateByte]
 	subr.StateByte = b[0]
 
 	subr.MainPowerSourceVoltageByte = b[1]
 	if subr.MainPowerSourceVoltageByte, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading MPSV")
+		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading MPSV")
 	}
 	subr.BackupBatteryVoltageByte = b[2]
 	if subr.BackupBatteryVoltageByte, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading BBV")
+		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading BBV")
 	}
 	subr.InternalBatteryVoltageByte = b[3]
 	if subr.InternalBatteryVoltageByte, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading IBV")
+		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading IBV")
 	}
 
 	subr.MainPowerSourceVoltage = float32(subr.MainPowerSourceVoltageByte) * 0.1
@@ -65,9 +66,10 @@ func (subr *SRStateData) Decode(b []byte) (err error) {
 
 	flagByte := byte(0)
 	if flagByte, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading flags")
+		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading flags")
 	}
 	flagByteAsBits := fmt.Sprintf("%08b", flagByte)
+	// log.Println("parsed", flagByteAsBits)
 	subr.NavigationModuleEnable = flagByteAsBits[5:6]
 	subr.InternalBatteryEnable = flagByteAsBits[6:7]
 	subr.BackupBatteryEnable = flagByteAsBits[7:]
@@ -82,10 +84,11 @@ func (subr *SRStateData) Encode() (b []byte, err error) {
 	b = append(b, subr.BackupBatteryVoltageByte)
 	b = append(b, subr.InternalBatteryVoltageByte)
 
-	flagsBits := subr.NavigationModuleEnable + subr.InternalBatteryEnable + subr.BackupBatteryEnable
+	flagsBits := strings.Repeat("0", 5) + subr.NavigationModuleEnable + subr.InternalBatteryEnable + subr.BackupBatteryEnable
 	flags := uint64(0)
 	flags, _ = strconv.ParseUint(flagsBits, 2, 8)
 	b = append(b, uint8(flags))
+
 	return b, nil
 }
 

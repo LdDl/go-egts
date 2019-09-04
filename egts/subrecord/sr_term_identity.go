@@ -37,14 +37,14 @@ func (subr *SRTermIdentity) Decode(b []byte) (err error) {
 	// TID (Terminal Identifier)
 	tid := make([]byte, 4)
 	if _, err = buffer.Read(tid); err != nil {
-		return fmt.Errorf("Error reading TID")
+		return fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error reading TID")
 	}
 	subr.TerminalIdentifier = binary.LittleEndian.Uint32(tid)
 
 	// Flags: MNE, BSE, NIDE, SSRA, LNGCE, IMSIE, IMEIE, HDIDE
 	flagByte := byte(0)
 	if flagByte, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading flags")
+		return fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error reading flags")
 	}
 	flagByteAsBits := fmt.Sprintf("%08b", flagByte)
 	subr.HDIDE = flagByteAsBits[7:]
@@ -60,7 +60,7 @@ func (subr *SRTermIdentity) Decode(b []byte) (err error) {
 	if subr.HDIDE == "1" {
 		hdid := make([]byte, 2)
 		if _, err = buffer.Read(hdid); err != nil {
-			return fmt.Errorf("Error reading HDID")
+			return fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error reading HDID")
 		}
 		subr.HomeDispatcherIdentifier = binary.LittleEndian.Uint16(hdid)
 	}
@@ -69,7 +69,7 @@ func (subr *SRTermIdentity) Decode(b []byte) (err error) {
 	if subr.IMEIE == "1" {
 		imei := make([]byte, 15)
 		if _, err = buffer.Read(imei); err != nil {
-			return fmt.Errorf("Error reading IMEI")
+			return fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error reading IMEI")
 		}
 		subr.InternationalMobileEquipmentIdentity = string(imei)
 	}
@@ -78,7 +78,7 @@ func (subr *SRTermIdentity) Decode(b []byte) (err error) {
 	if subr.IMSIE == "1" {
 		imsi := make([]byte, 16)
 		if _, err = buffer.Read(imsi); err != nil {
-			return fmt.Errorf("Error reading IMSI")
+			return fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error reading IMSI")
 		}
 		subr.InternationalMobileSubscriberIdentity = string(imsi)
 	}
@@ -87,7 +87,7 @@ func (subr *SRTermIdentity) Decode(b []byte) (err error) {
 	if subr.LNGCE == "1" {
 		lang := make([]byte, 3)
 		if _, err = buffer.Read(lang); err != nil {
-			return fmt.Errorf("Error reading LNGC")
+			return fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error reading LNGC")
 		}
 		subr.LanguageCode = string(lang)
 	}
@@ -96,7 +96,7 @@ func (subr *SRTermIdentity) Decode(b []byte) (err error) {
 	if subr.NIDE == "1" {
 		subr.NetworkIdentifier = make([]byte, 3)
 		if _, err = buffer.Read(subr.NetworkIdentifier); err != nil {
-			return fmt.Errorf("Error reading NID")
+			return fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error reading NID")
 		}
 	}
 
@@ -104,7 +104,7 @@ func (subr *SRTermIdentity) Decode(b []byte) (err error) {
 	if subr.BSE == "1" {
 		bufSize := make([]byte, 2)
 		if _, err = buffer.Read(bufSize); err != nil {
-			return fmt.Errorf("Error reading BufferSize")
+			return fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error reading BS")
 		}
 		subr.BufferSize = binary.LittleEndian.Uint16(bufSize)
 	}
@@ -113,7 +113,7 @@ func (subr *SRTermIdentity) Decode(b []byte) (err error) {
 	if subr.MNE == "1" {
 		mne := make([]byte, 15)
 		if _, err = buffer.Read(mne); err != nil {
-			return fmt.Errorf("Error reading SIM number")
+			return fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error reading MSISDN")
 		}
 		subr.MobileStationIntegratedServicesDigitalNetworkNumber = string(mne)
 	}

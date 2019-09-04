@@ -25,7 +25,7 @@ func (subr *SRCountersData) Decode(b []byte) (err error) {
 	// CFE1 ... CFE8 - (Counter Field Exists)
 	flagByte := byte(0)
 	if flagByte, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading flags")
+		return fmt.Errorf("EGTS_SR_COUNTERS_DATA; Error reading flags")
 	}
 	flagByteAsBits := fmt.Sprintf("%08b", flagByte)
 	subr.CountersExists = make([]string, 8) // not [8]string{}, because slice is needed in Encode() method
@@ -41,7 +41,7 @@ func (subr *SRCountersData) Decode(b []byte) (err error) {
 		if subr.CountersExists[i] == "1" {
 			cn := make([]byte, 3)
 			if _, err = buffer.Read(cn); err != nil {
-				return fmt.Errorf("Error reading CN")
+				return fmt.Errorf("EGTS_SR_COUNTERS_DATA; Error reading CN")
 			}
 			cn = append(cn, 0x00)
 			subr.Counters[i] = binary.LittleEndian.Uint32(cn)
@@ -61,10 +61,10 @@ func (subr *SRCountersData) Encode() (b []byte, err error) {
 	}
 	flags, err = strconv.ParseUint(strings.Join(subr.CountersExists, ""), 2, 8)
 	if err != nil {
-		return nil, fmt.Errorf("Error writing bits in flags")
+		return nil, fmt.Errorf("EGTS_SR_COUNTERS_DATA; Error writing flags")
 	}
 	if err = buffer.WriteByte(uint8(flags)); err != nil {
-		return nil, fmt.Errorf("Error writing flags")
+		return nil, fmt.Errorf("EGTS_SR_COUNTERS_DATA; Error writing byte flags")
 	}
 
 	for i := range subr.CountersExists {
@@ -72,7 +72,7 @@ func (subr *SRCountersData) Encode() (b []byte, err error) {
 			ans := make([]byte, 4)
 			binary.LittleEndian.PutUint32(ans, subr.Counters[i])
 			if _, err = buffer.Write(ans[:3]); err != nil {
-				return nil, fmt.Errorf("Error writing CN")
+				return nil, fmt.Errorf("EGTS_SR_COUNTERS_DATA; Error writing CN")
 			}
 		}
 	}

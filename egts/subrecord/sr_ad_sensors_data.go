@@ -33,7 +33,7 @@ func (subr *SRAdSensorsData) Decode(b []byte) (err error) {
 
 	flagByteADI := byte(0)
 	if flagByteADI, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading flags")
+		return fmt.Errorf("EGTS_SR_AD_SENSORS_DATA; Error reading flags ADI")
 	}
 	flagByteAsBitsADI := fmt.Sprintf("%08b", flagByteADI)
 
@@ -50,12 +50,12 @@ func (subr *SRAdSensorsData) Decode(b []byte) (err error) {
 
 	// Digital Outputs
 	if subr.DigitalOutputs, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading DOUT")
+		return fmt.Errorf("EGTS_SR_AD_SENSORS_DATA; Error reading DOUT")
 	}
 
 	flagByteANS := byte(0)
 	if flagByteANS, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading flags")
+		return fmt.Errorf("EGTS_SR_AD_SENSORS_DATA; Error reading flags ANS")
 	}
 	flagByteAsBitsANS := fmt.Sprintf("%08b", flagByteANS)
 	// ASFE1 ... ASFE8 - (Analog Sensor Field Exists)
@@ -72,7 +72,7 @@ func (subr *SRAdSensorsData) Decode(b []byte) (err error) {
 	for i := range subr.DIOExists {
 		if subr.DIOExists[i] == "1" {
 			if subr.ADI[i], err = buffer.ReadByte(); err != nil {
-				return fmt.Errorf("Error reading ADI")
+				return fmt.Errorf("EGTS_SR_AD_SENSORS_DATA; Error reading flags ADI")
 			}
 		}
 	}
@@ -81,7 +81,7 @@ func (subr *SRAdSensorsData) Decode(b []byte) (err error) {
 		if subr.ANSExists[i] == "1" {
 			ans := make([]byte, 3)
 			if _, err = buffer.Read(ans); err != nil {
-				return fmt.Errorf("Error reading ANS")
+				return fmt.Errorf("EGTS_SR_AD_SENSORS_DATA; Error reading flags ANS")
 			}
 			ans = append(ans, 0x00)
 			subr.ANS[i] = binary.LittleEndian.Uint32(ans)
@@ -104,37 +104,43 @@ func (subr *SRAdSensorsData) Encode() (b []byte, err error) {
 
 	flagsDIO, err = strconv.ParseUint(strings.Join(subr.DIOExists, ""), 2, 8)
 	if err != nil {
-		return nil, fmt.Errorf("Error writing bits in flags")
+		return nil, fmt.Errorf("EGTS_SR_AD_SENSORS_DATA; Error writing flags ADI")
 	}
 	if err = buffer.WriteByte(uint8(flagsDIO)); err != nil {
-		return nil, fmt.Errorf("Error writing flags")
+		return nil, fmt.Errorf("EGTS_SR_AD_SENSORS_DATA; Error writing byte flags ADI")
 	}
+
 	if err = buffer.WriteByte(subr.DigitalOutputs); err != nil {
-		return nil, fmt.Errorf("Error writing DOUT")
+		return nil, fmt.Errorf("EGTS_SR_AD_SENSORS_DATA; Error writing DOUT")
 	}
 
 	flagsANS := uint64(0)
+	for i := len(subr.ANSExists)/2 - 1; i >= 0; i-- { // reversed order of ANS
+		opp := len(subr.ANSExists) - 1 - i
+		subr.ANSExists[i], subr.ANSExists[opp] = subr.ANSExists[opp], subr.ANSExists[i]
+	}
 	flagsANS, err = strconv.ParseUint(strings.Join(subr.ANSExists, ""), 2, 8)
 	if err != nil {
-		return nil, fmt.Errorf("Error writing bits in flags")
+		return nil, fmt.Errorf("EGTS_SR_AD_SENSORS_DATA; Error writing flags ANS")
 	}
 	if err = buffer.WriteByte(uint8(flagsANS)); err != nil {
-		return nil, fmt.Errorf("Error writing flags")
+		return nil, fmt.Errorf("EGTS_SR_AD_SENSORS_DATA; Error writing byte flags ANS")
 	}
 
 	for i := range subr.DIOExists {
 		if subr.DIOExists[i] == "1" {
 			if err = buffer.WriteByte(subr.ADI[i]); err != nil {
-				return nil, fmt.Errorf("Error writing ADI")
+				return nil, fmt.Errorf("EGTS_SR_AD_SENSORS_DATA; Error writing ADI")
 			}
 		}
 	}
+
 	for i := range subr.ANSExists {
 		if subr.ANSExists[i] == "1" {
 			ans := make([]byte, 4)
 			binary.LittleEndian.PutUint32(ans, subr.ANS[i])
 			if _, err = buffer.Write(ans[:3]); err != nil {
-				return nil, fmt.Errorf("Error writing ANS")
+				return nil, fmt.Errorf("EGTS_SR_AD_SENSORS_DATA; Error writing ANS")
 			}
 		}
 	}

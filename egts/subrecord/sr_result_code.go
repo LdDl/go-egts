@@ -10,14 +10,14 @@ import (
 	Код результата для подзаписей сервиса EGTS_AUTH_SERVICE
 */
 type SRResultCode struct {
-	RCD uint8 // RCD — код, определяющий результат выполнения операции авторизации.
+	RCD uint8 `json:"RCD"` // RCD — код, определяющий результат выполнения операции авторизации.
 }
 
 // Decode Parse array of bytes to EGTS_SR_RESULT_CODE
 func (subr *SRResultCode) Decode(b []byte) (err error) {
 	buffer := bytes.NewReader(b)
 	if subr.RCD, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading RCD")
+		return fmt.Errorf("EGTS_SR_RESULT_CODE; Error reading RCD")
 	}
 	return nil
 }

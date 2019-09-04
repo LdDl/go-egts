@@ -2,7 +2,6 @@ package packet
 
 import (
 	"encoding/binary"
-	"log"
 
 	"github.com/LdDl/go-egts/egts/subrecord"
 )
@@ -77,7 +76,6 @@ func (rd *RecordsData) Encode() (b []byte, err error) {
 		binary.LittleEndian.PutUint16(sl, r.SubrecordLength)
 		b = append(b, sl...)
 		sd, _ := r.SubrecordData.Encode()
-		log.Println("sdr encode", r.SubrecordType, sd)
 		b = append(b, sd...)
 	}
 	return b, nil

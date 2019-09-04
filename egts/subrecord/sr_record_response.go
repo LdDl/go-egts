@@ -22,11 +22,11 @@ func (subr *SRRecordResponse) Decode(b []byte) (err error) {
 	buffer := bytes.NewReader(b)
 	crn := make([]byte, 4)
 	if _, err = buffer.Read(crn); err != nil {
-		return fmt.Errorf("Error reading CRN")
+		return fmt.Errorf("EGTS_SR_RECORD_RESPONSE; Error reading CRN")
 	}
 	subr.ConfirmedRecordNumber = binary.LittleEndian.Uint16(crn)
 	if subr.RecordStatus, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading record status")
+		return fmt.Errorf("EGTS_SR_RECORD_RESPONSE; Error reading RST")
 	}
 
 	return nil

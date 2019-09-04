@@ -35,45 +35,45 @@ func (subr *SRExPosDataRecord) Decode(b []byte) (err error) {
 	// Flags
 	flagByte := byte(0)
 	if flagByte, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading flags")
+		return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error reading flags")
 	}
 	flagByteAsBits := fmt.Sprintf("%08b", flagByte)
-	subr.VerticalDiluptionOfPrecisionExists = flagByteAsBits[7:]
-	subr.HorizontalDiluptionOfPrecisionExists = flagByteAsBits[6:7]
-	subr.PositionDiluptionOfPrecisionExists = flagByteAsBits[5:6]
-	subr.SatellitesExists = flagByteAsBits[4:5]
 	subr.NavigationSystemExists = flagByteAsBits[3:4]
+	subr.SatellitesExists = flagByteAsBits[4:5]
+	subr.PositionDiluptionOfPrecisionExists = flagByteAsBits[5:6]
+	subr.HorizontalDiluptionOfPrecisionExists = flagByteAsBits[6:7]
+	subr.VerticalDiluptionOfPrecisionExists = flagByteAsBits[7:]
 
 	if subr.VerticalDiluptionOfPrecisionExists == "1" {
 		vdop := make([]byte, 2)
 		if _, err = buffer.Read(vdop); err != nil {
-			return fmt.Errorf("Error reading VDOP")
+			return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error reading VDOP")
 		}
 		subr.VerticalDiluptionOfPrecision = binary.LittleEndian.Uint16(vdop)
 	}
 	if subr.HorizontalDiluptionOfPrecisionExists == "1" {
 		hdop := make([]byte, 2)
 		if _, err = buffer.Read(hdop); err != nil {
-			return fmt.Errorf("Error reading HDOP")
+			return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error reading HDOP")
 		}
 		subr.HorizontalDiluptionOfPrecision = binary.LittleEndian.Uint16(hdop)
 	}
 	if subr.PositionDiluptionOfPrecisionExists == "1" {
 		pdop := make([]byte, 2)
 		if _, err = buffer.Read(pdop); err != nil {
-			return fmt.Errorf("Error reading PDOP")
+			return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error reading PDOP")
 		}
 		subr.PositionDiluptionOfPrecision = binary.LittleEndian.Uint16(pdop)
 	}
 	if subr.SatellitesExists == "1" {
 		if subr.Satellites, err = buffer.ReadByte(); err != nil {
-			return fmt.Errorf("Error reading SAT")
+			return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error reading SAT")
 		}
 	}
 	if subr.NavigationSystemExists == "1" {
 		ns := make([]byte, 2)
 		if _, err = buffer.Read(ns); err != nil {
-			return fmt.Errorf("Error reading NS")
+			return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error reading NS")
 		}
 		subr.NavigationSystem = binary.LittleEndian.Uint16(ns)
 	}
@@ -99,42 +99,45 @@ func (subr *SRExPosDataRecord) Encode() (b []byte, err error) {
 
 	flags := uint64(0)
 	flags, err = strconv.ParseUint(strings.Repeat("0", 3)+subr.NavigationSystemExists+subr.SatellitesExists+subr.PositionDiluptionOfPrecisionExists+subr.HorizontalDiluptionOfPrecisionExists+subr.VerticalDiluptionOfPrecisionExists, 2, 8)
+	// flags, err = strconv.ParseUint(subr.VerticalDiluptionOfPrecisionExists+subr.HorizontalDiluptionOfPrecisionExists+subr.PositionDiluptionOfPrecisionExists+subr.SatellitesExists+subr.NavigationSystemExists+strings.Repeat("0", 3), 2, 8)
+
 	if err != nil {
-		return nil, fmt.Errorf("Error writing bits in flags")
+		return nil, fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error writing flags")
 	}
 	if err = buffer.WriteByte(uint8(flags)); err != nil {
-		return nil, fmt.Errorf("Error writing bits in flags")
+		return nil, fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error writing flags byte")
 	}
 
 	if subr.VerticalDiluptionOfPrecisionExists == "1" {
 		if err = binary.Write(buffer, binary.LittleEndian, subr.VerticalDiluptionOfPrecision); err != nil {
-			return nil, fmt.Errorf("Error writing bits in flags")
+			return nil, fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error writing VDOP")
 		}
 	}
 
 	if subr.HorizontalDiluptionOfPrecisionExists == "1" {
 		if err = binary.Write(buffer, binary.LittleEndian, subr.HorizontalDiluptionOfPrecision); err != nil {
-			return nil, fmt.Errorf("Error writing bits in flags")
+			return nil, fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error writing HDOP")
 		}
 	}
 
 	if subr.PositionDiluptionOfPrecisionExists == "1" {
 		if err = binary.Write(buffer, binary.LittleEndian, subr.PositionDiluptionOfPrecision); err != nil {
-			return nil, fmt.Errorf("Error writing bits in flags")
+			return nil, fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error writing PDOP")
 		}
 	}
 
 	if subr.SatellitesExists == "1" {
 		if err = buffer.WriteByte(subr.Satellites); err != nil {
-			return nil, fmt.Errorf("Error writing bits in flags")
+			return nil, fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error writing SAT")
 		}
 	}
 
 	if subr.NavigationSystemExists == "1" {
 		if err = binary.Write(buffer, binary.LittleEndian, subr.NavigationSystem); err != nil {
-			return nil, fmt.Errorf("Error writing bits in flags")
+			return nil, fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error writing NS")
 		}
 	}
+
 	return buffer.Bytes(), nil
 }
 
@@ -143,4 +146,12 @@ func (subr *SRExPosDataRecord) Len() (l uint16) {
 	encoded, _ := subr.Encode()
 	l = uint16(len(encoded))
 	return l
+}
+
+func reverse(s string) string {
+	runes := []rune(s)
+	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+		runes[i], runes[j] = runes[j], runes[i]
+	}
+	return string(runes)
 }

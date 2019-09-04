@@ -30,7 +30,7 @@ func (subr *SRLiquidLevelSensor) Decode(b []byte) (err error) {
 
 	flagByte := byte(0)
 	if flagByte, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading flags")
+		return fmt.Errorf("EGTS_SR_LIQUID_LEVEL_SENSOR; Error reading flags")
 	}
 	flagByteAsBits := fmt.Sprintf("%08b", flagByte)
 	subr.LiquidLevelSensorErrorFlag = flagByteAsBits[1:2]
@@ -42,13 +42,13 @@ func (subr *SRLiquidLevelSensor) Decode(b []byte) (err error) {
 
 	maddr := make([]byte, 2)
 	if _, err = buffer.Read(maddr); err != nil {
-		return fmt.Errorf("Error reading maddr")
+		return fmt.Errorf("EGTS_SR_LIQUID_LEVEL_SENSOR; Error reading MADDR")
 	}
 	subr.MADDR = binary.LittleEndian.Uint16(maddr)
 
 	sb := make([]byte, 4)
 	if _, err = buffer.Read(sb); err != nil {
-		return fmt.Errorf("Error reading liquid data")
+		return fmt.Errorf("EGTS_SR_LIQUID_LEVEL_SENSOR; Error reading LLSD")
 	}
 	subr.LiquidLevelSensorb = binary.LittleEndian.Uint32(sb)
 
@@ -62,18 +62,18 @@ func (subr *SRLiquidLevelSensor) Encode() (b []byte, err error) {
 	flags := uint64(0)
 	flags, err = strconv.ParseUint(strings.Repeat("0", 1)+subr.LiquidLevelSensorErrorFlag+subr.LiquidLevelSensorValueUnit+subr.RawbFlag+fmt.Sprintf("%03b", subr.LiquidLevelSensorNumber), 2, 8)
 	if err != nil {
-		return nil, fmt.Errorf("Error writing bits in flags")
+		return nil, fmt.Errorf("EGTS_SR_LIQUID_LEVEL_SENSOR; Error writing flags")
 	}
 	if err = buffer.WriteByte(uint8(flags)); err != nil {
-		return nil, fmt.Errorf("Error writing bits in flags")
+		return nil, fmt.Errorf("EGTS_SR_LIQUID_LEVEL_SENSOR; Error writing byte flags")
 	}
 
 	if err = binary.Write(buffer, binary.LittleEndian, subr.MADDR); err != nil {
-		return nil, fmt.Errorf("Error writing bits in MADDR")
+		return nil, fmt.Errorf("EGTS_SR_LIQUID_LEVEL_SENSOR; Error writing MADDR")
 	}
 
 	if err = binary.Write(buffer, binary.LittleEndian, subr.LiquidLevelSensorb); err != nil {
-		return nil, fmt.Errorf("Error writing bits in liquid data")
+		return nil, fmt.Errorf("EGTS_SR_LIQUID_LEVEL_SENSOR; Error writing LLSD")
 	}
 
 	return buffer.Bytes(), nil

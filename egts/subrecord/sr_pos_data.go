@@ -54,19 +54,19 @@ func (subr *SRPosData) Decode(b []byte) (err error) {
 	timestamp, _ := time.Parse(time.RFC3339, "2010-01-01T00:00:00+00:00")
 	nt := make([]byte, 4)
 	if _, err = buffer.Read(nt); err != nil {
-		return fmt.Errorf("Error reading NT")
+		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading NTM")
 	}
 	subr.NavigationTimeUint = binary.LittleEndian.Uint32(nt)
 	subr.NavigationTime = timestamp.Add(time.Duration(int(subr.NavigationTimeUint)) * time.Second)
 
 	lat := make([]byte, 4)
 	if _, err = buffer.Read(lat); err != nil {
-		return fmt.Errorf("Error reading latitude")
+		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading LAT")
 	}
 
 	lon := make([]byte, 4)
 	if _, err = buffer.Read(lon); err != nil {
-		return fmt.Errorf("Error reading longitude")
+		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading LONG")
 	}
 	// Longitude , degree,  (WGS - 84) / 180 * 0xFFFFFFFF
 	subr.Longitude = 180.0 * float64(binary.LittleEndian.Uint32(lon)) / 0xFFFFFFFF
@@ -74,7 +74,7 @@ func (subr *SRPosData) Decode(b []byte) (err error) {
 	// Flags
 	flagByte := byte(0)
 	if flagByte, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading flags")
+		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading flags")
 	}
 	flagByteAsBits := fmt.Sprintf("%08b", flagByte)
 	subr.Valid = flagByteAsBits[7:]
@@ -101,40 +101,39 @@ func (subr *SRPosData) Decode(b []byte) (err error) {
 
 	speedBytes := make([]byte, 2)
 	if _, err = buffer.Read(speedBytes); err != nil {
-		return fmt.Errorf("Error reading speed")
+		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading SPD")
 	}
 	speed := binary.LittleEndian.Uint16(speedBytes)
 	subr.Speed = utils.BitField(speed, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13).(int) / 10
 
-	subr.AltsFlag = uint8(speed >> 14 & 0x1) // utils.BitField(speed, 14).(bool)
-	subr.DirhFlag = uint8(speed >> 15 & 0x1) // utils.BitField(speed, 15).(bool)
+	subr.AltsFlag = uint8(speed >> 14 & 0x1)
+	subr.DirhFlag = uint8(speed >> 15 & 0x1)
 	// DIR Direction
 	if subr.Direction, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading direction")
+		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading DIR")
 	}
-	subr.Direction |= subr.DirhFlag << 7
 
 	// ODM Odometer, 3b
 	subr.OdometerBytes = make([]byte, 3)
 	if _, err = buffer.Read(subr.OdometerBytes); err != nil {
-		return fmt.Errorf("Error reading odm")
+		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading ODM")
 	}
 	subr.Odometer = int(binary.LittleEndian.Uint32(append([]byte{0}, subr.OdometerBytes...))) / 10
 
 	// DIN Digital Inputs
 	if subr.DigitalInputs, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading digital input")
+		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading DIN")
 	}
 
 	// SRC Source
 	if subr.Source, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("Error reading source")
+		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading SRC")
 	}
 
 	if subr.AltitudeExists == "1" {
 		subr.AltitudeBytes = make([]byte, 3)
 		if _, err = buffer.Read(subr.AltitudeBytes); err != nil {
-			return fmt.Errorf("Error reading altitude")
+			return fmt.Errorf("EGTS_SR_POS_DATA; Error reading ALT")
 		}
 		subr.Altitude = binary.LittleEndian.Uint32(append(subr.AltitudeBytes, byte(0)))
 	}
@@ -147,51 +146,51 @@ func (subr *SRPosData) Encode() (b []byte, err error) {
 	buffer := new(bytes.Buffer)
 	timestamp, _ := time.Parse(time.RFC3339, "2010-01-01T00:00:00+00:00")
 	if err = binary.Write(buffer, binary.LittleEndian, uint32(subr.NavigationTime.Sub(timestamp).Seconds())); err != nil {
-		return nil, fmt.Errorf("Error writing time")
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing NTM")
 	}
 	if err = binary.Write(buffer, binary.LittleEndian, uint32(subr.Latitude/90*0xFFFFFFFF)); err != nil {
-		return nil, fmt.Errorf("Error writing latitude")
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing LAT")
 	}
 	if err = binary.Write(buffer, binary.LittleEndian, uint32(subr.Longitude/180*0xFFFFFFFF)); err != nil {
-		return nil, fmt.Errorf("Error writing longitude")
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing LONG")
 	}
 	flags := uint64(0)
 	flags, err = strconv.ParseUint(subr.AltitudeExists+subr.LOHS+subr.LAHS+subr.Move+subr.BlackBox+subr.CoordinateSystem+subr.Fix+subr.Valid, 2, 8)
 	if err != nil {
-		return nil, fmt.Errorf("Error writing bits in flags")
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing flags")
 	}
 	if err = buffer.WriteByte(uint8(flags)); err != nil {
-		return nil, fmt.Errorf("Error writing flags")
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing flags byte")
 	}
 
-	speed := uint16(subr.Speed*10) | uint16(subr.DirhFlag)<<15 // 15 бит
-	speed = speed | uint16(subr.AltsFlag)<<14                  //14 бит
+	speed := uint16(subr.Speed*10) | uint16(subr.DirhFlag)<<15
+	speed = speed | uint16(subr.AltsFlag)<<14
 	spd := make([]byte, 2)
 	binary.LittleEndian.PutUint16(spd, speed)
 	if _, err = buffer.Write(spd); err != nil {
-		return nil, fmt.Errorf("Error writing speed")
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing SPD")
 	}
 
-	dir := subr.Direction &^ (1 << 7)
+	dir := subr.Direction
 	if err = binary.Write(buffer, binary.LittleEndian, dir); err != nil {
-		return nil, fmt.Errorf("Error writing DIR")
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing DIR")
 	}
 
 	if _, err = buffer.Write(subr.OdometerBytes); err != nil {
-		return nil, fmt.Errorf("Error writing ODM")
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing ODM")
 	}
 
 	if err = binary.Write(buffer, binary.LittleEndian, subr.DigitalInputs); err != nil {
-		return nil, fmt.Errorf("Error writing digital")
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing DIN")
 	}
 
 	if err = binary.Write(buffer, binary.LittleEndian, subr.Source); err != nil {
-		return nil, fmt.Errorf("Error writing source")
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing SRC")
 	}
 
 	if subr.AltitudeExists == "1" {
 		if _, err = buffer.Write(subr.AltitudeBytes); err != nil {
-			return nil, fmt.Errorf("Error writing altitude")
+			return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing ALT")
 		}
 	}
 
