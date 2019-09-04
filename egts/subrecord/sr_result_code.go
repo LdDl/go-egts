@@ -24,8 +24,11 @@ func (subr *SRResultCode) Decode(b []byte) (err error) {
 
 // Encode Parse EGTS_SR_RESULT_CODE to array of bytes
 func (subr *SRResultCode) Encode() (b []byte, err error) {
-	b = append(b, subr.RCD)
-	return b, nil
+	buffer := new(bytes.Buffer)
+	if err = buffer.WriteByte(subr.RCD); err != nil {
+		return nil, fmt.Errorf("EGTS_SR_RESULT_CODE; Error writing RCD")
+	}
+	return buffer.Bytes(), nil
 }
 
 // Len Returns length of bytes slice
