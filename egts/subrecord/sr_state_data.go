@@ -79,17 +79,28 @@ func (subr *SRStateData) Decode(b []byte) (err error) {
 
 // Encode Parse EGTS_SR_STATE_DATA to array of bytes
 func (subr *SRStateData) Encode() (b []byte, err error) {
-	b = append(b, subr.StateByte)
-	b = append(b, subr.MainPowerSourceVoltageByte)
-	b = append(b, subr.BackupBatteryVoltageByte)
-	b = append(b, subr.InternalBatteryVoltageByte)
+	buffer := new(bytes.Buffer)
+	if err = buffer.WriteByte(subr.StateByte); err != nil {
+		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Error writing ST")
+	}
+	if err = buffer.WriteByte(subr.MainPowerSourceVoltageByte); err != nil {
+		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Error writing MPSV")
+	}
+	if err = buffer.WriteByte(subr.BackupBatteryVoltageByte); err != nil {
+		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Error writing BBV")
+	}
+	if err = buffer.WriteByte(subr.InternalBatteryVoltageByte); err != nil {
+		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Error writing IBV")
+	}
 
 	flagsBits := strings.Repeat("0", 5) + subr.NavigationModuleEnable + subr.InternalBatteryEnable + subr.BackupBatteryEnable
 	flags := uint64(0)
 	flags, _ = strconv.ParseUint(flagsBits, 2, 8)
-	b = append(b, uint8(flags))
+	if err = buffer.WriteByte(uint8(flags)); err != nil {
+		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Error writing flags byte")
+	}
 
-	return b, nil
+	return buffer.Bytes(), nil
 }
 
 // Len Returns length of bytes slice
