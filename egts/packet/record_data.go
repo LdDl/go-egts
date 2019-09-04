@@ -20,20 +20,25 @@ type RecordsData []*RecordData
 
 // Decode Parse slice of bytes to Service Data Record
 func (rd *RecordsData) Decode(b []byte) (err error) {
-	i := 0
 
-	for i != len(b) {
+	buffer := bytes.NewBuffer(b)
+
+	for buffer.Len() > 0 {
 		rdEntity := &RecordData{}
 
 		// SRT (Subrecord Туре)
-		rdEntity.SubrecordType = uint8(b[i])
+		if rdEntity.SubrecordType, err = buffer.ReadByte(); err != nil {
+			return fmt.Errorf("SRD; Error reading SRT")
+		}
 
 		// SRL (Subrecord Length)
-		i++
-		rdEntity.SubrecordLength = binary.LittleEndian.Uint16(b[i : i+2])
+		srl := make([]byte, 2)
+		if _, err = buffer.Read(srl); err != nil {
+			return fmt.Errorf("EGTS_SR_LIQUID_LEVEL_SENSOR; Error reading SRL")
+		}
+		rdEntity.SubrecordLength = binary.LittleEndian.Uint16(srl)
 
 		// SRD (Subrecord Data)
-		i += 2
 		switch rdEntity.SubrecordType {
 		case RecordResponse:
 			rdEntity.SubrecordData = &subrecord.SRRecordResponse{}
@@ -63,11 +68,12 @@ func (rd *RecordsData) Decode(b []byte) (err error) {
 			// err = EGTS_PC_SRVC_NFOUND
 			break
 		}
-		err := rdEntity.SubrecordData.Decode(b[i : i+int(rdEntity.SubrecordLength)])
+		bb := buffer.Next(int(rdEntity.SubrecordLength))
+
+		err := rdEntity.SubrecordData.Decode(bb)
 		if err != nil {
 			return fmt.Errorf("SRD;" + err.Error())
 		}
-		i += int(rdEntity.SubrecordLength)
 		*rd = append(*rd, rdEntity)
 	}
 	return nil
