@@ -18,7 +18,6 @@ type SRRecordResponse struct {
 
 // Decode Parse array of bytes to EGTS_SR_RECORD_RESPONSE
 func (subr *SRRecordResponse) Decode(b []byte) (err error) {
-
 	buffer := bytes.NewReader(b)
 	crn := make([]byte, 4)
 	if _, err = buffer.Read(crn); err != nil {
@@ -34,11 +33,14 @@ func (subr *SRRecordResponse) Decode(b []byte) (err error) {
 
 // Encode Parse EGTS_SR_RECORD_RESPONSE to array of bytes
 func (subr *SRRecordResponse) Encode() (b []byte, err error) {
-	crn := make([]byte, 2)
-	binary.LittleEndian.PutUint16(crn, subr.ConfirmedRecordNumber)
-	b = append(b, crn...)
-	b = append(b, subr.RecordStatus)
-	return b, nil
+	buffer := new(bytes.Buffer)
+	if err = binary.Write(buffer, binary.LittleEndian, subr.ConfirmedRecordNumber); err != nil {
+		return nil, fmt.Errorf("EGTS_PT_RESPONSE; Error writing CRN")
+	}
+	if err = buffer.WriteByte(subr.RecordStatus); err != nil {
+		return nil, fmt.Errorf("EGTS_PT_RESPONSE; Error writing RST")
+	}
+	return buffer.Bytes(), nil
 }
 
 // Len Returns length of bytes slice
