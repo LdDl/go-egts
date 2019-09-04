@@ -1,6 +1,7 @@
 package packet
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 
@@ -74,15 +75,18 @@ func (rd *RecordsData) Decode(b []byte) (err error) {
 
 // Encode Parse Service Data Record to slice of bytes
 func (rd *RecordsData) Encode() (b []byte, err error) {
+	buffer := new(bytes.Buffer)
 	for _, r := range *rd {
-		b = append(b, r.SubrecordType)
-		sl := make([]byte, 2)
-		binary.LittleEndian.PutUint16(sl, r.SubrecordLength)
-		b = append(b, sl...)
+		if err = buffer.WriteByte(r.SubrecordType); err != nil {
+			return nil, fmt.Errorf("SRD; Error writing SRT")
+		}
+		if err = binary.Write(buffer, binary.LittleEndian, r.SubrecordLength); err != nil {
+			return nil, fmt.Errorf("SRD; Error writing SRL")
+		}
 		sd, _ := r.SubrecordData.Encode()
-		b = append(b, sd...)
+		buffer.Write(sd)
 	}
-	return b, nil
+	return buffer.Bytes(), nil
 }
 
 // Len Returns length of bytes slice

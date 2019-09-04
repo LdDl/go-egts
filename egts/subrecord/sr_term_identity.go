@@ -161,7 +161,7 @@ func (subr *SRTermIdentity) Encode() (b []byte, err error) {
 	}
 
 	if subr.NIDE == "1" {
-		if _, err = buffer.Write([]byte(subr.NetworkIdentifier)); err != nil {
+		if _, err = buffer.Write(subr.NetworkIdentifier); err != nil {
 			return nil, fmt.Errorf("EGTS_SR_TERM_IDENTITY; Error writing NID")
 		}
 	}
