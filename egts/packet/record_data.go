@@ -2,6 +2,7 @@ package packet
 
 import (
 	"encoding/binary"
+	"fmt"
 
 	"github.com/LdDl/go-egts/egts/subrecord"
 )
@@ -61,7 +62,10 @@ func (rd *RecordsData) Decode(b []byte) (err error) {
 			// err = EGTS_PC_SRVC_NFOUND
 			break
 		}
-		rdEntity.SubrecordData.Decode(b[i : i+int(rdEntity.SubrecordLength)])
+		err := rdEntity.SubrecordData.Decode(b[i : i+int(rdEntity.SubrecordLength)])
+		if err != nil {
+			return fmt.Errorf("SRD;" + err.Error())
+		}
 		i += int(rdEntity.SubrecordLength)
 		*rd = append(*rd, rdEntity)
 	}

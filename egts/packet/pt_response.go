@@ -2,6 +2,7 @@ package packet
 
 import (
 	"encoding/binary"
+	"fmt"
 )
 
 // PTResponse Subrecord of type EGTS_PT_RESPONSE
@@ -20,7 +21,11 @@ func (response *PTResponse) Decode(b []byte) (err error) {
 	// SFRD (Services Frame Data)
 	if len(b[3:]) > 0 {
 		response.SDR = &ServicesFrameData{}
-		response.SDR.Decode(b[3:])
+
+		err := response.SDR.Decode(b[3:])
+		if err != nil {
+			return fmt.Errorf("EGTS_PT_RESPONSE;" + err.Error())
+		}
 	}
 	return nil
 }

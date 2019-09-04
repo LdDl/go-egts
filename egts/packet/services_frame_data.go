@@ -104,7 +104,10 @@ func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 		i++
 		if len(b[i:i+int(sdr.RecordLength)]) != 0 {
 			sdr.RecordsData = RecordsData{}
-			sdr.RecordsData.Decode(b[i : i+int(sdr.RecordLength)])
+			err := sdr.RecordsData.Decode(b[i : i+int(sdr.RecordLength)])
+			if err != nil {
+				return fmt.Errorf("SFRD;" + err.Error())
+			}
 			i += int(sdr.RecordLength)
 		}
 		*sfrd = append(*sfrd, &sdr)
