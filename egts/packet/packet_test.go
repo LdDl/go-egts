@@ -17,8 +17,7 @@ func TestIncomingPacket(t *testing.T) {
 
 	fmt.Println("Income", egtsAuth)
 
-	parsedAuth, authCode := ReadPacket(egtsAuth)
-	fmt.Println("auth code:", authCode)
+	parsedAuth := ReadPacket(egtsAuth)
 	encoded := parsedAuth.Encode()
 	log.Println(hex.EncodeToString(encoded))
 
@@ -50,10 +49,10 @@ func TestPTresponsePacket(t *testing.T) {
 	egtsAuth, _ := hex.DecodeString(egtsAuthHex)
 
 	fmt.Println("Income", egtsAuth)
-	parsedAuth, authCode := ReadPacket(egtsAuth)
+	parsedAuth := ReadPacket(egtsAuth)
 
 	str, _ := json.Marshal(parsedAuth)
-	fmt.Println(authCode, string(str))
+	fmt.Println(string(str))
 
 	fmt.Println("Encode:")
 	enc := parsedAuth.Encode()
@@ -69,17 +68,16 @@ func TestAuthResponsePacket(t *testing.T) {
 	egtsAuth, _ := hex.DecodeString(egtsAuthHex)
 
 	fmt.Println("Income", egtsAuth)
-	parsedAuth, authCode := ReadPacket(egtsAuth)
+	parsedAuth := ReadPacket(egtsAuth)
 
 	str, _ := json.Marshal(parsedAuth)
-	fmt.Println(authCode, string(str))
 
 	resp := parsedAuth.PrepareAnswer()
 	fmt.Println("Encoded resp :")
 	encResp := resp.Encode()
 
 	str, _ = json.Marshal(resp)
-	fmt.Println(authCode, string(str))
+	fmt.Println(string(str))
 
 	fmt.Println(encResp, hex.EncodeToString(encResp))
 	t.Error(0)

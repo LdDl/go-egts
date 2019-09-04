@@ -38,14 +38,13 @@ type Packet struct {
 }
 
 // ReadPacket Parse slice of bytes as EGTS packet
-func ReadPacket(b []byte) (p Packet, err uint8) {
+func ReadPacket(b []byte) (p Packet) {
 
 	// PRV (Protocol Version)
 	i := 0
 	p.ProtocolVersion = uint8(b[i])
 	if p.ProtocolVersion != 1 {
-		err = EGTS_PC_UNS_PROTOCOL
-		p.Error = err
+		p.Error = EGTS_PC_UNS_PROTOCOL
 		return
 	}
 
@@ -102,29 +101,25 @@ func ReadPacket(b []byte) (p Packet, err uint8) {
 	// SFRCS
 	i++
 	if len(b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength]) != int(p.FrameDataLength) {
-		err = EGTS_PC_INC_DATAFORM
-		p.Error = err
+		p.Error = EGTS_PC_INC_DATAFORM
 		return
 	}
 	p.ServicesFrameDataCheckSum = binary.LittleEndian.Uint16(b[uint16(p.HeaderLength)+p.FrameDataLength : uint16(p.HeaderLength)+p.FrameDataLength+2])
 	if p.HeaderLength < 11 {
-		err = EGTS_PC_INC_HEADERFORM
-		p.Error = err
+		p.Error = EGTS_PC_INC_HEADERFORM
 		return
 	}
 
 	// Evaluate crc-8
 	crcData := crc.Crc(8, b[:p.HeaderLength-1])
 	if int(crcData) != int(p.HeaderCheckSum) {
-		err = EGTS_PC_HEADERCRC_ERROR
-		p.Error = err
+		p.Error = EGTS_PC_HEADERCRC_ERROR
 		return
 	}
 	// Evaluate crc-16
 	crcData = crc.Crc(16, b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength])
 	if int(crcData) != int(p.ServicesFrameDataCheckSum) {
-		err = EGTS_PC_DATACRC_ERROR
-		p.Error = err
+		p.Error = EGTS_PC_DATACRC_ERROR
 		return
 	}
 
@@ -147,7 +142,7 @@ func ReadPacket(b []byte) (p Packet, err uint8) {
 	// SFRD (Services Frame Data)
 	p.ServicesFrameData.Decode(b[p.HeaderLength : uint16(p.HeaderLength)+p.FrameDataLength])
 
-	return p, err
+	return p
 }
 
 // Encode Parse EGTS_PT_RESPONSE to slice of bytes

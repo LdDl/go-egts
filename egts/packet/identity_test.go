@@ -34,10 +34,7 @@ func TestIdentity(t *testing.T) {
 			t.Errorf("Error: %s", err.Error())
 		}
 
-		parsedAuth, authCode := ReadPacket(egtsAuth)
-		if authCode != identities[i].Code {
-			t.Errorf("Auth code should be %d, but got %d", identities[i].Code, authCode)
-		}
+		parsedAuth := ReadPacket(egtsAuth)
 
 		resp := parsedAuth.PrepareAnswer()
 		encodedResp := resp.Encode()
