@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // SRLiquidLevelSensor EGTS_SR_LIQUID_LEVEL_SENSOR
@@ -56,7 +57,26 @@ func (subr *SRLiquidLevelSensor) Decode(b []byte) (err error) {
 
 // Encode Parse EGTS_SR_LIQUID_LEVEL_SENSOR to array of bytes
 func (subr *SRLiquidLevelSensor) Encode() (b []byte, err error) {
-	return b, nil
+	buffer := new(bytes.Buffer)
+
+	flags := uint64(0)
+	flags, err = strconv.ParseUint(strings.Repeat("0", 1)+subr.LiquidLevelSensorErrorFlag+subr.LiquidLevelSensorValueUnit+subr.RawbFlag+fmt.Sprintf("%03b", subr.LiquidLevelSensorNumber), 2, 8)
+	if err != nil {
+		return nil, fmt.Errorf("Error writing bits in flags")
+	}
+	if err = buffer.WriteByte(uint8(flags)); err != nil {
+		return nil, fmt.Errorf("Error writing bits in flags")
+	}
+
+	if err = binary.Write(buffer, binary.LittleEndian, subr.MADDR); err != nil {
+		return nil, fmt.Errorf("Error writing bits in MADDR")
+	}
+
+	if err = binary.Write(buffer, binary.LittleEndian, subr.LiquidLevelSensorb); err != nil {
+		return nil, fmt.Errorf("Error writing bits in liquid data")
+	}
+
+	return buffer.Bytes(), nil
 }
 
 // Len Returns length of bytes slice
