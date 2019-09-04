@@ -45,7 +45,7 @@ func ReadPacket(b []byte) (p Packet) {
 	p.ProtocolVersion = uint8(b[i])
 	if p.ProtocolVersion != 1 {
 		p.Error = EGTS_PC_UNS_PROTOCOL
-		return
+		return p
 	}
 
 	// SKID Security Key ID
@@ -102,25 +102,25 @@ func ReadPacket(b []byte) (p Packet) {
 	i++
 	if len(b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength]) != int(p.FrameDataLength) {
 		p.Error = EGTS_PC_INC_DATAFORM
-		return
+		return p
 	}
 	p.ServicesFrameDataCheckSum = binary.LittleEndian.Uint16(b[uint16(p.HeaderLength)+p.FrameDataLength : uint16(p.HeaderLength)+p.FrameDataLength+2])
 	if p.HeaderLength < 11 {
 		p.Error = EGTS_PC_INC_HEADERFORM
-		return
+		return p
 	}
 
 	// Evaluate crc-8
 	crcData := crc.Crc(8, b[:p.HeaderLength-1])
 	if int(crcData) != int(p.HeaderCheckSum) {
 		p.Error = EGTS_PC_HEADERCRC_ERROR
-		return
+		return p
 	}
 	// Evaluate crc-16
 	crcData = crc.Crc(16, b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength])
 	if int(crcData) != int(p.ServicesFrameDataCheckSum) {
 		p.Error = EGTS_PC_DATACRC_ERROR
-		return
+		return p
 	}
 
 	// Check type of packet
@@ -132,7 +132,7 @@ func ReadPacket(b []byte) (p Packet) {
 		p.ServicesFrameData = &ServicesFrameData{}
 		break
 	case EGTS_PT_SIGNED_APPDATA:
-		// @todo
+		// @TODO (not implemented yet)
 		break
 	default:
 		// nothing
@@ -140,8 +140,11 @@ func ReadPacket(b []byte) (p Packet) {
 	}
 
 	// SFRD (Services Frame Data)
-	p.ServicesFrameData.Decode(b[p.HeaderLength : uint16(p.HeaderLength)+p.FrameDataLength])
-
+	err := p.ServicesFrameData.Decode(b[p.HeaderLength : uint16(p.HeaderLength)+p.FrameDataLength])
+	if err != nil {
+		p.Error = EGTS_PC_DECRYPT_ERROR
+		return p
+	}
 	return p
 }
 
@@ -202,59 +205,60 @@ func (p *Packet) PrepareAnswer() Packet {
 	if p.PacketType == EGTS_PT_APPDATA {
 		records := RecordsData{}
 		serviceType := uint8(0)
-		for _, r := range *p.ServicesFrameData.(*ServicesFrameData) {
-			records = append(records, &RecordData{
-				SubrecordType:   RecordResponse,
-				SubrecordLength: 3,
-				SubrecordData: &subrecord.SRRecordResponse{
-					ConfirmedRecordNumber: r.RecordNumber,
-					RecordStatus:          EGTS_PC_OK,
-				},
-			})
-			serviceType = r.SourceServiceType
-		}
-
-		resp := PTResponse{
-			ResponsePacketID: p.PacketID,
-			ProcessingResult: p.Error,
-		}
-
-		if records != nil {
-			resp.SDR = &ServicesFrameData{
-				&ServiceDataRecord{
-					RecordLength:         records.Len(),
-					RecordNumber:         0, // @todo
-					SSOD:                 "0",
-					RSOD:                 "1",
-					GRP:                  "0",
-					RPP:                  "11",
-					TMFE:                 "0",
-					EVFE:                 "0",
-					OBFE:                 "0",
-					SourceServiceType:    serviceType,
-					RecipientServiceType: serviceType,
-					RecordsData:          records,
-				},
+		if p.ServicesFrameData != nil {
+			for _, r := range *p.ServicesFrameData.(*ServicesFrameData) {
+				records = append(records, &RecordData{
+					SubrecordType:   RecordResponse,
+					SubrecordLength: 3,
+					SubrecordData: &subrecord.SRRecordResponse{
+						ConfirmedRecordNumber: r.RecordNumber,
+						RecordStatus:          EGTS_PC_OK,
+					},
+				})
+				serviceType = r.SourceServiceType
 			}
-		}
 
-		ans := Packet{
-			ProtocolVersion:   1,
-			SecurityKeyID:     0,
-			PRF:               "00",
-			RTE:               "0",
-			ENA:               "00",
-			CMP:               "0",
-			PR:                "11",
-			HeaderLength:      11,
-			HeaderEncoding:    0,
-			FrameDataLength:   resp.Len(),
-			PacketID:          p.PacketID, // @todo
-			PacketType:        EGTS_PT_RESPONSE,
-			ServicesFrameData: &resp,
-		}
+			resp := PTResponse{
+				ResponsePacketID: p.PacketID,
+				ProcessingResult: p.Error,
+			}
 
-		return ans
+			if records != nil {
+				resp.SDR = &ServicesFrameData{
+					&ServiceDataRecord{
+						RecordLength:         records.Len(),
+						RecordNumber:         0, // @todo
+						SSOD:                 "0",
+						RSOD:                 "1",
+						GRP:                  "0",
+						RPP:                  "11",
+						TMFE:                 "0",
+						EVFE:                 "0",
+						OBFE:                 "0",
+						SourceServiceType:    serviceType,
+						RecipientServiceType: serviceType,
+						RecordsData:          records,
+					},
+				}
+			}
+
+			ans := Packet{
+				ProtocolVersion:   1,
+				SecurityKeyID:     0,
+				PRF:               "00",
+				RTE:               "0",
+				ENA:               "00",
+				CMP:               "0",
+				PR:                "11",
+				HeaderLength:      11,
+				HeaderEncoding:    0,
+				FrameDataLength:   resp.Len(),
+				PacketID:          p.PacketID, // @todo
+				PacketType:        EGTS_PT_RESPONSE,
+				ServicesFrameData: &resp,
+			}
+			return ans
+		}
 	}
 
 	return Packet{}

@@ -1,6 +1,7 @@
 package packet
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 )
@@ -14,14 +15,24 @@ type PTResponse struct {
 
 // Decode Parse slice of bytes to EGTS_PT_RESPONSE
 func (response *PTResponse) Decode(b []byte) (err error) {
-	//  RPID Response Packet ID
-	response.ResponsePacketID = binary.LittleEndian.Uint16(b[0:2])
-	// PR Processing Result
-	response.ProcessingResult = uint8(b[2])
-	// SFRD (Services Frame Data)
-	if len(b[3:]) > 0 {
-		response.SDR = &ServicesFrameData{}
 
+	buffer := bytes.NewReader(b)
+
+	//  RPID Response Packet ID
+	rpid := make([]byte, 2)
+	if _, err = buffer.Read(rpid); err != nil {
+		return fmt.Errorf("EGTS_PT_RESPONSE; Error reading RPID")
+	}
+	response.ResponsePacketID = binary.LittleEndian.Uint16(rpid)
+
+	// PR Processing Result
+	if response.ProcessingResult, err = buffer.ReadByte(); err != nil {
+		return fmt.Errorf("EGTS_PT_RESPONSE; Error reading PR")
+	}
+
+	// SFRD (Services Frame Data)
+	if buffer.Len() > 0 {
+		response.SDR = &ServicesFrameData{}
 		err := response.SDR.Decode(b[3:])
 		if err != nil {
 			return fmt.Errorf("EGTS_PT_RESPONSE;" + err.Error())
@@ -32,15 +43,19 @@ func (response *PTResponse) Decode(b []byte) (err error) {
 
 // Encode Parse EGTS_PT_RESPONSE to slice of bytes
 func (response *PTResponse) Encode() (b []byte, err error) {
-	rpid := make([]byte, 2)
-	binary.LittleEndian.PutUint16(rpid, response.ResponsePacketID)
-	b = append(b, rpid...)
-	b = append(b, response.ProcessingResult)
+	buffer := new(bytes.Buffer)
+	if err = binary.Write(buffer, binary.LittleEndian, response.ResponsePacketID); err != nil {
+		return nil, fmt.Errorf("EGTS_PT_RESPONSE; Error writing RPID")
+	}
+
+	if err = buffer.WriteByte(response.ProcessingResult); err != nil {
+		return nil, fmt.Errorf("EGTS_PT_RESPONSE; Error writing PR")
+	}
 	if response.SDR != nil {
 		sdr, _ := response.SDR.Encode()
-		b = append(b, sdr...)
+		buffer.Write(sdr)
 	}
-	return b, nil
+	return buffer.Bytes(), nil
 }
 
 // Len Returns length of bytes slice
