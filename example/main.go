@@ -6,8 +6,9 @@ import (
 	"net"
 	"time"
 
-	packet "github.com/LdDl/go-egts/egts/packet"
 	"github.com/LdDl/go-egts/egts/subrecord"
+
+	packet "github.com/LdDl/go-egts/egts/packet"
 )
 
 var (
@@ -35,27 +36,13 @@ func main() {
 				log.Panicln(err)
 			}
 
-			data, responseCode := packet.ReadPacket(buff[:req])
-			for i := range data.ServicesFrameData {
-				switch data.ServicesFrameData[i].RecordData.SubrecordType {
-				case 16:
-					sub := data.ServicesFrameData[i].RecordData.SubrecordData.(subrecord.EgtsSrPosData)
-					fmt.Printf(
-						"SubRecordData:\n\tID: %v\n\tNavigationTime:%v\n\tLongitude:%v\n\tLatitude:%v\n\tSpeed:%v\n\tDirection:%v\n",
-						data.ServicesFrameData[i].ObjectIdentifier, sub.NavigationTime,
-						sub.Longitude, sub.Latitude,
-						sub.Speed, sub.Direction,
-					)
-					break
-				case 1:
-					// log.Println("auth")
-					break
-				default:
-					break
-				}
-			}
-			fmt.Println("Response code:", responseCode)
-			_, err = conn.Write(data.ResponseData)
+			data := packet.ReadPacket(buff[:req])
+			d := *data.ServicesFrameData.(*packet.ServicesFrameData)
+			drd := d[0].RecordsData[0]
+			fmt.Println("Data sample:", drd.SubrecordData.(*subrecord.SRPosData))
+			resp := data.PrepareAnswer()
+			fmt.Println(resp.Encode())
+			_, err = conn.Write(resp.Encode())
 			if err != nil {
 				log.Printf("Can not write response:\n\tError: %v | IP: %v\n", err, conn.RemoteAddr())
 				return
@@ -77,9 +64,9 @@ func main() {
 	n, _ := conn.Read(data)
 
 	if n != 0 {
-		p, responseCode := packet.ReadPacket(data)
-		log.Println("client;Response code:", responseCode)
-		p.Print()
+		p := packet.ReadPacket(pac)
+		log.Println("client;Response code:", p.PrepareAnswer())
+		log.Println(p)
 	}
 
 }
