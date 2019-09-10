@@ -25,7 +25,7 @@ func TestSRPosDataDecoding(t *testing.T) {
 			t.Errorf("Error: %s", err.Error())
 		}
 		if hex.EncodeToString(hexed) != SRPosDataCheckIncome[i] {
-			t.Errorf("Have to be %s, but got %s", SRPosDataCheckIncome[i], string(hexed))
+			t.Errorf("Have to be %s, but got %s", SRPosDataCheckIncome[i], hex.EncodeToString(hexed))
 		}
 	}
 }

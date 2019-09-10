@@ -25,7 +25,7 @@ func TestServicesFrameDataDecoding(t *testing.T) {
 			t.Errorf("Error: %s", err.Error())
 		}
 		if hex.EncodeToString(hexed) != ServicesFrameDataCheckIncome[i] {
-			t.Errorf("Have to be %s, but got %s", ServicesFrameDataCheckIncome[i], string(hexed))
+			t.Errorf("Have to be %s, but got %s", ServicesFrameDataCheckIncome[i], hex.EncodeToString(hexed))
 		}
 	}
 }

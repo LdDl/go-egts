@@ -25,7 +25,7 @@ func TestRecordsDataDecoding(t *testing.T) {
 			t.Errorf("Error: %s", err.Error())
 		}
 		if hex.EncodeToString(hexed) != RecordsDataCheckIncome[i] {
-			t.Errorf("Have to be %s, but got %s", RecordsDataCheckIncome[i], string(hexed))
+			t.Errorf("Have to be %s, but got %s", RecordsDataCheckIncome[i], hex.EncodeToString(hexed))
 		}
 	}
 }

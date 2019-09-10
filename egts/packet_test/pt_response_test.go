@@ -25,7 +25,7 @@ func TestPTResponseDecoding(t *testing.T) {
 			t.Errorf("Error: %s", err.Error())
 		}
 		if hex.EncodeToString(hexed) != PTResponseCheckIncome[i] {
-			t.Errorf("Have to be %s, but got %s", PTResponseCheckIncome[i], string(hexed))
+			t.Errorf("Have to be %s, but got %s", PTResponseCheckIncome[i], hex.EncodeToString(hexed))
 		}
 	}
 }
