@@ -36,12 +36,16 @@ func main() {
 				log.Panicln(err)
 			}
 
-			data := packet.ReadPacket(buff[:req])
+			data, err := packet.ReadPacket(buff[:req])
+			if err != nil {
+				log.Println("Error", err)
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
 			d := *data.ServicesFrameData.(*packet.ServicesFrameData)
 			drd := d[0].RecordsData[0]
 			fmt.Println("Data sample:", drd.SubrecordData.(*subrecord.SRPosData))
 			resp := data.PrepareAnswer()
-			fmt.Println(resp.Encode())
 			_, err = conn.Write(resp.Encode())
 			if err != nil {
 				log.Printf("Can not write response:\n\tError: %v | IP: %v\n", err, conn.RemoteAddr())
@@ -64,7 +68,10 @@ func main() {
 	n, _ := conn.Read(data)
 
 	if n != 0 {
-		p := packet.ReadPacket(pac)
+		p, err := packet.ReadPacket(data[:n])
+		if err != nil {
+			log.Println("Error", err)
+		}
 		log.Println("client;Response code:", p.PrepareAnswer())
 		log.Println(p)
 	}

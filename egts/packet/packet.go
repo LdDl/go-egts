@@ -34,18 +34,18 @@ type Packet struct {
 	ServicesFrameData         BytesData `json:"SFRD"`  // SFRD (Services Frame Data)
 	ServicesFrameDataCheckSum uint16    `json:"SFRCS"` // SFRCS
 
-	Error uint8 `json:"-"`
+	ErrorCode uint8 `json:"-"`
 }
 
 // ReadPacket Parse slice of bytes as EGTS packet
-func ReadPacket(b []byte) (p Packet) {
+func ReadPacket(b []byte) (p Packet, err error) {
 
 	// PRV (Protocol Version)
 	i := 0
 	p.ProtocolVersion = uint8(b[i])
 	if p.ProtocolVersion != 1 {
-		p.Error = EGTS_PC_UNS_PROTOCOL
-		return p
+		p.ErrorCode = EGTS_PC_UNS_PROTOCOL
+		return p, fmt.Errorf("Packet; EGTS_PC_UNS_PROTOCOL")
 	}
 
 	// SKID Security Key ID
@@ -101,26 +101,26 @@ func ReadPacket(b []byte) (p Packet) {
 	// SFRCS
 	i++
 	if len(b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength]) != int(p.FrameDataLength) {
-		p.Error = EGTS_PC_INC_DATAFORM
-		return p
+		p.ErrorCode = EGTS_PC_INC_DATAFORM
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_DATAFORM")
 	}
 	p.ServicesFrameDataCheckSum = binary.LittleEndian.Uint16(b[uint16(p.HeaderLength)+p.FrameDataLength : uint16(p.HeaderLength)+p.FrameDataLength+2])
 	if p.HeaderLength < 11 {
-		p.Error = EGTS_PC_INC_HEADERFORM
-		return p
+		p.ErrorCode = EGTS_PC_INC_HEADERFORM
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM")
 	}
 
 	// Evaluate crc-8
 	crcData := crc.Crc(8, b[:p.HeaderLength-1])
 	if int(crcData) != int(p.HeaderCheckSum) {
-		p.Error = EGTS_PC_HEADERCRC_ERROR
-		return p
+		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
+		return p, fmt.Errorf("Packet; EGTS_PC_HEADERCRC_ERROR")
 	}
 	// Evaluate crc-16
 	crcData = crc.Crc(16, b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength])
 	if int(crcData) != int(p.ServicesFrameDataCheckSum) {
-		p.Error = EGTS_PC_DATACRC_ERROR
-		return p
+		p.ErrorCode = EGTS_PC_DATACRC_ERROR
+		return p, fmt.Errorf("Packet; EGTS_PC_DATACRC_ERROR")
 	}
 
 	// Check type of packet
@@ -140,12 +140,12 @@ func ReadPacket(b []byte) (p Packet) {
 	}
 
 	// SFRD (Services Frame Data)
-	err := p.ServicesFrameData.Decode(b[p.HeaderLength : uint16(p.HeaderLength)+p.FrameDataLength])
+	err = p.ServicesFrameData.Decode(b[p.HeaderLength : uint16(p.HeaderLength)+p.FrameDataLength])
 	if err != nil {
-		p.Error = EGTS_PC_DECRYPT_ERROR
-		return p
+		p.ErrorCode = EGTS_PC_DECRYPT_ERROR
+		return p, fmt.Errorf("Packet;" + err.Error())
 	}
-	return p
+	return p, nil
 }
 
 // Encode Parse EGTS_PT_RESPONSE to slice of bytes
@@ -220,7 +220,7 @@ func (p *Packet) PrepareAnswer() Packet {
 
 			resp := PTResponse{
 				ResponsePacketID: p.PacketID,
-				ProcessingResult: p.Error,
+				ProcessingResult: p.ErrorCode,
 			}
 
 			if records != nil {
