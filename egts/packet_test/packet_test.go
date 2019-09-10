@@ -2,6 +2,7 @@ package packet_test
 
 import (
 	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"github.com/LdDl/go-egts/egts/packet"
@@ -19,11 +20,11 @@ func TestIncomingPacket(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error: %s", err.Error())
 		}
-		pkg := packet.ReadPacket(pkgBytes)
-		ans := pkg.PrepareAnswer()
+		pkg, err := packet.ReadPacket(pkgBytes)
 		if err != nil {
 			t.Errorf("Error: %s", err.Error())
 		}
+		ans := pkg.PrepareAnswer()
 		hexedAns := ans.Encode()
 		if hex.EncodeToString(hexedAns) != AllResponseDataCheckIncome[i] {
 			t.Errorf("Have to be %s, but got %s", AllResponseDataCheckIncome[i], hex.EncodeToString(hexedAns))
@@ -43,11 +44,12 @@ func TestAuthResponsePacket(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error: %s", err.Error())
 		}
-		pkg := packet.ReadPacket(pkgBytes)
-		ans := pkg.PrepareAnswer()
+		pkg, err := packet.ReadPacket(pkgBytes)
 		if err != nil {
+			fmt.Println(pkgBytes)
 			t.Errorf("Error: %s", err.Error())
 		}
+		ans := pkg.PrepareAnswer()
 		hexedAns := ans.Encode()
 		if hex.EncodeToString(hexedAns) != AuthResponseDataCheckIncome[i] {
 			t.Errorf("Have to be %s, but got %s", AuthResponseDataCheckIncome[i], hex.EncodeToString(hexedAns))

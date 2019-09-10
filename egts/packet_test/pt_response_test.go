@@ -2,6 +2,7 @@ package packet_test
 
 import (
 	"encoding/hex"
+	"log"
 	"testing"
 
 	"github.com/LdDl/go-egts/egts/packet"
@@ -19,7 +20,11 @@ func TestPTResponseDecoding(t *testing.T) {
 			t.Errorf("Error: %s", err.Error())
 		}
 		subr := packet.PTResponse{}
-		subr.Decode(pkgBytes)
+		err = subr.Decode(pkgBytes)
+		if err != nil {
+			log.Println(pkgBytes)
+			t.Errorf("Error: %s", err.Error())
+		}
 		hexed, err := subr.Encode()
 		if err != nil {
 			t.Errorf("Error: %s", err.Error())

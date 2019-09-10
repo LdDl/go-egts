@@ -19,7 +19,10 @@ func TestSRPosDataDecoding(t *testing.T) {
 			t.Errorf("Error: %s", err.Error())
 		}
 		subr := subrecord.SRPosData{}
-		subr.Decode(pkgBytes)
+		err = subr.Decode(pkgBytes)
+		if err != nil {
+			t.Errorf("Error: %s", err.Error())
+		}
 		hexed, err := subr.Encode()
 		if err != nil {
 			t.Errorf("Error: %s", err.Error())

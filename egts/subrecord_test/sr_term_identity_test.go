@@ -36,8 +36,10 @@ func TestIdentity(t *testing.T) {
 			t.Errorf("Error: %s", err.Error())
 		}
 
-		parsedAuth := packet.ReadPacket(egtsAuth)
-
+		parsedAuth, err := packet.ReadPacket(egtsAuth)
+		if err != nil {
+			t.Errorf("Error: %s", err.Error())
+		}
 		resp := parsedAuth.PrepareAnswer()
 		encodedResp := resp.Encode()
 		hexResp := hex.EncodeToString(encodedResp)

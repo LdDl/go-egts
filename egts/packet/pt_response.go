@@ -15,8 +15,7 @@ type PTResponse struct {
 
 // Decode Parse slice of bytes to EGTS_PT_RESPONSE
 func (response *PTResponse) Decode(b []byte) (err error) {
-
-	buffer := bytes.NewReader(b)
+	buffer := bytes.NewBuffer(b)
 
 	//  RPID Response Packet ID
 	rpid := make([]byte, 2)
@@ -33,7 +32,7 @@ func (response *PTResponse) Decode(b []byte) (err error) {
 	// SFRD (Services Frame Data)
 	if buffer.Len() > 0 {
 		response.SDR = &ServicesFrameData{}
-		err := response.SDR.Decode(b[3:])
+		err := response.SDR.Decode(buffer.Bytes())
 		if err != nil {
 			return fmt.Errorf("EGTS_PT_RESPONSE;" + err.Error())
 		}

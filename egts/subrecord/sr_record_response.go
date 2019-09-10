@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log"
 )
 
 // SRRecordResponse EGTS_SR_RECORD_RESPONSE
@@ -19,12 +20,13 @@ type SRRecordResponse struct {
 // Decode Parse array of bytes to EGTS_SR_RECORD_RESPONSE
 func (subr *SRRecordResponse) Decode(b []byte) (err error) {
 	buffer := bytes.NewReader(b)
-	crn := make([]byte, 4)
+	crn := make([]byte, 2)
 	if _, err = buffer.Read(crn); err != nil {
 		return fmt.Errorf("EGTS_SR_RECORD_RESPONSE; Error reading CRN")
 	}
 	subr.ConfirmedRecordNumber = binary.LittleEndian.Uint16(crn)
 	if subr.RecordStatus, err = buffer.ReadByte(); err != nil {
+		log.Println(err, b)
 		return fmt.Errorf("EGTS_SR_RECORD_RESPONSE; Error reading RST")
 	}
 
