@@ -1,3 +1,6 @@
+[![GoDoc](https://godoc.org/github.com/golang/gddo?status.svg)](https://godoc.org/github.com/LdDl/go-egts)
+[![Build Status](https://travis-ci.com/LdDl/go-egts.svg?branch=master)](https://travis-ci.com/LdDl/go-egts)
+
 # WORK IN PROGRESS: go-egts
 EGTS (Era Glonass Telematics Standard) parsing via Golang
 
