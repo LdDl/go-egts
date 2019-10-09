@@ -148,18 +148,13 @@ func ReadPacket(b []byte) (p Packet, err error) {
 	crc16Bytes := make([]byte, 2)
 	if _, err = buffer.Read(crc16Bytes); err != nil {
 		p.ErrorCode = EGTS_PC_DECRYPT_ERROR
-		return p, fmt.Errorf("Packet; EGTS_PC_DECRYPT_ERROR")
+		return p, fmt.Errorf("Packet crc16; EGTS_PC_DECRYPT_ERROR")
 	}
 	p.ServicesFrameDataCheckSum = binary.LittleEndian.Uint16(crc16Bytes)
 
 	if err = p.ServicesFrameData.Decode(dataFrameBytes); err != nil {
 		p.ErrorCode = EGTS_PC_DECRYPT_ERROR
-		return p, fmt.Errorf("Packet; EGTS_PC_DECRYPT_ERROR")
-	}
-
-	if err != nil {
-		p.ErrorCode = EGTS_PC_DECRYPT_ERROR
-		return p, fmt.Errorf("Packet; EGTS_PC_DECRYPT_ERROR")
+		return p, fmt.Errorf("Packet dataFrame; EGTS_PC_DECRYPT_ERROR")
 	}
 
 	if int(p.ServicesFrameDataCheckSum) != crc.Crc(16, b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength]) {
