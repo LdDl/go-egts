@@ -146,8 +146,8 @@ func ReadPacket(b []byte) (p Packet, err error) {
 	}
 
 	if err = p.ServicesFrameData.Decode(dataFrameBytes); err != nil {
-		p.ErrorCode = EGTS_PC_DECRYPT_ERROR
-		return p, fmt.Errorf("Packet dataFrame; EGTS_PC_DECRYPT_ERROR;" + err.Error())
+		p.ErrorCode = EGTS_PC_INC_DATAFORM
+		return p, fmt.Errorf("Packet dataFrame; EGTS_PC_INC_DATAFORM;" + err.Error())
 	}
 
 	crc16Bytes := make([]byte, 2)
