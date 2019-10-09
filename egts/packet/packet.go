@@ -1,6 +1,7 @@
 package packet
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"strconv"
@@ -40,87 +41,92 @@ type Packet struct {
 // ReadPacket Parse slice of bytes as EGTS packet
 func ReadPacket(b []byte) (p Packet, err error) {
 
-	// PRV (Protocol Version)
-	i := 0
-	p.ProtocolVersion = uint8(b[i])
-	if p.ProtocolVersion != 1 {
-		p.ErrorCode = EGTS_PC_UNS_PROTOCOL
-		return p, fmt.Errorf("Packet; EGTS_PC_UNS_PROTOCOL")
+	buffer := bytes.NewBuffer(b)
+	// PR Processing Result
+	if p.ProtocolVersion, err = buffer.ReadByte(); err != nil {
+		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM")
+	}
+	if p.SecurityKeyID, err = buffer.ReadByte(); err != nil {
+		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM")
+	}
+	flagByte := byte(0)
+	if flagByte, err = buffer.ReadByte(); err != nil {
+		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM")
+	}
+	flagByteAsBits := fmt.Sprintf("%08b", flagByte)
+	p.PRF = flagByteAsBits[:2]  // flags << 7, flags << 6
+	p.RTE = flagByteAsBits[2:3] // flags << 5
+	p.ENA = flagByteAsBits[3:5] // flags << 4, flags << 3
+	p.CMP = flagByteAsBits[5:6] // flags << 2
+	p.PR = flagByteAsBits[6:]   // flags << 1, flags << 0
+
+	if p.HeaderLength, err = buffer.ReadByte(); err != nil {
+		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM")
 	}
 
-	// SKID Security Key ID
-	i++
-	p.SecurityKeyID = uint8(b[i])
+	if p.HeaderEncoding, err = buffer.ReadByte(); err != nil {
+		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM")
+	}
 
-	// Flags: PRF, PR, CMP, ENA, RTE
-	i++
-	flagByteAsBits := fmt.Sprintf("%08b", uint16(b[i]))
-	p.PR = flagByteAsBits[6:]   // 2 bits, PR
-	p.CMP = flagByteAsBits[5:6] // 1 bit, CMP
-	p.ENA = flagByteAsBits[3:5] // 2 bits, ENA
-	p.RTE = flagByteAsBits[2:3] // 1 bit, RTE
-	p.PRF = flagByteAsBits[:2]  // 1 bit, PRF
+	tmpFDL := make([]byte, 2)
+	if _, err = buffer.Read(tmpFDL); err != nil {
+		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM")
+	}
+	p.FrameDataLength = binary.LittleEndian.Uint16(tmpFDL)
 
-	// HL (Header Length)
-	i++
-	p.HeaderLength = uint8(b[i])
+	tmpPID := make([]byte, 2)
+	if _, err = buffer.Read(tmpPID); err != nil {
+		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM")
+	}
+	p.PacketID = binary.LittleEndian.Uint16(tmpPID)
 
-	//HE (Header Encoding)
-	i++
-	p.HeaderEncoding = uint8(b[i])
+	if p.PacketType, err = buffer.ReadByte(); err != nil {
+		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM")
+	}
 
-	// FDL (Frame Data Length)
-	i++
-	p.FrameDataLength = binary.LittleEndian.Uint16(b[i : i+2])
-
-	// PID (Packet Identifier)
-	i += 2
-	p.PacketID = binary.LittleEndian.Uint16(b[i : i+2])
-
-	// PT (Packet Type)
-	i += 2
-	p.PacketType = uint8(b[i])
-
-	// PRA, RCA, TTL
-	i++
 	if p.RTE == "1" {
-		// PRA (Peer Address)
-		p.PeerAddress = binary.LittleEndian.Uint16(b[i : i+2])
-		// RCA (Recipient Address)
-		i += 2
-		p.RecipientAddress = binary.LittleEndian.Uint16(b[i : i+2])
-		// TTL (Time To Live)
-		i += 2
-		p.TimeToLive = uint8(b[i])
-		i++
+		tmpPeer := make([]byte, 2)
+		if _, err = buffer.Read(tmpPeer); err != nil {
+			p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
+			return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM")
+		}
+		p.PeerAddress = binary.LittleEndian.Uint16(tmpPeer)
+
+		tmpRecipient := make([]byte, 2)
+		if _, err = buffer.Read(tmpRecipient); err != nil {
+			p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
+			return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM")
+		}
+		p.RecipientAddress = binary.LittleEndian.Uint16(tmpRecipient)
+
+		if p.TimeToLive, err = buffer.ReadByte(); err != nil {
+			p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
+			return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM")
+		}
 	}
 
-	// HCS (Header Check Sum)
-	p.HeaderCheckSum = uint8(b[i])
-
-	// SFRCS
-	i++
-	if len(b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength]) != int(p.FrameDataLength) {
-		p.ErrorCode = EGTS_PC_INC_DATAFORM
-		return p, fmt.Errorf("Packet; EGTS_PC_INC_DATAFORM")
-	}
-	p.ServicesFrameDataCheckSum = binary.LittleEndian.Uint16(b[uint16(p.HeaderLength)+p.FrameDataLength : uint16(p.HeaderLength)+p.FrameDataLength+2])
-	if p.HeaderLength < 11 {
-		p.ErrorCode = EGTS_PC_INC_HEADERFORM
+	if p.HeaderCheckSum, err = buffer.ReadByte(); err != nil {
+		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
 		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM")
 	}
 
 	// Evaluate crc-8
-	crcData := crc.Crc(8, b[:p.HeaderLength-1])
-	if int(crcData) != int(p.HeaderCheckSum) {
+	if int(p.HeaderCheckSum) != crc.Crc(8, b[:p.HeaderLength-1]) {
 		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
 		return p, fmt.Errorf("Packet; EGTS_PC_HEADERCRC_ERROR")
 	}
-	// Evaluate crc-16
-	crcData = crc.Crc(16, b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength])
-	if int(crcData) != int(p.ServicesFrameDataCheckSum) {
-		p.ErrorCode = EGTS_PC_DATACRC_ERROR
-		return p, fmt.Errorf("Packet; EGTS_PC_DATACRC_ERROR")
+	dataFrameBytes := make([]byte, p.FrameDataLength)
+	if _, err = buffer.Read(dataFrameBytes); err != nil {
+		p.ErrorCode = EGTS_PC_INC_DATAFORM
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_DATAFORM")
 	}
 
 	// Check type of packet
@@ -139,12 +145,28 @@ func ReadPacket(b []byte) (p Packet, err error) {
 		break
 	}
 
-	// SFRD (Services Frame Data)
-	err = p.ServicesFrameData.Decode(b[p.HeaderLength : uint16(p.HeaderLength)+p.FrameDataLength])
+	crc16Bytes := make([]byte, 2)
+	if _, err = buffer.Read(crc16Bytes); err != nil {
+		p.ErrorCode = EGTS_PC_DECRYPT_ERROR
+		return p, fmt.Errorf("Packet; EGTS_PC_DECRYPT_ERROR")
+	}
+	p.ServicesFrameDataCheckSum = binary.LittleEndian.Uint16(crc16Bytes)
+
+	if err = p.ServicesFrameData.Decode(dataFrameBytes); err != nil {
+		p.ErrorCode = EGTS_PC_DECRYPT_ERROR
+		return p, fmt.Errorf("Packet; EGTS_PC_DECRYPT_ERROR")
+	}
+
 	if err != nil {
 		p.ErrorCode = EGTS_PC_DECRYPT_ERROR
-		return p, fmt.Errorf("Packet;" + err.Error())
+		return p, fmt.Errorf("Packet; EGTS_PC_DECRYPT_ERROR")
 	}
+
+	if int(p.ServicesFrameDataCheckSum) != crc.Crc(16, b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength]) {
+		p.ErrorCode = EGTS_PC_DATACRC_ERROR
+		return p, fmt.Errorf("Packet; EGTS_PC_DATACRC_ERROR")
+	}
+
 	return p, nil
 }
 

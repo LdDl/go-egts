@@ -119,7 +119,6 @@ func (subr *SRPosData) Decode(b []byte) (err error) {
 		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading ODM")
 	}
 	subr.Odometer = int(binary.LittleEndian.Uint32(append([]byte{0}, subr.OdometerBytes...))) / 10
-
 	// DIN Digital Inputs
 	if subr.DigitalInputs, err = buffer.ReadByte(); err != nil {
 		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading DIN")
