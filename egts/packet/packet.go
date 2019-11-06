@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/LdDl/go-egts/egts/subrecord"
-	egts "github.com/kuznetsovin/egts/pkg/egtslib"
 
 	"github.com/LdDl/go-egts/crc"
 )
@@ -324,7 +323,7 @@ func (p *Packet) PrepareSRResultCode(c uint8) Packet {
 		HeaderEncoding:    0,
 		FrameDataLength:   sfrd.Len(),
 		PacketID:          1, // @todo
-		PacketType:        egts.PtResponsePacket,
+		PacketType:        RecordResponse,
 		ServicesFrameData: &sfrd,
 	}
 
