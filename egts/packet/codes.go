@@ -21,7 +21,7 @@ var (
 	LiquidLevelSensor = uint8(27) // EGTS_SR_LIQUID_LEVEL_SENSOR
 )
 
-// Results codes
+// Типы кодов результатов
 var (
 	EGTS_PC_OK              = uint8(0)   // Успешно
 	EGTS_PC_IN_PROGRESS     = uint8(1)   // В процессе обработки (результат обработки ещё не известен)
@@ -63,4 +63,10 @@ var (
 	EGTS_PC_MODULE_MEM_FLT  = uint8(163) // Сбой в работе внутренней памяти модуля
 	EGTS_PC_TEST_FAILED     = uint8(164) // Тест не пройден
 
+)
+
+// Типы сервисов
+var (
+	SERVICE_AUTH = uint8(1) // Сервис AUTH_SERVICE
+	SERVICE_DATA = uint8(2) // Сервис TELEDATA_SERVICE
 )

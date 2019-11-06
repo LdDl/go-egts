@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/LdDl/go-egts/egts/subrecord"
+	egts "github.com/kuznetsovin/egts/pkg/egtslib"
 
 	"github.com/LdDl/go-egts/crc"
 )
@@ -279,4 +280,53 @@ func (p *Packet) PrepareAnswer() Packet {
 	}
 
 	return Packet{}
+}
+
+// PrepareSRResultCode Prepare result code (SR_Result_Code) for incoming packet
+func (p *Packet) PrepareSRResultCode(c uint8) Packet {
+
+	data := RecordsData{
+		&RecordData{
+			SubrecordType:   ResultCode,
+			SubrecordLength: 1,
+			SubrecordData: &subrecord.SRResultCode{
+				RCD: c,
+			},
+		},
+	}
+
+	sfrd := ServicesFrameData{
+		&ServiceDataRecord{
+			RecordLength:         data.Len(),
+			RecordNumber:         1, // @todo
+			SSOD:                 "0",
+			RSOD:                 "0",
+			GRP:                  "1",
+			RPP:                  "00",
+			TMFE:                 "0",
+			EVFE:                 "0",
+			OBFE:                 "0",
+			SourceServiceType:    SERVICE_AUTH,
+			RecipientServiceType: SERVICE_AUTH,
+			RecordsData:          data,
+		},
+	}
+
+	resp := Packet{
+		ProtocolVersion:   1,
+		SecurityKeyID:     0,
+		PRF:               "00",
+		RTE:               "0",
+		ENA:               "00",
+		CMP:               "0",
+		PR:                "00",
+		HeaderLength:      11,
+		HeaderEncoding:    0,
+		FrameDataLength:   sfrd.Len(),
+		PacketID:          1, // @todo
+		PacketType:        egts.PtResponsePacket,
+		ServicesFrameData: &sfrd,
+	}
+
+	return resp
 }
