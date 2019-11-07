@@ -45,7 +45,7 @@ func main() {
 			d := *data.ServicesFrameData.(*packet.ServicesFrameData)
 			drd := d[0].RecordsData[0]
 			fmt.Println("Data sample:", drd.SubrecordData.(*subrecord.SRPosData))
-			resp := data.PrepareAnswer()
+			resp := data.PrepareAnswer(0, data.PacketID)
 			_, err = conn.Write(resp.Encode())
 			if err != nil {
 				log.Printf("Can not write response:\n\tError: %v | IP: %v\n", err, conn.RemoteAddr())
@@ -72,7 +72,7 @@ func main() {
 		if err != nil {
 			log.Println("Error", err)
 		}
-		log.Println("client;Response code:", p.PrepareAnswer())
+		log.Println("client;Response code:", p.PrepareAnswer(0, p.PacketID))
 		log.Println(p)
 	}
 
