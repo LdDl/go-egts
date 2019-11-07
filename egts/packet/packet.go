@@ -217,7 +217,7 @@ func (p *Packet) Encode() (b []byte) {
 }
 
 // PrepareAnswer Prepare answer for incoming packet
-func (p *Packet) PrepareAnswer() Packet {
+func (p *Packet) PrepareAnswer(recordNum, pid uint16) Packet {
 
 	if p.PacketType == EGTS_PT_APPDATA {
 		records := RecordsData{}
@@ -244,7 +244,7 @@ func (p *Packet) PrepareAnswer() Packet {
 				resp.SDR = &ServicesFrameData{
 					&ServiceDataRecord{
 						RecordLength:         records.Len(),
-						RecordNumber:         0, // @todo
+						RecordNumber:         recordNum,
 						SSOD:                 "0",
 						RSOD:                 "1",
 						GRP:                  "0",
@@ -270,7 +270,7 @@ func (p *Packet) PrepareAnswer() Packet {
 				HeaderLength:      11,
 				HeaderEncoding:    0,
 				FrameDataLength:   resp.Len(),
-				PacketID:          p.PacketID, // @todo
+				PacketID:          pid,
 				PacketType:        EGTS_PT_RESPONSE,
 				ServicesFrameData: &resp,
 			}
@@ -282,7 +282,7 @@ func (p *Packet) PrepareAnswer() Packet {
 }
 
 // PrepareSRResultCode Prepare result code (SR_Result_Code) for incoming packet
-func (p *Packet) PrepareSRResultCode(c uint8) Packet {
+func (p *Packet) PrepareSRResultCode(c uint8, recordNum, pid uint16) Packet {
 
 	data := RecordsData{
 		&RecordData{
@@ -297,7 +297,7 @@ func (p *Packet) PrepareSRResultCode(c uint8) Packet {
 	sfrd := ServicesFrameData{
 		&ServiceDataRecord{
 			RecordLength:         data.Len(),
-			RecordNumber:         1, // @todo
+			RecordNumber:         recordNum,
 			SSOD:                 "0",
 			RSOD:                 "0",
 			GRP:                  "1",
@@ -322,7 +322,7 @@ func (p *Packet) PrepareSRResultCode(c uint8) Packet {
 		HeaderLength:      11,
 		HeaderEncoding:    0,
 		FrameDataLength:   sfrd.Len(),
-		PacketID:          1, // @todo
+		PacketID:          pid,
 		PacketType:        RecordResponse,
 		ServicesFrameData: &sfrd,
 	}

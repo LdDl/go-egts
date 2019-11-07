@@ -7,7 +7,7 @@ EGTS (Era Glonass Telematics Standard) parsing via Golang
 ## PR's are welcome!
 
 ## TODO:
-* Refactor code to make it more clear
+* Refactor code to make it more clear WIP
 * Test coverage
 * ~~Example of TCP server (see /example/main.go)~~
 * Examples for binary files / ~~hex strings~~ / ~~pure []byte~~
