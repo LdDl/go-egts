@@ -40,7 +40,7 @@ func TestIdentity(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error: %s", err.Error())
 		}
-		resp := parsedAuth.PrepareAnswer()
+		resp := parsedAuth.PrepareAnswer(0, parsedAuth.PacketID)
 		encodedResp := resp.Encode()
 		hexResp := hex.EncodeToString(encodedResp)
 		trueResp := identities[i].Outcoming
