@@ -57,6 +57,13 @@ func (rd *RecordsData) Decode(b []byte) (err error) {
 		case CountersData:
 			rdEntity.SubrecordData = &subrecord.SRCountersData{}
 			break
+		case StateDataType:
+			if rdEntity.SubrecordLength == 5 {
+				rdEntity.SubrecordData = &subrecord.SRStateData{}
+			} else {
+				// @todo
+			}
+			break
 		case StateData:
 			rdEntity.SubrecordData = &subrecord.SRStateData{}
 			break
@@ -67,8 +74,8 @@ func (rd *RecordsData) Decode(b []byte) (err error) {
 			// err = EGTS_PC_SRVC_NFOUND
 			break
 		}
-		bb := buffer.Next(int(rdEntity.SubrecordLength))
 
+		bb := buffer.Next(int(rdEntity.SubrecordLength))
 		err := rdEntity.SubrecordData.Decode(bb)
 		if err != nil {
 			return fmt.Errorf("SRD;" + err.Error())

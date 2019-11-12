@@ -53,11 +53,9 @@ func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 			return fmt.Errorf("SFRD; Error reading RL")
 		}
 		sdr.RecordLength = binary.LittleEndian.Uint16(rl)
-
 		if sdr.RecordLength == 0 {
 			return fmt.Errorf("SFRD; EGTS_PC_INC_DATAFORM")
 		}
-
 		// RN (Record Number)
 		rn := make([]byte, 2)
 		if _, err = buffer.Read(rn); err != nil {
