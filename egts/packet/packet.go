@@ -119,6 +119,10 @@ func ReadPacket(b []byte) (p Packet, err error) {
 	}
 
 	// Evaluate crc-8
+	if len(b) < int(p.HeaderLength) {
+		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
+		return p, fmt.Errorf("Packet; EGTS_PC_HEADERCRC_ERROR")
+	}
 	if int(p.HeaderCheckSum) != crc.Crc(8, b[:p.HeaderLength-1]) {
 		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
 		return p, fmt.Errorf("Packet; EGTS_PC_HEADERCRC_ERROR")
