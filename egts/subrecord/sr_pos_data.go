@@ -112,6 +112,7 @@ func (subr *SRPosData) Decode(b []byte) (err error) {
 	if subr.Direction, err = buffer.ReadByte(); err != nil {
 		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading DIR")
 	}
+	subr.Direction = subr.Direction | subr.DirhFlag<<7
 
 	// ODM Odometer, 3b
 	subr.OdometerBytes = make([]byte, 3)
