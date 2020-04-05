@@ -71,8 +71,8 @@ func (rd *RecordsData) Decode(b []byte) (err error) {
 			rdEntity.SubrecordData = &subrecord.SRLiquidLevelSensor{}
 			break
 		default:
-			// err = EGTS_PC_SRVC_NFOUND
-			break
+			err = fmt.Errorf("RD;EGTS_PC_SRVC_NFOUND")
+			return err
 		}
 
 		bb := buffer.Next(int(rdEntity.SubrecordLength))
