@@ -1,7 +1,4 @@
-[![GoDoc](https://godoc.org/github.com/golang/gddo?status.svg)](https://godoc.org/github.com/LdDl/go-egts)
-[![Build Status](https://travis-ci.com/LdDl/go-egts.svg?branch=master)](https://travis-ci.com/LdDl/go-egts)
-
-# WORK IN PROGRESS: go-egts
+# go-egts [![GoDoc](https://godoc.org/github.com/LdDl/go-egts?status.svg)](https://godoc.org/github.com/LdDl/go-egts) [![Sourcegraph](https://sourcegraph.com/github.com/LdDl/go-egts/-/badge.svg)](https://sourcegraph.com/github.com/LdDl/go-egts?badge) [![Go Report Card](https://goreportcard.com/badge/github.com/LdDl/go-egts)](https://goreportcard.com/report/github.com/LdDl/go-egts) [![GitHub tag](https://img.shields.io/github/tag/LdDl/go-egts.svg)](https://github.com/LdDl/go-egts/releases) [![Build Status](https://travis-ci.com/LdDl/go-egts.svg?branch=master)](https://travis-ci.com/LdDl/go-egts)
 EGTS (Era Glonass Telematics Standard) parsing via Golang
 
 ## PR's are welcome!
