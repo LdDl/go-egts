@@ -44,17 +44,15 @@ func (subr *SRStateData) Decode(b []byte) (err error) {
 		return fmt.Errorf("EGTS_SR_STATE_DATA; Such ST does not exists")
 	}
 	subr.State = states[subr.StateByte]
-	subr.StateByte = b[0]
 
-	subr.MainPowerSourceVoltageByte = b[1]
 	if subr.MainPowerSourceVoltageByte, err = buffer.ReadByte(); err != nil {
 		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading MPSV")
 	}
-	subr.BackupBatteryVoltageByte = b[2]
+
 	if subr.BackupBatteryVoltageByte, err = buffer.ReadByte(); err != nil {
 		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading BBV")
 	}
-	subr.InternalBatteryVoltageByte = b[3]
+
 	if subr.InternalBatteryVoltageByte, err = buffer.ReadByte(); err != nil {
 		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading IBV")
 	}
