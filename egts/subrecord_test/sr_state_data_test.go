@@ -31,4 +31,12 @@ func TestSRStateDataDecoding(t *testing.T) {
 			t.Errorf("Have to be %s, but got %s", SRStateDataCheckIncome[i], hex.EncodeToString(hexed))
 		}
 	}
+
+	stateData := subrecord.SRStateData{}
+	if err := stateData.Decode([]byte{0}); err == nil {
+		t.Errorf("Error: expected error, but got nil")
+	}
+	if err := stateData.Decode([]byte{8}); err == nil {
+		t.Errorf("Error: expected error, but got nil")
+	}
 }

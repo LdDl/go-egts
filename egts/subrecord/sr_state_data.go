@@ -40,7 +40,7 @@ func (subr *SRStateData) Decode(b []byte) (err error) {
 	if subr.StateByte, err = buffer.ReadByte(); err != nil {
 		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading ST")
 	}
-	if subr.StateByte < 0 || subr.StateByte > 8 {
+	if subr.StateByte < 0 || subr.StateByte >= 8 {
 		return fmt.Errorf("EGTS_SR_STATE_DATA; Such ST does not exists")
 	}
 	subr.State = states[subr.StateByte]
