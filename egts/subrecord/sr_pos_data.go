@@ -22,7 +22,8 @@ type SRPosData struct {
 	Longitude          float64   `json:"LONG"`        // LONG , degree,  (WGS - 84) / 180 * 0xFFFFFFFF
 	Speed              int       `json:"SPD"`         // SPD , 0.1 miles , 14 bit only
 	Direction          uint8     `json:"DIR"`         // DIR Direction
-	Odometer           int       `json:"ODM_value"`   // ODM Odometer, 3b
+	DirectionValue     uint16    `json:"DIR_value"`
+	Odometer           int       `json:"ODM_value"` // ODM Odometer, 3b
 	OdometerBytes      []byte    `json:"ODM"`
 	DigitalInputs      uint8     `json:"DIN"`       // DIN Digital Inputs
 	Source             uint8     `json:"SRC"`       // SRC Source
@@ -112,6 +113,7 @@ func (subr *SRPosData) Decode(b []byte) (err error) {
 	if subr.Direction, err = buffer.ReadByte(); err != nil {
 		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading DIR")
 	}
+	subr.DirectionValue = uint16(subr.Direction) | uint16(subr.DirhFlag)<<8
 	subr.Direction = subr.Direction | subr.DirhFlag<<7
 
 	// ODM Odometer, 3b
