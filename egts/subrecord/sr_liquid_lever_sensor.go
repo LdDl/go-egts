@@ -51,7 +51,7 @@ func (subr *SRLiquidLevelSensor) Decode(b []byte) (err error) {
 	if _, err = buffer.Read(sb); err != nil {
 		return fmt.Errorf("EGTS_SR_LIQUID_LEVEL_SENSOR; Error reading LLSD")
 	}
-	subr.LiquidLevelSensorb = binary.LittleEndian.Uint32(sb)
+	subr.LiquidLevelSensorb = binary.BigEndian.Uint32(sb)
 
 	return nil
 }
@@ -73,7 +73,7 @@ func (subr *SRLiquidLevelSensor) Encode() (b []byte, err error) {
 		return nil, fmt.Errorf("EGTS_SR_LIQUID_LEVEL_SENSOR; Error writing MADDR")
 	}
 
-	if err = binary.Write(buffer, binary.LittleEndian, subr.LiquidLevelSensorb); err != nil {
+	if err = binary.Write(buffer, binary.BigEndian, subr.LiquidLevelSensorb); err != nil {
 		return nil, fmt.Errorf("EGTS_SR_LIQUID_LEVEL_SENSOR; Error writing LLSD")
 	}
 
