@@ -57,12 +57,8 @@ func (rd *RecordsData) Decode(b []byte) (err error) {
 		case CountersData:
 			rdEntity.SubrecordData = &subrecord.SRCountersData{}
 			break
-		case StateDataType:
-			if rdEntity.SubrecordLength == 5 {
-				rdEntity.SubrecordData = &subrecord.SRStateData{}
-			} else {
-				// @todo
-			}
+		case AccelerationData:
+			rdEntity.SubrecordData = &subrecord.SRAccelerationHeader{}
 			break
 		case StateData:
 			rdEntity.SubrecordData = &subrecord.SRStateData{}

@@ -17,8 +17,8 @@ var (
 	ExtPosData        = uint8(17) // EGTS_SR_EXT_POS_DATA
 	AdSensorsData     = uint8(18) // EGTS_SR_AD_SENSORS_DATA
 	CountersData      = uint8(19) // EGTS_SR_COUNTERS_DATA
-	StateDataType     = uint8(20) // Type for EGTS_SR_STATE_DATA
-	StateData         = uint8(21) // EGTS_SR_STATE_DATA
+	StateData         = uint8(20) // EGTS_SR_STATE_DATA
+	AccelerationData  = uint8(21) // EGTS_SR_ACCEL_DATA
 	LiquidLevelSensor = uint8(27) // EGTS_SR_LIQUID_LEVEL_SENSOR
 )
 
