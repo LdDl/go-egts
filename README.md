@@ -8,7 +8,7 @@ EGTS (Era Glonass Telematics Standard) parsing via Golang
 * Test coverage
 * NEED TO BE REFACTORED ~~Example of TCP server (see /example/main.go)~~
 * Examples for ~~hex strings~~ / ~~pure []byte~~
-* Additional SubRecordType: EGTS_SR_ACCEL_DATA
+* Additional SubRecordType: ~~EGTS_SR_ACCEL_DATA~~ Thanks to [@sinkevichmm](https://github.com/LdDl/go-egts/pull/9)
 * Advanced server example
 
 ## Installation
