@@ -1,0 +1,4 @@
+github.com/LdDl/go-egts v0.7.1 h1:JQM6ZYmUSllrpFlX47kHB4yEVcXzllLj8gp8w/GM7n0=
+github.com/LdDl/go-egts v0.7.1/go.mod h1:5031NVcilaEy/W2uj+aS/L2KjtJWDujyYiwhStFnq0U=
+github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
+github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
