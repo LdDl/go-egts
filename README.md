@@ -68,7 +68,7 @@ go test ./egts/subrecord_test/
 ```
 
 ## Support
-If you have troubles or questions please [open an issue](https://github.com/LdDl/go-egts/issues/new).
+If you have troubles or questions please [open an issue](https://github.com/LdDl/go-egts/issues/new/choose).
 
 ## License
 It's MIT. You can check it [here](https://github.com/LdDl/go-egts/blob/master/LICENSE.md)
