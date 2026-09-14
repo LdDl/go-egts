@@ -47,6 +47,9 @@ func (response *PTResponse) Decode(b []byte) (err error) {
 
 // Encode Parse EGTS_PT_RESPONSE to slice of bytes
 func (response *PTResponse) Encode() (b []byte, err error) {
+	if response == nil {
+		return nil, fmt.Errorf("EGTS_PT_RESPONSE; Response is nil")
+	}
 	buffer := new(bytes.Buffer)
 	err = binary.Write(buffer, binary.LittleEndian, response.ResponsePacketID)
 	if err != nil {
@@ -58,9 +61,16 @@ func (response *PTResponse) Encode() (b []byte, err error) {
 		return nil, fmt.Errorf("EGTS_PT_RESPONSE; Error writing PR: %w", err)
 	}
 	if response.SDR != nil {
+		data, ok := response.SDR.(*ServicesFrameData)
+		if !ok || data == nil {
+			return nil, fmt.Errorf("EGTS_PT_RESPONSE; SDR requires ServicesFrameData")
+		}
 		sdr, err := response.SDR.Encode()
 		if err != nil {
 			return nil, fmt.Errorf("EGTS_PT_RESPONSE; %w", err)
+		}
+		if len(sdr)+3 > 65535 {
+			return nil, fmt.Errorf("EGTS_PT_RESPONSE; Response data exceeds 65535 bytes")
 		}
 		_, err = buffer.Write(sdr)
 		if err != nil {

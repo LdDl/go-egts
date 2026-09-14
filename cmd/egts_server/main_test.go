@@ -17,12 +17,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type serverServiceResponseTestCase struct {
+	confirmedRecords []uint16
+	serviceType      uint8
+}
+
 type serverResponseTestCase struct {
 	length           int
 	packetType       uint8
 	confirmedPacket  uint16
-	confirmedRecords []uint16
-	serviceType      uint8
+	processingResult uint8
+	services         []serverServiceResponseTestCase
 }
 
 type serverConnectionTestCase struct {
@@ -68,19 +73,77 @@ func TestHandleConnection(t *testing.T) {
 		PacketType:        packet.EGTS_PT_RESPONSE,
 		ServicesFrameData: &packet.PTResponse{ResponsePacketID: 1, ProcessingResult: packet.EGTS_PC_OK},
 	}
-	confirmationBytes := confirmation.Encode()
+	confirmationBytes, err := confirmation.Encode()
+	assert.NoError(t, err)
+	if err != nil {
+		return
+	}
 	empty := []byte{1, 0, 0, 11, 0, 0, 0, 7, 0, 1, 0}
 	empty[10] = byte(crc.Crc(8, empty[:10]))
 	corrupted := append([]byte(nil), telemetry...)
 	corrupted[len(corrupted)-1] ^= 1
+	badHeader := append([]byte(nil), telemetry...)
+	badHeader[10] ^= 1
+	badData := append([]byte(nil), telemetry...)
+	badData[23] = 0
+	badData[24] = 0
+	binary.LittleEndian.PutUint16(badData[len(badData)-2:], uint16(crc.Crc(16, badData[11:len(badData)-2])))
+	mixed, err := packet.ReadPacket(identity)
+	assert.NoError(t, err)
+	if err != nil {
+		return
+	}
+	position, err := packet.ReadPacket(telemetry)
+	assert.NoError(t, err)
+	if err != nil {
+		return
+	}
+	mixedServices := mixed.ServicesFrameData.(*packet.ServicesFrameData)
+	*mixedServices = append(*mixedServices, (*position.ServicesFrameData.(*packet.ServicesFrameData))[0])
+	(*mixedServices)[0].RecordNumber = 11
+	(*mixedServices)[1].RecordNumber = 22
+	mixed.FrameDataLength = mixedServices.Len()
+	mixedBytes, err := mixed.Encode()
+	assert.NoError(t, err)
+	if err != nil {
+		return
+	}
 	telemetryResponse := serverResponseTestCase{
-		length:           29,
-		packetType:       packet.EGTS_PT_RESPONSE,
-		confirmedPacket:  0,
-		confirmedRecords: []uint16{0},
-		serviceType:      packet.SERVICE_DATA,
+		length:          29,
+		packetType:      packet.EGTS_PT_RESPONSE,
+		confirmedPacket: 0,
+		services:        []serverServiceResponseTestCase{{confirmedRecords: []uint16{0}, serviceType: packet.SERVICE_DATA}},
 	}
 	cases := []serverConnectionTestCase{
+		{
+			name:   "mixed services then next packet",
+			chunks: [][]byte{append(mixedBytes, telemetry...)},
+			responses: []serverResponseTestCase{
+				{
+					length:     42,
+					packetType: packet.EGTS_PT_RESPONSE,
+					services: []serverServiceResponseTestCase{
+						{serviceType: packet.SERVICE_AUTH, confirmedRecords: []uint16{11}},
+						{serviceType: packet.SERVICE_DATA, confirmedRecords: []uint16{22}},
+					},
+				},
+				{length: 24, packetType: packet.EGTS_PT_APPDATA, services: []serverServiceResponseTestCase{{serviceType: packet.SERVICE_AUTH}}},
+				telemetryResponse,
+			},
+		},
+		{
+			name:   "valid packet after bad service data",
+			chunks: [][]byte{append(badData, telemetry...)},
+			responses: []serverResponseTestCase{
+				{length: 16, packetType: packet.EGTS_PT_RESPONSE, processingResult: packet.EGTS_PC_INC_DATAFORM},
+				telemetryResponse,
+			},
+		},
+		{
+			name:      "valid packet after bad header checksum",
+			chunks:    [][]byte{append(badHeader, telemetry...)},
+			responses: []serverResponseTestCase{telemetryResponse},
+		},
 		{
 			name:      "telemetry without authorization",
 			chunks:    [][]byte{telemetry},
@@ -112,8 +175,8 @@ func TestHandleConnection(t *testing.T) {
 			name:   "identity then telemetry",
 			chunks: [][]byte{append(append([]byte(nil), identity...), telemetry...)},
 			responses: []serverResponseTestCase{
-				{length: 29, packetType: packet.EGTS_PT_RESPONSE, confirmedRecords: []uint16{0}, serviceType: packet.SERVICE_AUTH},
-				{length: 24, packetType: packet.EGTS_PT_APPDATA, serviceType: packet.SERVICE_AUTH},
+				{length: 29, packetType: packet.EGTS_PT_RESPONSE, services: []serverServiceResponseTestCase{{confirmedRecords: []uint16{0}, serviceType: packet.SERVICE_AUTH}}},
+				{length: 24, packetType: packet.EGTS_PT_APPDATA, services: []serverServiceResponseTestCase{{serviceType: packet.SERVICE_AUTH}}},
 				telemetryResponse,
 			},
 		},
@@ -123,9 +186,12 @@ func TestHandleConnection(t *testing.T) {
 			responses: []serverResponseTestCase{{length: 16, packetType: packet.EGTS_PT_RESPONSE, confirmedPacket: 7}},
 		},
 		{
-			name:      "valid packet after bad checksum",
-			chunks:    [][]byte{append(corrupted, telemetry...)},
-			responses: []serverResponseTestCase{telemetryResponse},
+			name:   "valid packet after bad checksum",
+			chunks: [][]byte{append(corrupted, telemetry...)},
+			responses: []serverResponseTestCase{
+				{length: 16, packetType: packet.EGTS_PT_RESPONSE, processingResult: packet.EGTS_PC_DATACRC_ERROR},
+				telemetryResponse,
+			},
 		},
 		{
 			name:          "wrong protocol",
@@ -243,6 +309,7 @@ func TestHandleConnection(t *testing.T) {
 				assert.Fail(t, "Connection handler did not finish")
 				return
 			}
+			seenNumbers := make(map[uint16]bool)
 			for _, expected := range tc.responses {
 				if !assert.GreaterOrEqual(t, len(received), 11) {
 					return
@@ -262,6 +329,7 @@ func TestHandleConnection(t *testing.T) {
 				}
 				received = received[length:]
 				assert.Equal(t, expected.packetType, response.PacketType)
+				var serviceData packet.BytesData
 				if expected.packetType == packet.EGTS_PT_RESPONSE {
 					confirmation, ok := response.ServicesFrameData.(*packet.PTResponse)
 					assert.True(t, ok)
@@ -269,44 +337,42 @@ func TestHandleConnection(t *testing.T) {
 						return
 					}
 					assert.Equal(t, expected.confirmedPacket, confirmation.ResponsePacketID)
-					assert.Equal(t, packet.EGTS_PC_OK, confirmation.ProcessingResult)
-					if len(expected.confirmedRecords) == 0 {
-						assert.Nil(t, confirmation.SDR)
-						continue
-					}
-					records, ok := confirmation.SDR.(*packet.ServicesFrameData)
-					assert.True(t, ok)
-					if !ok {
-						return
-					}
-					if !assert.Len(t, *records, 1) {
-						return
-					}
-					record := (*records)[0]
-					assert.Equal(t, expected.serviceType, record.SourceServiceType)
-					assert.Equal(t, expected.serviceType, record.RecipientServiceType)
-					if !assert.Len(t, record.RecordsData, len(expected.confirmedRecords)) {
-						return
-					}
-					for i, number := range expected.confirmedRecords {
-						assert.Equal(t, &subrecord.SRRecordResponse{ConfirmedRecordNumber: number}, record.RecordsData[i].SubrecordData)
-					}
+					assert.Equal(t, expected.processingResult, confirmation.ProcessingResult)
+					serviceData = confirmation.SDR
 				} else {
-					records, ok := response.ServicesFrameData.(*packet.ServicesFrameData)
-					assert.True(t, ok)
-					if !ok {
-						return
+					serviceData = response.ServicesFrameData
+				}
+				if len(expected.services) == 0 {
+					assert.Nil(t, serviceData)
+					continue
+				}
+				records, ok := serviceData.(*packet.ServicesFrameData)
+				assert.True(t, ok)
+				if !ok {
+					return
+				}
+				if !assert.Len(t, *records, len(expected.services)) {
+					return
+				}
+				for i, service := range expected.services {
+					record := (*records)[i]
+					assert.False(t, seenNumbers[record.RecordNumber], "Repeated RN %d", record.RecordNumber)
+					seenNumbers[record.RecordNumber] = true
+					assert.Equal(t, service.serviceType, record.SourceServiceType)
+					assert.Equal(t, service.serviceType, record.RecipientServiceType)
+					if expected.packetType == packet.EGTS_PT_RESPONSE {
+						if !assert.Len(t, record.RecordsData, len(service.confirmedRecords)) {
+							return
+						}
+						for j, number := range service.confirmedRecords {
+							assert.Equal(t, &subrecord.SRRecordResponse{ConfirmedRecordNumber: number}, record.RecordsData[j].SubrecordData)
+						}
+					} else {
+						if !assert.Len(t, record.RecordsData, 1) {
+							return
+						}
+						assert.Equal(t, &subrecord.SRResultCode{RCD: packet.EGTS_PC_OK}, record.RecordsData[0].SubrecordData)
 					}
-					if !assert.Len(t, *records, 1) {
-						return
-					}
-					record := (*records)[0]
-					assert.Equal(t, expected.serviceType, record.SourceServiceType)
-					assert.Equal(t, expected.serviceType, record.RecipientServiceType)
-					if !assert.Len(t, record.RecordsData, 1) {
-						return
-					}
-					assert.Equal(t, &subrecord.SRResultCode{RCD: packet.EGTS_PC_OK}, record.RecordsData[0].SubrecordData)
 				}
 			}
 			assert.Empty(t, received)

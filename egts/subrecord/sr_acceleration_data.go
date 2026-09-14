@@ -78,6 +78,9 @@ func (subr *SRAccelerationData) Decode(b []byte) (err error) {
 
 // Encode Parse EGTS_SR_ACCEL_DATA to array of bytes
 func (subr *SRAccelerationData) Encode() (b []byte, err error) {
+	if subr == nil {
+		return nil, fmt.Errorf("SRAccelerationData; Subrecord is nil")
+	}
 	buffer := new(bytes.Buffer)
 
 	if err = binary.Write(buffer, binary.LittleEndian, subr.RTM); err != nil {
@@ -157,6 +160,9 @@ func (subr *SRAccelerationHeader) Decode(b []byte) (err error) {
 
 // Encode Parse EGTS_SR_ACCEL_DATA to array of bytes
 func (subr *SRAccelerationHeader) Encode() (b []byte, err error) {
+	if subr == nil {
+		return nil, fmt.Errorf("SRAccelerationHeader; Subrecord is nil")
+	}
 	buffer := new(bytes.Buffer)
 
 	if subr.StructuresAmount == 0 {

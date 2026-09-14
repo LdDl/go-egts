@@ -138,6 +138,9 @@ func (subr *SRTermIdentity) Decode(b []byte) (err error) {
 
 // Encode Parse EGTS_SR_TERM_IDENTITY to array of bytes
 func (subr *SRTermIdentity) Encode() (b []byte, err error) {
+	if subr == nil {
+		return nil, fmt.Errorf("SRTermIdentity; Subrecord is nil")
+	}
 	buffer := new(bytes.Buffer)
 
 	if err = binary.Write(buffer, binary.LittleEndian, subr.TerminalIdentifier); err != nil {

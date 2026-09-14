@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/LdDl/go-egts/egts/packet"
+	"github.com/stretchr/testify/assert"
 )
 
 type IdentityCheck struct {
@@ -41,7 +42,8 @@ func TestIdentity(t *testing.T) {
 			t.Errorf("Error: %s", err.Error())
 		}
 		resp := parsedAuth.PrepareAnswer(0, parsedAuth.PacketID)
-		encodedResp := resp.Encode()
+		encodedResp, err := resp.Encode()
+		assert.NoError(t, err)
 		hexResp := hex.EncodeToString(encodedResp)
 		trueResp := identities[i].Outcoming
 		if hexResp != trueResp {

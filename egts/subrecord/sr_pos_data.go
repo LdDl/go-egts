@@ -156,6 +156,9 @@ func (subr *SRPosData) Decode(b []byte) (err error) {
 
 // Encode Parse EGTS_SR_POS_DATA to array of bytes
 func (subr *SRPosData) Encode() (b []byte, err error) {
+	if subr == nil {
+		return nil, fmt.Errorf("SRPosData; Subrecord is nil")
+	}
 	buffer := new(bytes.Buffer)
 	timestamp := time.Date(2010, time.January, 1, 0, 0, 0, 0, time.UTC)
 	err = binary.Write(buffer, binary.LittleEndian, uint32(subr.NavigationTime.Sub(timestamp).Seconds()))

@@ -88,6 +88,9 @@ func (subr *SRLiquidLevelSensor) Decode(b []byte) (err error) {
 
 // Encode Parse EGTS_SR_LIQUID_LEVEL_SENSOR to array of bytes
 func (subr *SRLiquidLevelSensor) Encode() (b []byte, err error) {
+	if subr == nil {
+		return nil, fmt.Errorf("SRLiquidLevelSensor; Subrecord is nil")
+	}
 	if subr.LiquidLevelSensorNumber > 7 {
 		return nil, fmt.Errorf("EGTS_SR_LIQUID_LEVEL_SENSOR; LLSN must be between 0 and 7")
 	}

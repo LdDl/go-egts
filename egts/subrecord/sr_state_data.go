@@ -85,6 +85,9 @@ func (subr *SRStateData) Decode(b []byte) (err error) {
 
 // Encode Parse EGTS_SR_STATE_DATA to array of bytes
 func (subr *SRStateData) Encode() (b []byte, err error) {
+	if subr == nil {
+		return nil, fmt.Errorf("SRStateData; Subrecord is nil")
+	}
 	if subr.StateByte >= 8 {
 		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Such ST does not exists")
 	}

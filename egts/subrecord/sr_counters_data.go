@@ -59,6 +59,9 @@ func (subr *SRCountersData) Decode(b []byte) (err error) {
 
 // Encode Parse EGTS_SR_COUNTERS_DATA to array of bytes
 func (subr *SRCountersData) Encode() (b []byte, err error) {
+	if subr == nil {
+		return nil, fmt.Errorf("SRCountersData; Subrecord is nil")
+	}
 
 	buffer := new(bytes.Buffer)
 

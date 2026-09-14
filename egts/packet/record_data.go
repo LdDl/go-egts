@@ -94,19 +94,36 @@ func (rd *RecordsData) Decode(b []byte) (err error) {
 
 // Encode Parse Service Data Record to slice of bytes
 func (rd *RecordsData) Encode() (b []byte, err error) {
+	if rd == nil {
+		return nil, fmt.Errorf("SRD; RecordsData is nil")
+	}
 	buffer := new(bytes.Buffer)
 	for _, r := range *rd {
-		if err = buffer.WriteByte(r.SubrecordType); err != nil {
-			return nil, fmt.Errorf("SRD; Error writing SRT")
-		}
-		if err = binary.Write(buffer, binary.LittleEndian, r.SubrecordLength); err != nil {
-			return nil, fmt.Errorf("SRD; Error writing SRL")
+		if r == nil || r.SubrecordData == nil {
+			return nil, fmt.Errorf("SRD; Subrecord is nil")
 		}
 		sd, err := r.SubrecordData.Encode()
 		if err != nil {
-			return nil, fmt.Errorf("SRD;" + err.Error())
+			return nil, fmt.Errorf("SRD; Error encoding SRT %d: %w", r.SubrecordType, err)
 		}
-		buffer.Write(sd)
+		if int(r.SubrecordLength) != len(sd) {
+			return nil, fmt.Errorf("SRD; SRL does not match encoded data length")
+		}
+		if buffer.Len()+3+len(sd) > 65535 {
+			return nil, fmt.Errorf("SRD; Record data exceeds 65535 bytes")
+		}
+		err = buffer.WriteByte(r.SubrecordType)
+		if err != nil {
+			return nil, fmt.Errorf("SRD; Error writing SRT: %w", err)
+		}
+		err = binary.Write(buffer, binary.LittleEndian, r.SubrecordLength)
+		if err != nil {
+			return nil, fmt.Errorf("SRD; Error writing SRL: %w", err)
+		}
+		_, err = buffer.Write(sd)
+		if err != nil {
+			return nil, fmt.Errorf("SRD; Error writing SRD: %w", err)
+		}
 	}
 	return buffer.Bytes(), nil
 }

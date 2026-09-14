@@ -104,6 +104,9 @@ func (subr *SRAdSensorsData) Decode(b []byte) (err error) {
 
 // Encode Parse EGTS_SR_AD_SENSORS_DATA to array of bytes
 func (subr *SRAdSensorsData) Encode() (b []byte, err error) {
+	if subr == nil {
+		return nil, fmt.Errorf("SRAdSensorsData; Subrecord is nil")
+	}
 	buffer := new(bytes.Buffer)
 
 	if len(subr.DIOExists) != len(subr.ADI) {

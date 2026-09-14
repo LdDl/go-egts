@@ -223,17 +223,76 @@ func ReadPacket(b []byte) (p Packet, err error) {
 	return p, nil
 }
 
-// Encode Parse EGTS_PT_RESPONSE to slice of bytes
-func (p *Packet) Encode() (b []byte) {
+// Encode Parse EGTS packet to slice of bytes.
+func (p *Packet) Encode() (b []byte, err error) {
+	if p == nil {
+		return nil, fmt.Errorf("Packet; Packet is nil")
+	}
+	if p.ProtocolVersion != 1 {
+		return nil, fmt.Errorf("Packet; Unsupported protocol version")
+	}
+	if p.PRF != "00" || p.HeaderEncoding != 0 {
+		return nil, fmt.Errorf("Packet; Unsupported header format")
+	}
+	if p.ENA != "00" || p.CMP != "0" {
+		return nil, fmt.Errorf("Packet; Encryption and compression are not supported")
+	}
+	if p.RTE != "0" && p.RTE != "1" {
+		return nil, fmt.Errorf("Packet; Invalid RTE flag")
+	}
+	if len(p.PR) != 2 {
+		return nil, fmt.Errorf("Packet; PR must contain 2 bits")
+	}
+	if p.RTE == "0" && p.HeaderLength != 11 {
+		return nil, fmt.Errorf("Packet; Header length must be 11 without routing")
+	}
+	if p.RTE == "1" && p.HeaderLength != 16 {
+		return nil, fmt.Errorf("Packet; Header length must be 16 with routing")
+	}
+	flagsBits := p.PRF + p.RTE + p.ENA + p.CMP + p.PR
+	flags := uint64(0)
+	flags, err = strconv.ParseUint(flagsBits, 2, 8)
+	if err != nil {
+		return nil, fmt.Errorf("Packet; Error parsing flags: %w", err)
+	}
+
+	switch p.PacketType {
+	case EGTS_PT_APPDATA:
+		if p.ServicesFrameData != nil {
+			data, ok := p.ServicesFrameData.(*ServicesFrameData)
+			if !ok || data == nil {
+				return nil, fmt.Errorf("Packet; APPDATA requires ServicesFrameData")
+			}
+		}
+	case EGTS_PT_RESPONSE:
+		data, ok := p.ServicesFrameData.(*PTResponse)
+		if !ok || data == nil {
+			return nil, fmt.Errorf("Packet; RESPONSE requires PTResponse")
+		}
+	default:
+		return nil, fmt.Errorf("Packet; Unsupported packet type %d", p.PacketType)
+	}
+	var sfrd []byte
+	if p.ServicesFrameData != nil {
+		sfrd, err = p.ServicesFrameData.Encode()
+		if err != nil {
+			return nil, fmt.Errorf("Packet; Error encoding SFRD: %w", err)
+		}
+	}
+	if int(p.FrameDataLength) != len(sfrd) {
+		return nil, fmt.Errorf("Packet; FDL does not match encoded data length")
+	}
+	packetLength := int(p.HeaderLength) + len(sfrd)
+	if len(sfrd) > 0 {
+		packetLength += 2
+	}
+	if packetLength > 65535 {
+		return nil, fmt.Errorf("Packet; Packet length exceeds 65535 bytes")
+	}
 
 	b = append(b, p.ProtocolVersion)
 	b = append(b, p.SecurityKeyID)
-
-	flagsBits := p.PRF + p.RTE + p.ENA + p.CMP + p.PR
-	flags := uint64(0)
-	flags, _ = strconv.ParseUint(flagsBits, 2, 8)
 	b = append(b, uint8(flags))
-
 	b = append(b, p.HeaderLength)
 	b = append(b, p.HeaderEncoding)
 
@@ -244,7 +303,6 @@ func (p *Packet) Encode() (b []byte) {
 	pid := make([]byte, 2)
 	binary.LittleEndian.PutUint16(pid, p.PacketID)
 	b = append(b, pid...)
-
 	b = append(b, p.PacketType)
 
 	if p.RTE == "1" {
@@ -255,53 +313,70 @@ func (p *Packet) Encode() (b []byte) {
 		recepientA := make([]byte, 2)
 		binary.LittleEndian.PutUint16(recepientA, p.RecipientAddress)
 		b = append(b, recepientA...)
-
 		b = append(b, p.TimeToLive)
 	}
 
 	crc8 := uint8(crc.Crc(8, b))
 	b = append(b, crc8)
-	if p.ServicesFrameData != nil {
-		sfrd, _ := p.ServicesFrameData.Encode()
-		if len(sfrd) > 1 {
-			b = append(b, sfrd...)
-			crc16 := uint16(crc.Crc(16, sfrd))
-			crc16hash := make([]byte, 2)
-			binary.LittleEndian.PutUint16(crc16hash, crc16)
-			b = append(b, crc16hash...)
-		}
+	if len(sfrd) > 0 {
+		b = append(b, sfrd...)
+		crc16 := uint16(crc.Crc(16, sfrd))
+		crc16hash := make([]byte, 2)
+		binary.LittleEndian.PutUint16(crc16hash, crc16)
+		b = append(b, crc16hash...)
 	}
-	return b
+	return b, nil
 }
 
-// PrepareAnswer Prepare answer for incoming packet
+// PrepareAnswer Prepare answer for incoming packet.
+// recordNum is the first response record number; each new service pair uses the next number.
 func (p *Packet) PrepareAnswer(recordNum, pid uint16) Packet {
+	if p == nil || p.PacketType != EGTS_PT_APPDATA {
+		return Packet{}
+	}
+	resp := PTResponse{
+		ResponsePacketID: p.PacketID,
+		ProcessingResult: p.ErrorCode,
+	}
+	var services ServicesFrameData
+	if p.ErrorCode == EGTS_PC_OK && p.ServicesFrameData != nil {
+		incoming, ok := p.ServicesFrameData.(*ServicesFrameData)
+		if !ok || incoming == nil {
+			resp.ProcessingResult = EGTS_PC_INC_DATAFORM
+		} else {
+			for _, r := range *incoming {
+				if r == nil {
+					resp.ProcessingResult = EGTS_PC_INC_DATAFORM
+					services = nil
+					break
+				}
+				hasData := false
+				for _, rd := range r.RecordsData {
+					if rd == nil {
+						resp.ProcessingResult = EGTS_PC_INC_DATAFORM
+						break
+					}
+					if rd.SubrecordType != RecordResponse {
+						hasData = true
+					}
+				}
+				if resp.ProcessingResult != EGTS_PC_OK {
+					services = nil
+					break
+				}
+				if !hasData {
+					continue
+				}
 
-	if p.PacketType == EGTS_PT_APPDATA {
-		var records RecordsData
-		serviceType := uint8(0)
-		if p.ServicesFrameData != nil {
-			for _, r := range *p.ServicesFrameData.(*ServicesFrameData) {
-				records = append(records, &RecordData{
-					SubrecordType:   RecordResponse,
-					SubrecordLength: 3,
-					SubrecordData: &subrecord.SRRecordResponse{
-						ConfirmedRecordNumber: r.RecordNumber,
-						RecordStatus:          EGTS_PC_OK,
-					},
-				})
-				serviceType = r.SourceServiceType
-			}
-
-			resp := PTResponse{
-				ResponsePacketID: p.PacketID,
-				ProcessingResult: p.ErrorCode,
-			}
-
-			if records != nil {
-				resp.SDR = &ServicesFrameData{
-					&ServiceDataRecord{
-						RecordLength:         records.Len(),
+				var service *ServiceDataRecord
+				for _, existing := range services {
+					if existing.SourceServiceType == r.RecipientServiceType && existing.RecipientServiceType == r.SourceServiceType {
+						service = existing
+						break
+					}
+				}
+				if service == nil {
+					service = &ServiceDataRecord{
 						RecordNumber:         recordNum,
 						SSOD:                 "0",
 						RSOD:                 "1",
@@ -310,33 +385,43 @@ func (p *Packet) PrepareAnswer(recordNum, pid uint16) Packet {
 						TMFE:                 "0",
 						EVFE:                 "0",
 						OBFE:                 "0",
-						SourceServiceType:    serviceType,
-						RecipientServiceType: serviceType,
-						RecordsData:          records,
-					},
+						SourceServiceType:    r.RecipientServiceType,
+						RecipientServiceType: r.SourceServiceType,
+					}
+					services = append(services, service)
+					recordNum++
 				}
+				service.RecordsData = append(service.RecordsData, &RecordData{
+					SubrecordType:   RecordResponse,
+					SubrecordLength: 3,
+					SubrecordData: &subrecord.SRRecordResponse{
+						ConfirmedRecordNumber: r.RecordNumber,
+						RecordStatus:          EGTS_PC_OK,
+					},
+				})
+				service.RecordLength += 6
 			}
-
-			ans := Packet{
-				ProtocolVersion:   1,
-				SecurityKeyID:     0,
-				PRF:               "00",
-				RTE:               "0",
-				ENA:               "00",
-				CMP:               "0",
-				PR:                "11",
-				HeaderLength:      11,
-				HeaderEncoding:    0,
-				FrameDataLength:   resp.Len(),
-				PacketID:          pid,
-				PacketType:        EGTS_PT_RESPONSE,
-				ServicesFrameData: &resp,
-			}
-			return ans
 		}
 	}
-
-	return Packet{}
+	if len(services) > 0 {
+		resp.SDR = &services
+	}
+	ans := Packet{
+		ProtocolVersion:   1,
+		SecurityKeyID:     0,
+		PRF:               "00",
+		RTE:               "0",
+		ENA:               "00",
+		CMP:               "0",
+		PR:                "11",
+		HeaderLength:      11,
+		HeaderEncoding:    0,
+		FrameDataLength:   resp.Len(),
+		PacketID:          pid,
+		PacketType:        EGTS_PT_RESPONSE,
+		ServicesFrameData: &resp,
+	}
+	return ans
 }
 
 // PrepareSRResultCode Prepare result code (SR_Result_Code) for incoming packet
@@ -357,8 +442,8 @@ func (p *Packet) PrepareSRResultCode(c uint8, recordNum, pid uint16) Packet {
 			RecordLength:         data.Len(),
 			RecordNumber:         recordNum,
 			SSOD:                 "0",
-			RSOD:                 "0",
-			GRP:                  "1",
+			RSOD:                 "1",
+			GRP:                  "0",
 			RPP:                  "00",
 			TMFE:                 "0",
 			EVFE:                 "0",

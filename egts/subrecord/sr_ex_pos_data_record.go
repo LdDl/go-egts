@@ -107,6 +107,9 @@ func (subr *SRExPosDataRecord) Decode(b []byte) (err error) {
 
 // Encode Parse EGTS_SR_EXT_POS_DATA to array of bytes
 func (subr *SRExPosDataRecord) Encode() (b []byte, err error) {
+	if subr == nil {
+		return nil, fmt.Errorf("SRExPosDataRecord; Subrecord is nil")
+	}
 
 	buffer := new(bytes.Buffer)
 

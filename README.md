@@ -32,6 +32,8 @@ go get github.com/LdDl/go-egts
 ## Usage
 See [cmd](/cmd) directory of this library for examples.
 
+`Packet.Encode()` returns `([]byte, error)`. Check the error before sending the encoded bytes. The encoder checks packet flags and lengths and returns errors from nested records and subrecords.
+
 * Start server
     ```shell
     go run cmd/egts_server/main.go

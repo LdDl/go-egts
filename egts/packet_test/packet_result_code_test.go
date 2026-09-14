@@ -33,7 +33,8 @@ func TestPrepareSRResultCodePacket(t *testing.T) {
 			assert.Equal(t, packet.EGTS_PT_APPDATA, response.PacketType)
 			assert.Equal(t, tc.packetID, response.PacketID)
 			assert.Equal(t, uint16(11), response.FrameDataLength)
-			encoded := response.Encode()
+			encoded, err := response.Encode()
+			assert.NoError(t, err)
 			if !assert.Len(t, encoded, 24) {
 				return
 			}
@@ -56,6 +57,8 @@ func TestPrepareSRResultCodePacket(t *testing.T) {
 				return
 			}
 			record := (*records)[0]
+			assert.Equal(t, "1", record.RSOD)
+			assert.Equal(t, "0", record.GRP)
 			assert.Equal(t, tc.recordNumber, record.RecordNumber)
 			assert.Equal(t, packet.SERVICE_AUTH, record.SourceServiceType)
 			assert.Equal(t, packet.SERVICE_AUTH, record.RecipientServiceType)
@@ -66,7 +69,9 @@ func TestPrepareSRResultCodePacket(t *testing.T) {
 			assert.Equal(t, packet.ResultCode, record.RecordsData[0].SubrecordType)
 			assert.Equal(t, uint16(1), record.RecordsData[0].SubrecordLength)
 			assert.Equal(t, &subrecord.SRResultCode{RCD: tc.code}, record.RecordsData[0].SubrecordData)
-			assert.Equal(t, encoded, decoded.Encode())
+			reencoded, err := decoded.Encode()
+			assert.NoError(t, err)
+			assert.Equal(t, encoded, reencoded)
 		})
 	}
 }

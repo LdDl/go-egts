@@ -106,6 +106,17 @@ func handleConnection(conn *net.TCPConn) error {
 		pkg, err = packet.ReadPacket(recvPacket)
 		if err != nil {
 			log.Printf("Can't parse EGTS packet from '%s' due the error: %s", conn.RemoteAddr().String(), err.Error())
+			if pkg.PacketType == packet.EGTS_PT_APPDATA && (pkg.ErrorCode == packet.EGTS_PC_DATACRC_ERROR || pkg.ErrorCode == packet.EGTS_PC_INC_DATAFORM) {
+				answer := pkg.PrepareAnswer(0, getNextPid())
+				encoded, err := answer.Encode()
+				if err != nil {
+					return errors.Wrap(err, "Can't encode error response")
+				}
+				_, err = conn.Write(encoded)
+				if err != nil {
+					return errors.Wrap(err, "Can't write error response")
+				}
+			}
 			continue
 		}
 		currentTime := time.Now()
@@ -142,15 +153,27 @@ func handleConnection(conn *net.TCPConn) error {
 		default:
 			continue
 		}
-		pkgResp := pkg.PrepareAnswer(getNextRN(), getNextPid())
-		resp := pkgResp.Encode()
+		pkgResp := pkg.PrepareAnswer(0, getNextPid())
+		confirmation := pkgResp.ServicesFrameData.(*packet.PTResponse)
+		if confirmation.SDR != nil {
+			for _, record := range *confirmation.SDR.(*packet.ServicesFrameData) {
+				record.RecordNumber = getNextRN()
+			}
+		}
+		resp, err := pkgResp.Encode()
+		if err != nil {
+			return errors.Wrap(err, "Can't encode response")
+		}
 		_, err = conn.Write(resp)
 		if err != nil {
 			log.Printf("Can't write response to '%s' due the error: %s", conn.RemoteAddr().String(), err.Error())
 			return errors.Wrap(err, "Can't write response")
 		}
 		if srResultCode.ServicesFrameData != nil {
-			srResultCodeBytes := srResultCode.Encode()
+			srResultCodeBytes, err := srResultCode.Encode()
+			if err != nil {
+				return errors.Wrap(err, "Can't encode result code")
+			}
 			_, err = conn.Write(srResultCodeBytes)
 			if err != nil {
 				log.Printf("Can't send result code to '%s' due the error: %s", conn.RemoteAddr().String(), err.Error())

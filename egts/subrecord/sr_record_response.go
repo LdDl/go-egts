@@ -41,6 +41,9 @@ func (subr *SRRecordResponse) Decode(b []byte) (err error) {
 
 // Encode Parse EGTS_SR_RECORD_RESPONSE to array of bytes
 func (subr *SRRecordResponse) Encode() (b []byte, err error) {
+	if subr == nil {
+		return nil, fmt.Errorf("SRRecordResponse; Subrecord is nil")
+	}
 	buffer := new(bytes.Buffer)
 	err = binary.Write(buffer, binary.LittleEndian, subr.ConfirmedRecordNumber)
 	if err != nil {
