@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"strconv"
 )
 
@@ -43,14 +44,16 @@ type ServiceDataRecord struct {
 func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 
 	buffer := bytes.NewReader(b)
+	var decoded ServicesFrameData
 
 	for buffer.Len() > 0 {
 		sdr := ServiceDataRecord{}
 
 		// RL (Record Length)
 		rl := make([]byte, 2)
-		if _, err = buffer.Read(rl); err != nil {
-			return fmt.Errorf("SFRD; Error reading RL")
+		_, err = io.ReadFull(buffer, rl)
+		if err != nil {
+			return fmt.Errorf("SFRD; Error reading RL: %w", err)
 		}
 		sdr.RecordLength = binary.LittleEndian.Uint16(rl)
 		if sdr.RecordLength == 0 {
@@ -58,15 +61,17 @@ func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 		}
 		// RN (Record Number)
 		rn := make([]byte, 2)
-		if _, err = buffer.Read(rn); err != nil {
-			return fmt.Errorf("SFRD; Error reading RN")
+		_, err = io.ReadFull(buffer, rn)
+		if err != nil {
+			return fmt.Errorf("SFRD; Error reading RN: %w", err)
 		}
 		sdr.RecordNumber = binary.LittleEndian.Uint16(rn)
 
 		// RecordFlags (RFL): SSOD, RSOD, GRP, RPP, TMFE, EVFE, OBFE
 		flagByte := byte(0)
-		if flagByte, err = buffer.ReadByte(); err != nil {
-			return fmt.Errorf("SFRD; Error reading flags")
+		flagByte, err = buffer.ReadByte()
+		if err != nil {
+			return fmt.Errorf("SFRD; Error reading flags: %w", err)
 		}
 		flagByteAsBits := fmt.Sprintf("%08b", flagByte)
 		// OBFE Object ID FieldExists
@@ -87,8 +92,9 @@ func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 		// OID (Object Identifier)
 		if sdr.OBFE == "1" {
 			oid := make([]byte, 4)
-			if _, err = buffer.Read(oid); err != nil {
-				return fmt.Errorf("SFRD; Error reading OID")
+			_, err = io.ReadFull(buffer, oid)
+			if err != nil {
+				return fmt.Errorf("SFRD; Error reading OID: %w", err)
 			}
 			sdr.ObjectIdentifier = binary.LittleEndian.Uint32(oid)
 		}
@@ -96,8 +102,9 @@ func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 		// EVID (Event Identifier)
 		if sdr.EVFE == "1" {
 			evid := make([]byte, 4)
-			if _, err = buffer.Read(evid); err != nil {
-				return fmt.Errorf("SFRD; Error reading EVID")
+			_, err = io.ReadFull(buffer, evid)
+			if err != nil {
+				return fmt.Errorf("SFRD; Error reading EVID: %w", err)
 			}
 			sdr.EventIdentifier = binary.LittleEndian.Uint32(evid)
 		}
@@ -105,36 +112,41 @@ func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 		// TM (Time)
 		if sdr.TMFE == "1" {
 			tm := make([]byte, 4)
-			if _, err = buffer.Read(tm); err != nil {
-				return fmt.Errorf("SFRD; Error reading TM")
+			_, err = io.ReadFull(buffer, tm)
+			if err != nil {
+				return fmt.Errorf("SFRD; Error reading TM: %w", err)
 			}
 			sdr.Time = binary.LittleEndian.Uint32(tm)
 		}
 
 		// SST (Source Service Type)
-		if sdr.SourceServiceType, err = buffer.ReadByte(); err != nil {
-			return fmt.Errorf("SFRD; Error reading SST")
+		sdr.SourceServiceType, err = buffer.ReadByte()
+		if err != nil {
+			return fmt.Errorf("SFRD; Error reading SST: %w", err)
 		}
 
 		// RST (Recipient Service Type)
-		if sdr.RecipientServiceType, err = buffer.ReadByte(); err != nil {
-			return fmt.Errorf("SFRD; Error reading RST")
+		sdr.RecipientServiceType, err = buffer.ReadByte()
+		if err != nil {
+			return fmt.Errorf("SFRD; Error reading RST: %w", err)
 		}
 
 		// RD (Record Data)
-		if buffer.Len() != 0 {
-			sdr.RecordsData = RecordsData{}
-			bb := make([]byte, sdr.RecordLength)
-			if _, err = buffer.Read(bb); err != nil {
-				return err
-			}
-			err := sdr.RecordsData.Decode(bb)
-			if err != nil {
-				return fmt.Errorf("SFRD;" + err.Error())
-			}
+		if int(sdr.RecordLength) > buffer.Len() {
+			return fmt.Errorf("SFRD; Record length exceeds available data")
 		}
-		*sfrd = append(*sfrd, &sdr)
+		bb := make([]byte, sdr.RecordLength)
+		_, err = io.ReadFull(buffer, bb)
+		if err != nil {
+			return fmt.Errorf("SFRD; Error reading RD: %w", err)
+		}
+		err = sdr.RecordsData.Decode(bb)
+		if err != nil {
+			return fmt.Errorf("SFRD; %w", err)
+		}
+		decoded = append(decoded, &sdr)
 	}
+	*sfrd = decoded
 	return nil
 }
 
