@@ -47,6 +47,7 @@ type subrecordReadTestCase struct {
 func TestRecordsDataTruncated(t *testing.T) {
 	cases := []subrecordReadTestCase{
 		{name: "response", subrecordType: packet.RecordResponse, data: []byte{1, 0, 0}},
+		{name: "result code", subrecordType: packet.ResultCode, data: []byte{151}},
 		{name: "terminal identity", subrecordType: packet.TermIdentity, data: []byte{1, 0, 0, 0, 1, 2, 0}},
 		{name: "extended position", subrecordType: packet.ExtPosData, data: []byte{1, 2, 0}},
 		{name: "counter", subrecordType: packet.CountersData, data: []byte{1, 2, 0, 0}},
@@ -76,6 +77,33 @@ func TestRecordsDataTruncated(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+func TestRecordsDataResultCodes(t *testing.T) {
+	data := []byte{9, 1, 0, 0, 0, 3, 0, 0x34, 0x12, 0, 9, 1, 0, 151}
+	var result packet.RecordsData
+	err := result.Decode(data)
+	assert.NoError(t, err)
+	if !assert.Len(t, result, 3) {
+		return
+	}
+	assert.Equal(t, &subrecord.SRResultCode{RCD: 0}, result[0].SubrecordData)
+	assert.Equal(t, &subrecord.SRRecordResponse{ConfirmedRecordNumber: 0x1234}, result[1].SubrecordData)
+	assert.Equal(t, &subrecord.SRResultCode{RCD: 151}, result[2].SubrecordData)
+	assert.NotSame(t, result[0].SubrecordData, result[2].SubrecordData)
+	encoded, err := result.Encode()
+	assert.NoError(t, err)
+	assert.Equal(t, data, encoded)
+	previous := result
+	for _, invalid := range [][]byte{
+		{9, 0, 0},
+		{9, 2, 0, 0, 0},
+		{0, 4, 0, 0x34, 0x12, 0, 0},
+	} {
+		err = result.Decode(invalid)
+		assert.Error(t, err)
+		assert.Equal(t, previous, result)
 	}
 }
 

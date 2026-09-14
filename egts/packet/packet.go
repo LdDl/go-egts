@@ -381,7 +381,7 @@ func (p *Packet) PrepareSRResultCode(c uint8, recordNum, pid uint16) Packet {
 		HeaderEncoding:    0,
 		FrameDataLength:   sfrd.Len(),
 		PacketID:          pid,
-		PacketType:        RecordResponse,
+		PacketType:        EGTS_PT_APPDATA,
 		ServicesFrameData: &sfrd,
 	}
 
