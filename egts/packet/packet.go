@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"strconv"
 
 	"github.com/LdDl/go-egts/egts/subrecord"
@@ -42,99 +43,159 @@ type Packet struct {
 func ReadPacket(b []byte) (p Packet, err error) {
 
 	buffer := bytes.NewBuffer(b)
-	// PR Processing Result
-	if p.ProtocolVersion, err = buffer.ReadByte(); err != nil {
-		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
-		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM;" + err.Error())
+	p.ProtocolVersion, err = buffer.ReadByte()
+	if err != nil {
+		p.ErrorCode = EGTS_PC_INC_HEADERFORM
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM; %w", err)
 	}
-	if p.SecurityKeyID, err = buffer.ReadByte(); err != nil {
-		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
-		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM;" + err.Error())
+	p.SecurityKeyID, err = buffer.ReadByte()
+	if err != nil {
+		p.ErrorCode = EGTS_PC_INC_HEADERFORM
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM; %w", err)
 	}
 	flagByte := byte(0)
-	if flagByte, err = buffer.ReadByte(); err != nil {
-		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
-		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM;" + err.Error())
+	flagByte, err = buffer.ReadByte()
+	if err != nil {
+		p.ErrorCode = EGTS_PC_INC_HEADERFORM
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM; %w", err)
 	}
 	flagByteAsBits := fmt.Sprintf("%08b", flagByte)
-	p.PRF = flagByteAsBits[:2]  // flags << 7, flags << 6
-	p.RTE = flagByteAsBits[2:3] // flags << 5
-	p.ENA = flagByteAsBits[3:5] // flags << 4, flags << 3
-	p.CMP = flagByteAsBits[5:6] // flags << 2
-	p.PR = flagByteAsBits[6:]   // flags << 1, flags << 0
+	// Prefix
+	p.PRF = flagByteAsBits[:2]
+	// Route
+	p.RTE = flagByteAsBits[2:3]
+	// Encryption algorithm
+	p.ENA = flagByteAsBits[3:5]
+	// Compression
+	p.CMP = flagByteAsBits[5:6]
+	// Priority
+	p.PR = flagByteAsBits[6:]
 
-	if p.HeaderLength, err = buffer.ReadByte(); err != nil {
-		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
-		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM;" + err.Error())
+	p.HeaderLength, err = buffer.ReadByte()
+	if err != nil {
+		p.ErrorCode = EGTS_PC_INC_HEADERFORM
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM; %w", err)
+	}
+	if p.RTE == "0" && p.HeaderLength != 11 {
+		p.ErrorCode = EGTS_PC_INC_HEADERFORM
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM; Header length must be 11 without routing")
+	}
+	if p.RTE == "1" && p.HeaderLength != 16 {
+		p.ErrorCode = EGTS_PC_INC_HEADERFORM
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM; Header length must be 16 with routing")
 	}
 
-	if p.HeaderEncoding, err = buffer.ReadByte(); err != nil {
-		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
-		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM;" + err.Error())
+	p.HeaderEncoding, err = buffer.ReadByte()
+	if err != nil {
+		p.ErrorCode = EGTS_PC_INC_HEADERFORM
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM; %w", err)
 	}
 
 	tmpFDL := make([]byte, 2)
-	if _, err = buffer.Read(tmpFDL); err != nil {
-		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
-		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM;" + err.Error())
+	_, err = io.ReadFull(buffer, tmpFDL)
+	if err != nil {
+		p.ErrorCode = EGTS_PC_INC_HEADERFORM
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM; %w", err)
 	}
 	p.FrameDataLength = binary.LittleEndian.Uint16(tmpFDL)
 
 	tmpPID := make([]byte, 2)
-	if _, err = buffer.Read(tmpPID); err != nil {
-		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
-		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM;" + err.Error())
+	_, err = io.ReadFull(buffer, tmpPID)
+	if err != nil {
+		p.ErrorCode = EGTS_PC_INC_HEADERFORM
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM; %w", err)
 	}
 	p.PacketID = binary.LittleEndian.Uint16(tmpPID)
 
-	if p.PacketType, err = buffer.ReadByte(); err != nil {
-		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
-		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM;" + err.Error())
+	p.PacketType, err = buffer.ReadByte()
+	if err != nil {
+		p.ErrorCode = EGTS_PC_INC_HEADERFORM
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM; %w", err)
 	}
 
 	if p.RTE == "1" {
 		tmpPeer := make([]byte, 2)
-		if _, err = buffer.Read(tmpPeer); err != nil {
-			p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
-			return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM;" + err.Error())
+		_, err = io.ReadFull(buffer, tmpPeer)
+		if err != nil {
+			p.ErrorCode = EGTS_PC_INC_HEADERFORM
+			return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM; %w", err)
 		}
 		p.PeerAddress = binary.LittleEndian.Uint16(tmpPeer)
 
 		tmpRecipient := make([]byte, 2)
-		if _, err = buffer.Read(tmpRecipient); err != nil {
-			p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
-			return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM;" + err.Error())
+		_, err = io.ReadFull(buffer, tmpRecipient)
+		if err != nil {
+			p.ErrorCode = EGTS_PC_INC_HEADERFORM
+			return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM; %w", err)
 		}
 		p.RecipientAddress = binary.LittleEndian.Uint16(tmpRecipient)
 
-		if p.TimeToLive, err = buffer.ReadByte(); err != nil {
-			p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
-			return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM;" + err.Error())
+		p.TimeToLive, err = buffer.ReadByte()
+		if err != nil {
+			p.ErrorCode = EGTS_PC_INC_HEADERFORM
+			return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM; %w", err)
 		}
 	}
 
-	if p.HeaderCheckSum, err = buffer.ReadByte(); err != nil {
-		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
-		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM;" + err.Error())
+	p.HeaderCheckSum, err = buffer.ReadByte()
+	if err != nil {
+		p.ErrorCode = EGTS_PC_INC_HEADERFORM
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM; %w", err)
 	}
 
 	// Evaluate crc-8
-	if len(b) < int(p.HeaderLength) {
+	if int(p.HeaderCheckSum) != crc.Crc(8, b[:int(p.HeaderLength)-1]) {
 		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
 		return p, fmt.Errorf("Packet; EGTS_PC_HEADERCRC_ERROR")
 	}
-	if p.HeaderLength-1 > uint8(len(b)) {
-		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
-		return p, fmt.Errorf("Packet; EGTS_PC_HEADERCRC_ERROR")
+	if p.ProtocolVersion != 1 {
+		p.ErrorCode = EGTS_PC_UNS_PROTOCOL
+		return p, fmt.Errorf("Packet; EGTS_PC_UNS_PROTOCOL")
 	}
-	if int(p.HeaderCheckSum) != crc.Crc(8, b[:p.HeaderLength-1]) {
-		p.ErrorCode = EGTS_PC_HEADERCRC_ERROR
-		return p, fmt.Errorf("Packet; EGTS_PC_HEADERCRC_ERROR")
+	if p.PRF != "00" || p.HeaderEncoding != 0 {
+		p.ErrorCode = EGTS_PC_INC_HEADERFORM
+		return p, fmt.Errorf("Packet; EGTS_PC_INC_HEADERFORM; Unsupported header format")
 	}
+	if p.ENA != "00" {
+		p.ErrorCode = EGTS_PC_DECRYPT_ERROR
+		return p, fmt.Errorf("Packet; EGTS_PC_DECRYPT_ERROR; Encryption is not supported")
+	}
+	if p.CMP != "0" {
+		p.ErrorCode = EGTS_PC_UNS_TYPE
+		return p, fmt.Errorf("Packet; EGTS_PC_UNS_TYPE; Compression is not supported")
+	}
+
+	// SFRCS is present only when the frame contains data.
+	packetLength := int(p.HeaderLength) + int(p.FrameDataLength)
+	if p.FrameDataLength > 0 {
+		packetLength += 2
+	}
+	if packetLength != len(b) || packetLength > 65535 {
+		p.ErrorCode = EGTS_PC_INVDATALEN
+		return p, fmt.Errorf("Packet; EGTS_PC_INVDATALEN")
+	}
+
 	dataFrameBytes := make([]byte, p.FrameDataLength)
-	if _, err = buffer.Read(dataFrameBytes); err != nil {
-		p.ErrorCode = EGTS_PC_INC_DATAFORM
-		return p, fmt.Errorf("Packet; EGTS_PC_INC_DATAFORM;" + err.Error())
+	_, err = io.ReadFull(buffer, dataFrameBytes)
+	if err != nil {
+		p.ErrorCode = EGTS_PC_INVDATALEN
+		return p, fmt.Errorf("Packet; EGTS_PC_INVDATALEN; %w", err)
+	}
+
+	// Verify crc-16 before decoding the service data.
+	if p.FrameDataLength > 0 {
+		crc16Bytes := make([]byte, 2)
+		_, err = io.ReadFull(buffer, crc16Bytes)
+		if err != nil {
+			p.ErrorCode = EGTS_PC_INVDATALEN
+			return p, fmt.Errorf("Packet crc16; EGTS_PC_INVDATALEN; %w", err)
+		}
+		p.ServicesFrameDataCheckSum = binary.LittleEndian.Uint16(crc16Bytes)
+
+		if int(p.ServicesFrameDataCheckSum) != crc.Crc(16, dataFrameBytes) {
+			p.ErrorCode = EGTS_PC_DATACRC_ERROR
+			return p, fmt.Errorf("Packet; EGTS_PC_DATACRC_ERROR")
+		}
 	}
 
 	// Check type of packet
@@ -143,31 +204,20 @@ func ReadPacket(b []byte) (p Packet, err error) {
 		p.ServicesFrameData = &PTResponse{}
 		break
 	case EGTS_PT_APPDATA:
-		p.ServicesFrameData = &ServicesFrameData{}
+		p.ServicesFrameData = new(ServicesFrameData)
 		break
 	case EGTS_PT_SIGNED_APPDATA:
-		// @TODO (not implemented yet)
-		break
+		p.ErrorCode = EGTS_PC_UNS_TYPE
+		return p, fmt.Errorf("Packet; EGTS_PC_UNS_TYPE; Signed packets are not supported")
 	default:
-		// nothing
-		break
+		p.ErrorCode = EGTS_PC_UNS_TYPE
+		return p, fmt.Errorf("Packet; EGTS_PC_UNS_TYPE; Packet type %d", p.PacketType)
 	}
 
-	if err = p.ServicesFrameData.Decode(dataFrameBytes); err != nil {
+	err = p.ServicesFrameData.Decode(dataFrameBytes)
+	if err != nil {
 		p.ErrorCode = EGTS_PC_INC_DATAFORM
-		return p, fmt.Errorf("Packet dataFrame; EGTS_PC_INC_DATAFORM;" + err.Error())
-	}
-
-	crc16Bytes := make([]byte, 2)
-	if _, err = buffer.Read(crc16Bytes); err != nil {
-		p.ErrorCode = EGTS_PC_DECRYPT_ERROR
-		return p, fmt.Errorf("Packet crc16; EGTS_PC_DECRYPT_ERROR;" + err.Error())
-	}
-	p.ServicesFrameDataCheckSum = binary.LittleEndian.Uint16(crc16Bytes)
-
-	if int(p.ServicesFrameDataCheckSum) != crc.Crc(16, b[p.HeaderLength:uint16(p.HeaderLength)+p.FrameDataLength]) {
-		p.ErrorCode = EGTS_PC_DATACRC_ERROR
-		return p, fmt.Errorf("Packet; EGTS_PC_DATACRC_ERROR")
+		return p, fmt.Errorf("Packet dataFrame; EGTS_PC_INC_DATAFORM; %w", err)
 	}
 
 	return p, nil
