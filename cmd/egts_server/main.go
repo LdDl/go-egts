@@ -47,21 +47,11 @@ func main() {
 }
 
 func getNextPid() uint16 {
-	if pidCounter < 65535 {
-		atomic.AddUint32(&pidCounter, 1)
-	} else {
-		pidCounter = 0
-	}
-	return uint16(atomic.LoadUint32(&pidCounter))
+	return uint16(atomic.AddUint32(&pidCounter, 1))
 }
 
 func getNextRN() uint16 {
-	if rnCounter < 65535 {
-		atomic.AddUint32(&rnCounter, 1)
-	} else {
-		rnCounter = 0
-	}
-	return uint16(atomic.LoadUint32(&rnCounter))
+	return uint16(atomic.AddUint32(&rnCounter, 1))
 }
 
 func handleConnection(conn *net.TCPConn) error {
@@ -71,52 +61,52 @@ func handleConnection(conn *net.TCPConn) error {
 		return errors.Wrap(err, "Can't set keep-alive to 'true'")
 	}
 
-	recvPacket := []byte{}
 	for {
-	Received:
-		recvPacket = nil
-
 		// Read packet header
 		headerBuf := make([]byte, headerLen)
-		_, err := conn.Read(headerBuf)
-
-		switch err {
-		case nil:
-			// Check if packet is EGTS
-			if headerBuf[0] != 0x01 {
-				log.Printf("Packet header from '%s' is not for EGTS", conn.RemoteAddr().String())
-				conn.Close()
-				return ErrNoEGTSPacket
-			}
-			// Evaluate length of packet as: HL (header length) + FDL (body length) + CRC (2 bytes if FDS exists)
-			bodyLen := binary.LittleEndian.Uint16(headerBuf[5:7])
-			pkgLen := uint16(headerBuf[3])
-			if bodyLen > 0 {
-				pkgLen += bodyLen + 2
-			}
-			// Recieve end of EGTS packet
-			buf := make([]byte, pkgLen-uint16(headerLen))
-			if _, err := io.ReadFull(conn, buf); err != nil {
-				log.Printf("Can't read packet body from '%s' due the error: %s", conn.RemoteAddr().String(), err.Error())
-				conn.Close()
-				return ErrAcceptEGTSPacket
-			}
-			// Prepare full packet
-			recvPacket = append(headerBuf, buf...)
-		case io.EOF:
-			log.Printf("Closing connection to '%s' due timeout", conn.RemoteAddr().String())
-			conn.Close()
-			return nil
-		default:
-			conn.Close()
+		_, err = io.ReadFull(conn, headerBuf)
+		if err == io.EOF {
+			log.Printf("Connection from '%s' has been closed", conn.RemoteAddr().String())
 			return nil
 		}
+		if err != nil {
+			return fmt.Errorf("%w: reading packet header: %v", ErrAcceptEGTSPacket, err)
+		}
+		// Check if packet is EGTS
+		if headerBuf[0] != 0x01 {
+			log.Printf("Packet header from '%s' is not for EGTS", conn.RemoteAddr().String())
+			return ErrNoEGTSPacket
+		}
+		expectedHeaderLen := byte(11)
+		if headerBuf[2]&0x20 != 0 {
+			expectedHeaderLen = 16
+		}
+		if headerBuf[3] != expectedHeaderLen {
+			return fmt.Errorf("%w: invalid header length %d", ErrAcceptEGTSPacket, headerBuf[3])
+		}
+		// HL + FDL + CRC (2 bytes when FDL is not zero).
+		bodyLen := int(binary.LittleEndian.Uint16(headerBuf[5:7]))
+		pkgLen := int(headerBuf[3]) + bodyLen
+		if bodyLen > 0 {
+			pkgLen += 2
+		}
+		if pkgLen > 65535 {
+			return fmt.Errorf("%w: packet length exceeds 65535 bytes", ErrAcceptEGTSPacket)
+		}
+		// Receive the rest of the packet.
+		buf := make([]byte, pkgLen-headerLen)
+		_, err = io.ReadFull(conn, buf)
+		if err != nil {
+			log.Printf("Can't read packet body from '%s' due the error: %s", conn.RemoteAddr().String(), err.Error())
+			return fmt.Errorf("%w: reading packet body: %v", ErrAcceptEGTSPacket, err)
+		}
+		recvPacket := append(headerBuf, buf...)
 
 		pkg := packet.Packet{}
 		pkg, err = packet.ReadPacket(recvPacket)
 		if err != nil {
 			log.Printf("Can't parse EGTS packet from '%s' due the error: %s", conn.RemoteAddr().String(), err.Error())
-			goto Received
+			continue
 		}
 		currentTime := time.Now()
 		srResultCode := packet.Packet{}
@@ -150,24 +140,23 @@ func handleConnection(conn *net.TCPConn) error {
 				}
 			}
 		default:
-			// Nothing
+			continue
 		}
 		pkgResp := pkg.PrepareAnswer(getNextRN(), getNextPid())
 		resp := pkgResp.Encode()
 		_, err = conn.Write(resp)
 		if err != nil {
 			log.Printf("Can't write response to '%s' due the error: %s", conn.RemoteAddr().String(), err.Error())
-			continue
+			return errors.Wrap(err, "Can't write response")
 		}
-		srResultCodeBytes := srResultCode.Encode()
-		if len(srResultCodeBytes) > 0 {
+		if srResultCode.ServicesFrameData != nil {
+			srResultCodeBytes := srResultCode.Encode()
 			_, err = conn.Write(srResultCodeBytes)
 			if err != nil {
 				log.Printf("Can't send result code to '%s' due the error: %s", conn.RemoteAddr().String(), err.Error())
-				continue
-			} else {
-				log.Printf("Result code has been sent to '%s'", conn.RemoteAddr().String())
+				return errors.Wrap(err, "Can't send result code")
 			}
+			log.Printf("Result code has been sent to '%s'", conn.RemoteAddr().String())
 		}
 	}
 }

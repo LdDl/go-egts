@@ -278,7 +278,7 @@ func (p *Packet) Encode() (b []byte) {
 func (p *Packet) PrepareAnswer(recordNum, pid uint16) Packet {
 
 	if p.PacketType == EGTS_PT_APPDATA {
-		records := RecordsData{}
+		var records RecordsData
 		serviceType := uint8(0)
 		if p.ServicesFrameData != nil {
 			for _, r := range *p.ServicesFrameData.(*ServicesFrameData) {
