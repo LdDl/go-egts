@@ -114,14 +114,15 @@ func (subr *SRPosData) Decode(b []byte) (err error) {
 		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading DIR")
 	}
 	subr.DirectionValue = uint16(subr.Direction) | uint16(subr.DirhFlag)<<8
-	subr.Direction = subr.Direction | subr.DirhFlag<<7
+	// Don't know why it was here, but just keep for the history:
+	// subr.Direction = subr.Direction | subr.DirhFlag<<7
 
 	// ODM Odometer, 3b
 	subr.OdometerBytes = make([]byte, 3)
 	if _, err = buffer.Read(subr.OdometerBytes); err != nil {
 		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading ODM")
 	}
-	subr.Odometer = int(binary.BigEndian.Uint32(append([]byte{0}, subr.OdometerBytes...))) / 10
+	subr.Odometer = int(binary.LittleEndian.Uint32(append(subr.OdometerBytes, 0))) / 10
 	// DIN Digital Inputs
 	if subr.DigitalInputs, err = buffer.ReadByte(); err != nil {
 		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading DIN")
@@ -137,7 +138,7 @@ func (subr *SRPosData) Decode(b []byte) (err error) {
 		if _, err = buffer.Read(subr.AltitudeBytes); err != nil {
 			return fmt.Errorf("EGTS_SR_POS_DATA; Error reading ALT")
 		}
-		subr.Altitude = binary.BigEndian.Uint32(append([]byte{0}, subr.AltitudeBytes...))
+		subr.Altitude = binary.LittleEndian.Uint32(append(subr.AltitudeBytes, 0))
 	}
 
 	return nil
