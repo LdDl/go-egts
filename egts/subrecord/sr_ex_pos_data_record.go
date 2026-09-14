@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 )
@@ -31,51 +32,58 @@ type SRExPosDataRecord struct {
 // Decode Parse array of bytes to EGTS_SR_EXT_POS_DATA
 func (subr *SRExPosDataRecord) Decode(b []byte) (err error) {
 	buffer := bytes.NewReader(b)
+	decoded := SRExPosDataRecord{}
 
 	// Flags
 	flagByte := byte(0)
-	if flagByte, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error reading flags")
+	flagByte, err = buffer.ReadByte()
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error reading flags: %w", err)
 	}
 	flagByteAsBits := fmt.Sprintf("%08b", flagByte)
-	subr.NavigationSystemExists = flagByteAsBits[3:4]
-	subr.SatellitesExists = flagByteAsBits[4:5]
-	subr.PositionDiluptionOfPrecisionExists = flagByteAsBits[5:6]
-	subr.HorizontalDiluptionOfPrecisionExists = flagByteAsBits[6:7]
-	subr.VerticalDiluptionOfPrecisionExists = flagByteAsBits[7:]
+	decoded.NavigationSystemExists = flagByteAsBits[3:4]
+	decoded.SatellitesExists = flagByteAsBits[4:5]
+	decoded.PositionDiluptionOfPrecisionExists = flagByteAsBits[5:6]
+	decoded.HorizontalDiluptionOfPrecisionExists = flagByteAsBits[6:7]
+	decoded.VerticalDiluptionOfPrecisionExists = flagByteAsBits[7:]
 
-	if subr.VerticalDiluptionOfPrecisionExists == "1" {
+	if decoded.VerticalDiluptionOfPrecisionExists == "1" {
 		vdop := make([]byte, 2)
-		if _, err = buffer.Read(vdop); err != nil {
-			return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error reading VDOP")
+		_, err = io.ReadFull(buffer, vdop)
+		if err != nil {
+			return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error reading VDOP: %w", err)
 		}
-		subr.VerticalDiluptionOfPrecision = binary.LittleEndian.Uint16(vdop)
+		decoded.VerticalDiluptionOfPrecision = binary.LittleEndian.Uint16(vdop)
 	}
-	if subr.HorizontalDiluptionOfPrecisionExists == "1" {
+	if decoded.HorizontalDiluptionOfPrecisionExists == "1" {
 		hdop := make([]byte, 2)
-		if _, err = buffer.Read(hdop); err != nil {
-			return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error reading HDOP")
+		_, err = io.ReadFull(buffer, hdop)
+		if err != nil {
+			return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error reading HDOP: %w", err)
 		}
-		subr.HorizontalDiluptionOfPrecision = binary.LittleEndian.Uint16(hdop)
+		decoded.HorizontalDiluptionOfPrecision = binary.LittleEndian.Uint16(hdop)
 	}
-	if subr.PositionDiluptionOfPrecisionExists == "1" {
+	if decoded.PositionDiluptionOfPrecisionExists == "1" {
 		pdop := make([]byte, 2)
-		if _, err = buffer.Read(pdop); err != nil {
-			return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error reading PDOP")
+		_, err = io.ReadFull(buffer, pdop)
+		if err != nil {
+			return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error reading PDOP: %w", err)
 		}
-		subr.PositionDiluptionOfPrecision = binary.LittleEndian.Uint16(pdop)
+		decoded.PositionDiluptionOfPrecision = binary.LittleEndian.Uint16(pdop)
 	}
-	if subr.SatellitesExists == "1" {
-		if subr.Satellites, err = buffer.ReadByte(); err != nil {
-			return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error reading SAT")
+	if decoded.SatellitesExists == "1" {
+		decoded.Satellites, err = buffer.ReadByte()
+		if err != nil {
+			return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error reading SAT: %w", err)
 		}
 	}
-	if subr.NavigationSystemExists == "1" {
+	if decoded.NavigationSystemExists == "1" {
 		ns := make([]byte, 2)
-		if _, err = buffer.Read(ns); err != nil {
-			return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error reading NS")
+		_, err = io.ReadFull(buffer, ns)
+		if err != nil {
+			return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Error reading NS: %w", err)
 		}
-		subr.NavigationSystem = binary.LittleEndian.Uint16(ns)
+		decoded.NavigationSystem = binary.LittleEndian.Uint16(ns)
 	}
 	/*
 		NS:
@@ -90,6 +98,10 @@ func (subr *SRExPosDataRecord) Decode(b []byte) (err error) {
 		128 - QZSS.
 		Остальные значения зарезервированы.
 	*/
+	if buffer.Len() != 0 {
+		return fmt.Errorf("EGTS_SR_EXT_POS_DATA; Unexpected trailing data")
+	}
+	*subr = decoded
 	return nil
 }
 
