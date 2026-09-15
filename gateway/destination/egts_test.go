@@ -46,8 +46,12 @@ func TestEGTSConfirmations(t *testing.T) {
 			}
 			client, peer := net.Pipe()
 			cfg := configuration.DefaultConfiguration()
-			cfg.DestinationsCfg.EGTS.Enabled = true
-			writer, err := PrepareEGTS(cfg)
+			if len(cfg.DestinationsCfg.EGTS) == 0 {
+				cfg.DestinationsCfg.EGTS = []configuration.EGTSDestinationConf{configuration.DefaultEGTSDestination()}
+				cfg.DestinationsCfg.EGTS[0].ID = "primary"
+			}
+			cfg.DestinationsCfg.EGTS[0].Enabled = true
+			writer, err := PrepareEGTS(cfg.DestinationsCfg.EGTS[0], cfg.ServerCfg)
 			assert.NoError(t, err)
 			writer.conn = client
 			t.Cleanup(func() {
@@ -151,8 +155,12 @@ func TestEGTSCancellation(t *testing.T) {
 	assert.NoError(t, err)
 	client, peer := net.Pipe()
 	cfg := configuration.DefaultConfiguration()
-	cfg.DestinationsCfg.EGTS.Enabled = true
-	writer, err := PrepareEGTS(cfg)
+	if len(cfg.DestinationsCfg.EGTS) == 0 {
+		cfg.DestinationsCfg.EGTS = []configuration.EGTSDestinationConf{configuration.DefaultEGTSDestination()}
+		cfg.DestinationsCfg.EGTS[0].ID = "primary"
+	}
+	cfg.DestinationsCfg.EGTS[0].Enabled = true
+	writer, err := PrepareEGTS(cfg.DestinationsCfg.EGTS[0], cfg.ServerCfg)
 	assert.NoError(t, err)
 	writer.conn = client
 	ctx, cancel := context.WithCancel(context.Background())
@@ -188,10 +196,14 @@ func TestEGTSReconnectAuthenticatesAgain(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	cfg := configuration.DefaultConfiguration()
-	cfg.DestinationsCfg.EGTS.Enabled = true
-	cfg.DestinationsCfg.EGTS.Port = listener.Addr().(*net.TCPAddr).Port
-	cfg.DestinationsCfg.EGTS.Auth = configuration.EGTSAuthConf{Enabled: true, UserName: "relay", Password: "remote-password"}
-	writer, err := PrepareEGTS(cfg)
+	if len(cfg.DestinationsCfg.EGTS) == 0 {
+		cfg.DestinationsCfg.EGTS = []configuration.EGTSDestinationConf{configuration.DefaultEGTSDestination()}
+		cfg.DestinationsCfg.EGTS[0].ID = "primary"
+	}
+	cfg.DestinationsCfg.EGTS[0].Enabled = true
+	cfg.DestinationsCfg.EGTS[0].Port = listener.Addr().(*net.TCPAddr).Port
+	cfg.DestinationsCfg.EGTS[0].Auth = configuration.EGTSAuthConf{Enabled: true, UserName: "relay", Password: "remote-password"}
+	writer, err := PrepareEGTS(cfg.DestinationsCfg.EGTS[0], cfg.ServerCfg)
 	assert.NoError(t, err)
 	t.Cleanup(func() {
 		err := writer.Close()
@@ -297,9 +309,13 @@ func TestEGTSRejectsSelfConnection(t *testing.T) {
 	})
 	cfg := configuration.DefaultConfiguration()
 	cfg.ServerCfg.Port = listener.Addr().(*net.TCPAddr).Port
-	cfg.DestinationsCfg.EGTS.Enabled = true
-	cfg.DestinationsCfg.EGTS.Port = cfg.ServerCfg.Port
-	writer, err := PrepareEGTS(cfg)
+	if len(cfg.DestinationsCfg.EGTS) == 0 {
+		cfg.DestinationsCfg.EGTS = []configuration.EGTSDestinationConf{configuration.DefaultEGTSDestination()}
+		cfg.DestinationsCfg.EGTS[0].ID = "primary"
+	}
+	cfg.DestinationsCfg.EGTS[0].Enabled = true
+	cfg.DestinationsCfg.EGTS[0].Port = cfg.ServerCfg.Port
+	writer, err := PrepareEGTS(cfg.DestinationsCfg.EGTS[0], cfg.ServerCfg)
 	assert.NoError(t, err)
 	raw, err := hex.DecodeString("0100000b002300000001991800000001ef0000000202101500d2312b104fba3a9ed227bc35030000b200000000006a8d")
 	assert.NoError(t, err)

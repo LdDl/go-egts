@@ -41,10 +41,24 @@ max_age_days = 7
 # Includes packets.ndjson and its archives.
 max_total_size_bytes = 62914560
 
-[destinations_cfg.egts]
+[[destinations_cfg.egts]]
+id = "monitoring"
 enabled = false
 host = "127.0.0.1"
 port = 8082
+connect_timeout_seconds = 5
+ack_timeout_seconds = 10
+
+[destinations_cfg.egts.auth]
+enabled = false
+username = ""
+password = ""
+
+[[destinations_cfg.egts]]
+id = "backup"
+enabled = false
+host = "127.0.0.1"
+port = 8083
 connect_timeout_seconds = 5
 ack_timeout_seconds = 10
 

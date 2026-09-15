@@ -54,8 +54,12 @@ func TestRelayDumpRestoresSessions(t *testing.T) {
 	cfg.DestinationsCfg.Stdout = false
 	cfg.DestinationsCfg.File.Enabled = true
 	cfg.DestinationsCfg.File.Directory = filepath.Join(root, "relay-packets")
-	cfg.DestinationsCfg.EGTS.Enabled = true
-	cfg.DestinationsCfg.EGTS.Port = listener.Addr().(*net.TCPAddr).Port
+	if len(cfg.DestinationsCfg.EGTS) == 0 {
+		cfg.DestinationsCfg.EGTS = []configuration.EGTSDestinationConf{configuration.DefaultEGTSDestination()}
+		cfg.DestinationsCfg.EGTS[0].ID = "primary"
+	}
+	cfg.DestinationsCfg.EGTS[0].Enabled = true
+	cfg.DestinationsCfg.EGTS[0].Port = listener.Addr().(*net.TCPAddr).Port
 	s, err := newServer(cfg)
 	assert.NoError(t, err)
 	if err != nil {
@@ -95,7 +99,7 @@ func TestRelayDumpRestoresSessions(t *testing.T) {
 	err = s.file.Close()
 	assert.NoError(t, err)
 	for _, session := range s.relays {
-		err = session.writer.Close()
+		err = session.close()
 		assert.NoError(t, err)
 	}
 	name := filepath.Join(cfg.DeliveryCfg.DumpDirectory, configuration.DUMP_FILENAME)
@@ -103,15 +107,19 @@ func TestRelayDumpRestoresSessions(t *testing.T) {
 	assert.NoError(t, err)
 	lines := bytes.Split(bytes.TrimSuffix(data, []byte("\n")), []byte("\n"))
 	assert.Len(t, lines, 4)
-	assert.JSONEq(t, `{"version":2}`, string(lines[0]))
-	cfg.DestinationsCfg.EGTS.Enabled = false
+	assert.JSONEq(t, `{"version":3}`, string(lines[0]))
+	cfg.DestinationsCfg.EGTS[0].Enabled = false
 	invalid, err := newServer(cfg)
 	assert.ErrorContains(t, err, "unavailable destination")
 	assert.Nil(t, invalid)
 	unchanged, err := os.ReadFile(name)
 	assert.NoError(t, err)
 	assert.Equal(t, data, unchanged)
-	cfg.DestinationsCfg.EGTS.Enabled = true
+	if len(cfg.DestinationsCfg.EGTS) == 0 {
+		cfg.DestinationsCfg.EGTS = []configuration.EGTSDestinationConf{configuration.DefaultEGTSDestination()}
+		cfg.DestinationsCfg.EGTS[0].ID = "primary"
+	}
+	cfg.DestinationsCfg.EGTS[0].Enabled = true
 	restored, err := newServer(cfg)
 	assert.NoError(t, err)
 	if err != nil {
@@ -121,7 +129,7 @@ func TestRelayDumpRestoresSessions(t *testing.T) {
 		err := restored.file.Close()
 		assert.NoError(t, err)
 		for _, session := range restored.relays {
-			err = session.writer.Close()
+			err = session.close()
 			assert.NoError(t, err)
 		}
 	})
@@ -133,7 +141,7 @@ func TestRelayDumpRestoresSessions(t *testing.T) {
 	assert.Equal(t, second.id, restored.queue[1].relay.session.id)
 	assert.True(t, restored.queue[0].relay.session.closed)
 	assert.False(t, restored.queue[0].file)
-	assert.True(t, restored.queue[0].egts)
+	assert.Equal(t, map[string]bool{"primary": true}, restored.queue[0].egts)
 	last := restored.queue[2]
 	deliveryCtx, stopDelivery := context.WithCancel(context.Background())
 	done := make(chan error, 1)
@@ -152,7 +160,7 @@ func TestRelayDumpRestoresSessions(t *testing.T) {
 	assert.Empty(t, restored.relays)
 	data, err = os.ReadFile(name)
 	assert.NoError(t, err)
-	assert.JSONEq(t, `{"version":2}`, string(data))
+	assert.JSONEq(t, `{"version":3}`, string(data))
 	data, err = os.ReadFile(filepath.Join(cfg.DestinationsCfg.File.Directory, configuration.PACKETS_FILENAME))
 	assert.NoError(t, err)
 	lines = bytes.Split(bytes.TrimSuffix(data, []byte("\n")), []byte("\n"))
@@ -211,8 +219,12 @@ func TestRelayStallSavesDump(t *testing.T) {
 			cfg.DeliveryCfg.DumpAfterSeconds = 1
 			cfg.DeliveryCfg.DumpDirectory = filepath.Join(t.TempDir(), "queue")
 			cfg.DestinationsCfg.Stdout = false
-			cfg.DestinationsCfg.EGTS.Enabled = true
-			cfg.DestinationsCfg.EGTS.Port = remote.Addr().(*net.TCPAddr).Port
+			if len(cfg.DestinationsCfg.EGTS) == 0 {
+				cfg.DestinationsCfg.EGTS = []configuration.EGTSDestinationConf{configuration.DefaultEGTSDestination()}
+				cfg.DestinationsCfg.EGTS[0].ID = "primary"
+			}
+			cfg.DestinationsCfg.EGTS[0].Enabled = true
+			cfg.DestinationsCfg.EGTS[0].Port = remote.Addr().(*net.TCPAddr).Port
 			s, err := newServer(cfg)
 			assert.NoError(t, err)
 			if err != nil {
@@ -298,16 +310,87 @@ func TestRelayStallSavesDump(t *testing.T) {
 			if len(lines) != 2 {
 				return
 			}
-			assert.JSONEq(t, `{"version":2}`, string(lines[0]))
+			assert.JSONEq(t, `{"version":3}`, string(lines[0]))
 			var saved dumpRecord
 			err = json.Unmarshal(lines[1], &saved)
 			assert.NoError(t, err)
 			assert.Equal(t, raw, saved.Raw)
-			assert.True(t, saved.EGTS)
+			assert.Equal(t, []string{"primary"}, saved.EGTSIDs)
 			assert.False(t, saved.Stdout)
 			assert.False(t, saved.File)
 			assert.NotNil(t, saved.SessionID)
 			assert.Nil(t, saved.Identity)
+		})
+	}
+}
+
+type relayDumpTestCase struct {
+	name       string
+	version    int
+	legacy     bool
+	pending    []string
+	configured []string
+	disabled   string
+	errorText  string
+}
+
+func TestRelayDumpDestinationValidation(t *testing.T) {
+	cases := []relayDumpTestCase{
+		{name: "legacy single receiver", version: 2, legacy: true, configured: []string{"primary"}},
+		{name: "legacy ambiguous receiver", version: 2, legacy: true, configured: []string{"primary", "backup"}, errorText: "exactly one"},
+		{name: "missing receiver", version: 3, pending: []string{"backup"}, configured: []string{"primary"}, errorText: "unavailable destination"},
+		{name: "disabled receiver", version: 3, pending: []string{"backup"}, configured: []string{"primary", "backup"}, disabled: "backup", errorText: "unavailable destination"},
+		{name: "duplicate receiver", version: 3, pending: []string{"primary", "primary"}, configured: []string{"primary"}, errorText: "Duplicate"},
+		{name: "legacy flag in new dump", version: 3, legacy: true, configured: []string{"primary"}, errorText: "Legacy relay dump"},
+		{name: "new IDs in old dump", version: 2, pending: []string{"primary"}, configured: []string{"primary"}, errorText: "legacy packet dump"},
+		{name: "empty receiver list", version: 3, configured: []string{"primary"}, errorText: "unavailable destination"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := configuration.DefaultConfiguration()
+			cfg.DeliveryCfg.DumpDirectory = filepath.Join(t.TempDir(), "queue")
+			cfg.DestinationsCfg.Stdout = false
+			for _, id := range tc.configured {
+				relay := configuration.DefaultEGTSDestination()
+				relay.ID = id
+				relay.Enabled = id != tc.disabled
+				cfg.DestinationsCfg.EGTS = append(cfg.DestinationsCfg.EGTS, relay)
+			}
+			raw, err := hex.DecodeString("0100000b002300000001991800000001ef0000000202101500d2312b104fba3a9ed227bc35030000b200000000006a8d")
+			assert.NoError(t, err)
+			sessionID := "0123456789abcdef0123456789abcdef"
+			saved := dumpRecord{Raw: raw, EGTS: tc.legacy, EGTSIDs: tc.pending, SessionID: &sessionID}
+			var buffer bytes.Buffer
+			encoder := json.NewEncoder(&buffer)
+			err = encoder.Encode(dumpHeader{Version: tc.version})
+			assert.NoError(t, err)
+			err = encoder.Encode(saved)
+			assert.NoError(t, err)
+			err = os.MkdirAll(cfg.DeliveryCfg.DumpDirectory, 0750)
+			assert.NoError(t, err)
+			name := filepath.Join(cfg.DeliveryCfg.DumpDirectory, configuration.DUMP_FILENAME)
+			err = os.WriteFile(name, buffer.Bytes(), 0600)
+			assert.NoError(t, err)
+			s, err := newServer(cfg)
+			if tc.errorText != "" {
+				assert.ErrorContains(t, err, tc.errorText)
+				assert.Nil(t, s)
+			} else {
+				assert.NoError(t, err)
+				if err != nil {
+					return
+				}
+				assert.Len(t, s.queue, 1)
+				assert.Equal(t, map[string]bool{"primary": true}, s.queue[0].egts)
+				assert.Equal(t, sessionID, s.queue[0].relay.session.id)
+				for _, session := range s.relays {
+					err = session.close()
+					assert.NoError(t, err)
+				}
+			}
+			data, err := os.ReadFile(name)
+			assert.NoError(t, err)
+			assert.Equal(t, buffer.Bytes(), data)
 		})
 	}
 }

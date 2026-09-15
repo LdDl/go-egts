@@ -52,6 +52,7 @@ func Run(ctx context.Context, cfg *configuration.Configuration) error {
 
 func newServer(cfg *configuration.Configuration) (*server, error) {
 	s := &server{cfg: *cfg, clients: make(map[net.Conn]struct{}), wake: make(chan struct{}, 1), relays: make(map[string]*relaySession)}
+	s.cfg.DestinationsCfg.EGTS = append([]configuration.EGTSDestinationConf(nil), cfg.DestinationsCfg.EGTS...)
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
@@ -182,7 +183,7 @@ func (s *server) serve(ctx context.Context, listener net.Listener) error {
 		}
 	}
 	for _, session := range s.relays {
-		err = session.writer.Close()
+		err = session.close()
 		if err != nil {
 			if result == nil {
 				result = err

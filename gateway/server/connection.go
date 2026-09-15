@@ -23,13 +23,16 @@ func (s *server) handleConnection(ctx context.Context, conn net.Conn) error {
 	var rn uint16
 	var session *relaySession
 	var relayIdentity []byte
-	if s.cfg.DestinationsCfg.EGTS.Enabled {
+	if len(s.cfg.DestinationsCfg.EGTS) > 0 {
 		var err error
 		session, err = s.newRelaySession()
 		if err != nil {
 			return err
 		}
 		defer func() {
+			if session == nil {
+				return
+			}
 			err := s.endRelaySession(session)
 			if err != nil {
 				log.Log().Str("scope", logger.SCOPE_DELIVERY).Str("event", logger.EVENT_DELIVERY_ERROR).

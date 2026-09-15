@@ -5,7 +5,19 @@ import (
 	"strings"
 )
 
+func DefaultEGTSDestination() EGTSDestinationConf {
+	return EGTSDestinationConf{Host: "127.0.0.1", Port: 8082, ConnectTimeoutSeconds: 5, AckTimeoutSeconds: 10}
+}
+
 func (cfg EGTSDestinationConf) Validate() error {
+	if cfg.ID == "" {
+		return fmt.Errorf("destinations_cfg.egts.id must not be empty")
+	}
+	for _, character := range cfg.ID {
+		if (character < 'a' || character > 'z') && (character < '0' || character > '9') && character != '_' {
+			return fmt.Errorf("destinations_cfg.egts.id may contain only lowercase Latin letters, digits and underscores")
+		}
+	}
 	if !cfg.Enabled {
 		return nil
 	}

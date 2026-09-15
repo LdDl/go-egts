@@ -80,7 +80,6 @@ max_total_size_bytes = 12288
 		},
 		DestinationsCfg: configuration.DestinationsConf{
 			Stdout: false,
-			EGTS:   configuration.EGTSDestinationConf{Host: "127.0.0.1", Port: 8082, ConnectTimeoutSeconds: 5, AckTimeoutSeconds: 10},
 			File: configuration.FileDestinationConf{
 				Enabled: true, Directory: "/tmp/gateway/packets",
 				Rotation: configuration.RotationConf{MaxFileSizeBytes: 2048, MaxBackups: 4, MaxAgeDays: 5, MaxTotalSizeBytes: 12288},
@@ -204,7 +203,6 @@ func TestPrepareEnvConfiguration(t *testing.T) {
 		},
 		DestinationsCfg: configuration.DestinationsConf{
 			Stdout: false,
-			EGTS:   configuration.EGTSDestinationConf{Host: "127.0.0.1", Port: 8082, ConnectTimeoutSeconds: 5, AckTimeoutSeconds: 10},
 			File: configuration.FileDestinationConf{
 				Enabled: true, Directory: "/tmp/gateway/packets",
 				Rotation: configuration.RotationConf{MaxFileSizeBytes: 2048, MaxBackups: 4, MaxAgeDays: 5, MaxTotalSizeBytes: 12288},
@@ -302,5 +300,10 @@ func TestPrepareEnvConfigurationErrors(t *testing.T) {
 func TestExampleConfigurations(t *testing.T) {
 	cfg, err := configuration.PrepareFileConfiguration("../../egts_gateway.toml")
 	assert.NoError(t, err)
-	assert.Equal(t, configuration.DefaultConfiguration(), cfg)
+	want := configuration.DefaultConfiguration()
+	want.DestinationsCfg.EGTS = []configuration.EGTSDestinationConf{
+		{ID: "monitoring", Host: "127.0.0.1", Port: 8082, ConnectTimeoutSeconds: 5, AckTimeoutSeconds: 10},
+		{ID: "backup", Host: "127.0.0.1", Port: 8083, ConnectTimeoutSeconds: 5, AckTimeoutSeconds: 10},
+	}
+	assert.Equal(t, want, cfg)
 }

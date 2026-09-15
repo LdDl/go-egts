@@ -14,7 +14,7 @@ var ErrRelayCredentials = errors.New("A relayed data packet must not contain inc
 
 type relaySession struct {
 	id      string
-	writer  *destination.EGTS
+	writers map[string]*destination.EGTS
 	pending int
 	closed  bool
 }
@@ -30,11 +30,20 @@ func (s *server) newRelaySession() (*relaySession, error) {
 	if err != nil {
 		return nil, err
 	}
-	writer, err := destination.PrepareEGTS(&s.cfg)
-	if err != nil {
-		return nil, err
+	session := &relaySession{id: hex.EncodeToString(random), writers: make(map[string]*destination.EGTS)}
+	for _, cfg := range s.cfg.DestinationsCfg.EGTS {
+		if !cfg.Enabled {
+			continue
+		}
+		writer, err := destination.PrepareEGTS(cfg, s.cfg.ServerCfg)
+		if err != nil {
+			return nil, err
+		}
+		session.writers[cfg.ID] = writer
 	}
-	session := &relaySession{id: hex.EncodeToString(random), writer: writer}
+	if len(session.writers) == 0 {
+		return nil, nil
+	}
 	s.mu.Lock()
 	s.relays[session.id] = session
 	s.mu.Unlock()
@@ -50,9 +59,24 @@ func (s *server) endRelaySession(session *relaySession) error {
 	}
 	s.mu.Unlock()
 	if finished {
-		return session.writer.Close()
+		return session.close()
 	}
 	return nil
+}
+
+func (session *relaySession) close() error {
+	var result error
+	for id, writer := range session.writers {
+		err := writer.Close()
+		if err != nil {
+			if result == nil {
+				result = fmt.Errorf("Can't close EGTS destination %s: %w", id, err)
+			} else {
+				result = fmt.Errorf("%w; Can't close EGTS destination %s: %v", result, id, err)
+			}
+		}
+	}
+	return result
 }
 
 func shouldRelay(pkg *packet.Packet) (bool, error) {

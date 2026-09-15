@@ -69,9 +69,13 @@ func TestGatewayRelay(t *testing.T) {
 			cfg.DeliveryCfg.AckMode = "delivered"
 			cfg.DeliveryCfg.DumpDirectory = filepath.Join(root, "relay-queue")
 			cfg.DestinationsCfg.Stdout = false
-			cfg.DestinationsCfg.EGTS.Enabled = true
-			cfg.DestinationsCfg.EGTS.Port = remote.Addr().(*net.TCPAddr).Port
-			cfg.DestinationsCfg.EGTS.Auth = configuration.EGTSAuthConf{Enabled: tc.auth, UserName: "relay", Password: "destination-password"}
+			if len(cfg.DestinationsCfg.EGTS) == 0 {
+				cfg.DestinationsCfg.EGTS = []configuration.EGTSDestinationConf{configuration.DefaultEGTSDestination()}
+				cfg.DestinationsCfg.EGTS[0].ID = "primary"
+			}
+			cfg.DestinationsCfg.EGTS[0].Enabled = true
+			cfg.DestinationsCfg.EGTS[0].Port = remote.Addr().(*net.TCPAddr).Port
+			cfg.DestinationsCfg.EGTS[0].Auth = configuration.EGTSAuthConf{Enabled: tc.auth, UserName: "relay", Password: "destination-password"}
 			relay, err := newServer(cfg)
 			assert.NoError(t, err)
 			if err != nil {
@@ -219,7 +223,11 @@ func TestRelayRejectsMixedCredentials(t *testing.T) {
 		RecordsData: packet.RecordsData{&packet.RecordData{SubrecordType: packet.AuthInfo, SubrecordData: auth}},
 	})
 	cfg := configuration.DefaultConfiguration()
-	cfg.DestinationsCfg.EGTS.Enabled = true
+	if len(cfg.DestinationsCfg.EGTS) == 0 {
+		cfg.DestinationsCfg.EGTS = []configuration.EGTSDestinationConf{configuration.DefaultEGTSDestination()}
+		cfg.DestinationsCfg.EGTS[0].ID = "primary"
+	}
+	cfg.DestinationsCfg.EGTS[0].Enabled = true
 	s := &server{cfg: *cfg, accepting: true, wake: make(chan struct{}, 1)}
 	item, err := s.enqueue(&destination.Record{Packet: pkg}, nil)
 	assert.ErrorIs(t, err, ErrRelayCredentials)
@@ -228,5 +236,5 @@ func TestRelayRejectsMixedCredentials(t *testing.T) {
 	*services = (*services)[1:]
 	item, err = s.enqueue(&destination.Record{Packet: pkg}, nil)
 	assert.NoError(t, err)
-	assert.False(t, item.egts)
+	assert.Empty(t, item.egts)
 }

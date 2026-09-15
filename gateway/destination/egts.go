@@ -31,15 +31,15 @@ type recordConfirmation struct {
 	recipient uint8
 }
 
-func PrepareEGTS(cfg *configuration.Configuration) (*EGTS, error) {
-	if !cfg.DestinationsCfg.EGTS.Enabled {
+func PrepareEGTS(cfg configuration.EGTSDestinationConf, server configuration.ServerConf) (*EGTS, error) {
+	if !cfg.Enabled {
 		return nil, fmt.Errorf("EGTS destination is disabled")
 	}
-	err := cfg.DestinationsCfg.EGTS.Validate()
+	err := cfg.Validate()
 	if err != nil {
 		return nil, err
 	}
-	return &EGTS{cfg: cfg.DestinationsCfg.EGTS, server: cfg.ServerCfg}, nil
+	return &EGTS{cfg: cfg, server: server}, nil
 }
 
 func (e *EGTS) WriteContext(ctx context.Context, record *Record, identity []byte) (err error) {

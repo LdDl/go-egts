@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/LdDl/go-egts/egts/subrecord"
@@ -26,6 +27,7 @@ type dumpRecord struct {
 	Stdout     bool               `json:"pending_stdout"`
 	File       bool               `json:"pending_file"`
 	EGTS       bool               `json:"pending_egts"`
+	EGTSIDs    []string           `json:"pending_egts_ids"`
 	SessionID  *string            `json:"session_id"`
 	Identity   []byte             `json:"identity"`
 }
@@ -55,8 +57,14 @@ func (s *server) restoreDump() (err error) {
 	}
 	var header dumpHeader
 	err = json.Unmarshal(scanner.Bytes(), &header)
-	if err != nil || (header.Version != 1 && header.Version != 2) {
+	if err != nil || (header.Version != 1 && header.Version != 2 && header.Version != 3) {
 		return fmt.Errorf("Invalid packet dump version")
+	}
+	enabled := make(map[string]bool)
+	for _, cfg := range s.cfg.DestinationsCfg.EGTS {
+		if cfg.Enabled {
+			enabled[cfg.ID] = true
+		}
 	}
 	var pending []*pendingPacket
 	for scanner.Scan() {
@@ -68,16 +76,40 @@ func (s *server) restoreDump() (err error) {
 		if err != nil {
 			return fmt.Errorf("Invalid packet dump record: %w", err)
 		}
-		if (!saved.Stdout && !saved.File && !saved.EGTS) || (saved.Stdout && !s.cfg.DestinationsCfg.Stdout) || (saved.File && !s.cfg.DestinationsCfg.File.Enabled) || (saved.EGTS && !s.cfg.DestinationsCfg.EGTS.Enabled) {
+		if header.Version < 3 && len(saved.EGTSIDs) > 0 {
+			return fmt.Errorf("Invalid EGTS destinations in legacy packet dump")
+		}
+		if saved.EGTS {
+			if header.Version != 2 || len(enabled) != 1 {
+				return fmt.Errorf("Legacy relay dump requires exactly one enabled EGTS destination to restore")
+			}
+			for id := range enabled {
+				saved.EGTSIDs = []string{id}
+			}
+		}
+		if (!saved.Stdout && !saved.File && len(saved.EGTSIDs) == 0) || (saved.Stdout && !s.cfg.DestinationsCfg.Stdout) || (saved.File && !s.cfg.DestinationsCfg.File.Enabled) {
 			return fmt.Errorf("Packet dump requires an unavailable destination")
+		}
+		var relayIDs map[string]bool
+		if len(saved.EGTSIDs) > 0 {
+			relayIDs = make(map[string]bool)
+		}
+		for _, id := range saved.EGTSIDs {
+			if !enabled[id] {
+				return fmt.Errorf("Packet dump requires an unavailable destination: EGTS %s", id)
+			}
+			if relayIDs[id] {
+				return fmt.Errorf("Duplicate EGTS destination in packet dump: %s", id)
+			}
+			relayIDs[id] = true
 		}
 		record, err := destination.NewRecord(saved.ReceivedAt, saved.Source, saved.Raw)
 		if err != nil {
 			return fmt.Errorf("Invalid packet in dump: %w", err)
 		}
-		item := &pendingPacket{record: record, stdout: saved.Stdout, file: saved.File, egts: saved.EGTS, done: make(chan struct{})}
-		if saved.EGTS {
-			if header.Version != 2 || saved.SessionID == nil || len(*saved.SessionID) != 32 {
+		item := &pendingPacket{record: record, stdout: saved.Stdout, file: saved.File, egts: relayIDs, done: make(chan struct{})}
+		if len(relayIDs) > 0 {
+			if saved.SessionID == nil || len(*saved.SessionID) != 32 {
 				return fmt.Errorf("Invalid relay session in packet dump")
 			}
 			_, err = hex.DecodeString(*saved.SessionID)
@@ -97,14 +129,16 @@ func (s *server) restoreDump() (err error) {
 			}
 			session := s.relays[*saved.SessionID]
 			if session == nil {
-				writer, err := destination.PrepareEGTS(&s.cfg)
+				session, err = s.newRelaySession()
 				if err != nil {
 					return err
 				}
-				session = &relaySession{id: *saved.SessionID, writer: writer, closed: true}
+				delete(s.relays, session.id)
+				session.id = *saved.SessionID
+				session.closed = true
 				s.relays[session.id] = session
 			}
-			session.pending++
+			session.pending += len(relayIDs)
 			item.relay = &relayPacket{session: session, identity: saved.Identity}
 		}
 		pending = append(pending, item)
@@ -122,9 +156,13 @@ func (s *server) saveDump() (err error) {
 	s.mu.Lock()
 	var pending []dumpRecord
 	for _, item := range s.queue {
-		if item.stdout || item.file || item.egts {
-			saved := dumpRecord{ReceivedAt: item.record.ReceivedAt, Source: item.record.Source, Raw: item.record.Raw, Stdout: item.stdout, File: item.file, EGTS: item.egts}
-			if item.egts {
+		if item.stdout || item.file || len(item.egts) > 0 {
+			saved := dumpRecord{ReceivedAt: item.record.ReceivedAt, Source: item.record.Source, Raw: item.record.Raw, Stdout: item.stdout, File: item.file}
+			if len(item.egts) > 0 {
+				for id := range item.egts {
+					saved.EGTSIDs = append(saved.EGTSIDs, id)
+				}
+				sort.Strings(saved.EGTSIDs)
 				saved.SessionID = &item.relay.session.id
 				saved.Identity = item.relay.identity
 			}
@@ -155,8 +193,11 @@ func (s *server) saveDump() (err error) {
 	}()
 	encoder := json.NewEncoder(file)
 	version := 1
-	if s.cfg.DestinationsCfg.EGTS.Enabled {
-		version = 2
+	for _, cfg := range s.cfg.DestinationsCfg.EGTS {
+		if cfg.Enabled {
+			version = 3
+			break
+		}
 	}
 	err = encoder.Encode(dumpHeader{Version: version})
 	if err != nil {

@@ -51,12 +51,13 @@ type RotationConf struct {
 }
 
 type DestinationsConf struct {
-	Stdout bool                `toml:"stdout" json:"stdout"`
-	File   FileDestinationConf `toml:"file" json:"file"`
-	EGTS   EGTSDestinationConf `toml:"egts" json:"egts"`
+	Stdout bool                  `toml:"stdout" json:"stdout"`
+	File   FileDestinationConf   `toml:"file" json:"file"`
+	EGTS   []EGTSDestinationConf `toml:"egts" json:"egts"`
 }
 
 type EGTSDestinationConf struct {
+	ID                    string       `toml:"id" json:"id"`
 	Enabled               bool         `toml:"enabled" json:"enabled"`
 	Host                  string       `toml:"host" json:"host"`
 	Port                  int          `toml:"port" json:"port"`
@@ -105,7 +106,6 @@ func DefaultConfiguration() *Configuration {
 		},
 		DestinationsCfg: DestinationsConf{
 			Stdout: true,
-			EGTS:   EGTSDestinationConf{Host: "127.0.0.1", Port: 8082, ConnectTimeoutSeconds: 5, AckTimeoutSeconds: 10},
 			File: FileDestinationConf{
 				Enabled:   false,
 				Directory: "./data/packets",
@@ -143,6 +143,10 @@ func PrepareConfiguration() (*Configuration, error) {
 	return PrepareEnvConfiguration()
 }
 
+type egtsFileConfiguration struct {
+	DestinationsCfg map[string]toml.Primitive `toml:"destinations_cfg"`
+}
+
 func PrepareFileConfiguration(fname string) (*Configuration, error) {
 	data, err := os.ReadFile(fname)
 	if err != nil {
@@ -162,6 +166,27 @@ func PrepareFileConfiguration(fname string) (*Configuration, error) {
 	if len(unknown) != 0 {
 		return nil, fmt.Errorf("Unknown configuration key: %s", unknown[0].String())
 	}
+	if len(cfg.DestinationsCfg.EGTS) > 0 {
+		var raw egtsFileConfiguration
+		metadata, err = toml.Decode(string(data), &raw)
+		if err != nil {
+			return nil, fmt.Errorf("Can't decode EGTS destinations")
+		}
+		var entries []toml.Primitive
+		err = metadata.PrimitiveDecode(raw.DestinationsCfg["egts"], &entries)
+		if err != nil {
+			return nil, fmt.Errorf("Can't decode EGTS destination list")
+		}
+		for i, entry := range entries {
+			relay := DefaultEGTSDestination()
+			err = metadata.PrimitiveDecode(entry, &relay)
+			if err != nil {
+				return nil, fmt.Errorf("Can't decode EGTS destination %d", i)
+			}
+			cfg.DestinationsCfg.EGTS[i] = relay
+		}
+	}
+
 	err = cfg.Validate()
 	if err != nil {
 		return nil, err
@@ -313,64 +338,89 @@ func PrepareEnvConfiguration() (*Configuration, error) {
 		cfg.DestinationsCfg.File.Rotation.MaxTotalSizeBytes = maxTotalSize
 	}
 
-	relayEnabled, exists := os.LookupEnv("EGTS_RELAY_ENABLED")
-	if exists {
-		value, err := strconv.ParseBool(relayEnabled)
-		if err != nil {
-			return nil, fmt.Errorf("EGTS_RELAY_ENABLED: %w", err)
+	relayIDs, exists := os.LookupEnv("EGTS_RELAY_IDS")
+	knownRelayKeys := map[string]bool{"EGTS_RELAY_IDS": true}
+	if exists && relayIDs != "" {
+		for _, id := range strings.Split(relayIDs, ",") {
+			relay := DefaultEGTSDestination()
+			relay.ID = strings.TrimSpace(id)
+			suffix := "_" + strings.ToUpper(relay.ID)
+			key := "EGTS_RELAY_ENABLED" + suffix
+			knownRelayKeys[key] = true
+			value, found := os.LookupEnv(key)
+			if found {
+				parsed, err := strconv.ParseBool(value)
+				if err != nil {
+					return nil, fmt.Errorf("%s: %w", key, err)
+				}
+				relay.Enabled = parsed
+			}
+			key = "EGTS_RELAY_HOST" + suffix
+			knownRelayKeys[key] = true
+			value, found = os.LookupEnv(key)
+			if found {
+				relay.Host = value
+			}
+			key = "EGTS_RELAY_PORT" + suffix
+			knownRelayKeys[key] = true
+			value, found = os.LookupEnv(key)
+			if found {
+				parsed, err := strconv.Atoi(value)
+				if err != nil {
+					return nil, fmt.Errorf("%s: %w", key, err)
+				}
+				relay.Port = parsed
+			}
+			key = "EGTS_RELAY_CONNECT_TIMEOUT_SECONDS" + suffix
+			knownRelayKeys[key] = true
+			value, found = os.LookupEnv(key)
+			if found {
+				parsed, err := strconv.Atoi(value)
+				if err != nil {
+					return nil, fmt.Errorf("%s: %w", key, err)
+				}
+				relay.ConnectTimeoutSeconds = parsed
+			}
+			key = "EGTS_RELAY_ACK_TIMEOUT_SECONDS" + suffix
+			knownRelayKeys[key] = true
+			value, found = os.LookupEnv(key)
+			if found {
+				parsed, err := strconv.Atoi(value)
+				if err != nil {
+					return nil, fmt.Errorf("%s: %w", key, err)
+				}
+				relay.AckTimeoutSeconds = parsed
+			}
+			key = "EGTS_RELAY_AUTH_ENABLED" + suffix
+			knownRelayKeys[key] = true
+			value, found = os.LookupEnv(key)
+			if found {
+				parsed, err := strconv.ParseBool(value)
+				if err != nil {
+					return nil, fmt.Errorf("%s: %w", key, err)
+				}
+				relay.Auth.Enabled = parsed
+			}
+			key = "EGTS_RELAY_AUTH_USERNAME" + suffix
+			knownRelayKeys[key] = true
+			value, found = os.LookupEnv(key)
+			if found {
+				relay.Auth.UserName = value
+			}
+			key = "EGTS_RELAY_AUTH_PASSWORD" + suffix
+			knownRelayKeys[key] = true
+			value, found = os.LookupEnv(key)
+			if found {
+				relay.Auth.Password = value
+			}
+			cfg.DestinationsCfg.EGTS = append(cfg.DestinationsCfg.EGTS, relay)
 		}
-		cfg.DestinationsCfg.EGTS.Enabled = value
 	}
-
-	relayHost, exists := os.LookupEnv("EGTS_RELAY_HOST")
-	if exists {
-		cfg.DestinationsCfg.EGTS.Host = relayHost
-	}
-
-	relayPort, exists := os.LookupEnv("EGTS_RELAY_PORT")
-	if exists {
-		value, err := strconv.Atoi(relayPort)
-		if err != nil {
-			return nil, fmt.Errorf("EGTS_RELAY_PORT: %w", err)
+	for _, variable := range os.Environ() {
+		key, _, _ := strings.Cut(variable, "=")
+		if strings.HasPrefix(key, "EGTS_RELAY_") && !knownRelayKeys[key] {
+			return nil, fmt.Errorf("Unknown relay variable %s; use EGTS_RELAY_IDS and a destination ID suffix", key)
 		}
-		cfg.DestinationsCfg.EGTS.Port = value
-	}
-
-	relayConnectTimeoutSeconds, exists := os.LookupEnv("EGTS_RELAY_CONNECT_TIMEOUT_SECONDS")
-	if exists {
-		value, err := strconv.Atoi(relayConnectTimeoutSeconds)
-		if err != nil {
-			return nil, fmt.Errorf("EGTS_RELAY_CONNECT_TIMEOUT_SECONDS: %w", err)
-		}
-		cfg.DestinationsCfg.EGTS.ConnectTimeoutSeconds = value
-	}
-
-	relayAckTimeoutSeconds, exists := os.LookupEnv("EGTS_RELAY_ACK_TIMEOUT_SECONDS")
-	if exists {
-		value, err := strconv.Atoi(relayAckTimeoutSeconds)
-		if err != nil {
-			return nil, fmt.Errorf("EGTS_RELAY_ACK_TIMEOUT_SECONDS: %w", err)
-		}
-		cfg.DestinationsCfg.EGTS.AckTimeoutSeconds = value
-	}
-
-	relayAuthEnabled, exists := os.LookupEnv("EGTS_RELAY_AUTH_ENABLED")
-	if exists {
-		value, err := strconv.ParseBool(relayAuthEnabled)
-		if err != nil {
-			return nil, fmt.Errorf("EGTS_RELAY_AUTH_ENABLED: %w", err)
-		}
-		cfg.DestinationsCfg.EGTS.Auth.Enabled = value
-	}
-
-	relayAuthUsername, exists := os.LookupEnv("EGTS_RELAY_AUTH_USERNAME")
-	if exists {
-		cfg.DestinationsCfg.EGTS.Auth.UserName = relayAuthUsername
-	}
-
-	relayAuthPassword, exists := os.LookupEnv("EGTS_RELAY_AUTH_PASSWORD")
-	if exists {
-		cfg.DestinationsCfg.EGTS.Auth.Password = relayAuthPassword
 	}
 
 	err := cfg.Validate()
@@ -426,11 +476,22 @@ func (cfg *Configuration) Validate() error {
 			return fmt.Errorf("destinations_cfg.file.rotation: %w", err)
 		}
 	}
-	err := cfg.DestinationsCfg.EGTS.Validate()
-	if err != nil {
-		return err
+	ids := make(map[string]bool)
+	hasRelay := false
+	for _, relay := range cfg.DestinationsCfg.EGTS {
+		err := relay.Validate()
+		if err != nil {
+			return fmt.Errorf("EGTS destination %q: %w", relay.ID, err)
+		}
+		if ids[relay.ID] {
+			return fmt.Errorf("Duplicate EGTS destination ID %q", relay.ID)
+		}
+		ids[relay.ID] = true
+		if relay.Enabled {
+			hasRelay = true
+		}
 	}
-	if !cfg.DestinationsCfg.Stdout && !cfg.DestinationsCfg.File.Enabled && !cfg.DestinationsCfg.EGTS.Enabled {
+	if !cfg.DestinationsCfg.Stdout && !cfg.DestinationsCfg.File.Enabled && !hasRelay {
 		return fmt.Errorf("At least one packet destination must be enabled")
 	}
 	return cfg.ValidateOutputs(os.Stdout, os.Stderr)
