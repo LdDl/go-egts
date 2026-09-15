@@ -1,5 +1,7 @@
 # go-egts [![GoDoc](https://godoc.org/github.com/LdDl/go-egts?status.svg)](https://godoc.org/github.com/LdDl/go-egts) [![Sourcegraph](https://sourcegraph.com/github.com/LdDl/go-egts/-/badge.svg)](https://sourcegraph.com/github.com/LdDl/go-egts?badge) [![Go Report Card](https://goreportcard.com/badge/github.com/LdDl/go-egts)](https://goreportcard.com/report/github.com/LdDl/go-egts) [![GitHub tag](https://img.shields.io/github/tag/LdDl/go-egts.svg)](https://github.com/LdDl/go-egts/releases) [![Build Status](https://travis-ci.com/LdDl/go-egts.svg?branch=master)](https://travis-ci.com/LdDl/go-egts)
 
+[Russian version (версия на русском)](README_RU.md)
+
 Go library for decoding and encoding EGTS (Era Glonass Telematics Standard) packets. The repository also includes `egts_gateway`, a TCP server built on this library for receiving, storing and forwarding telemetry.
 
 ## Table of Contents
