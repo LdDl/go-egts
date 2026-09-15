@@ -53,6 +53,22 @@ type RotationConf struct {
 type DestinationsConf struct {
 	Stdout bool                `toml:"stdout" json:"stdout"`
 	File   FileDestinationConf `toml:"file" json:"file"`
+	EGTS   EGTSDestinationConf `toml:"egts" json:"egts"`
+}
+
+type EGTSDestinationConf struct {
+	Enabled               bool         `toml:"enabled" json:"enabled"`
+	Host                  string       `toml:"host" json:"host"`
+	Port                  int          `toml:"port" json:"port"`
+	ConnectTimeoutSeconds int          `toml:"connect_timeout_seconds" json:"connect_timeout_seconds"`
+	AckTimeoutSeconds     int          `toml:"ack_timeout_seconds" json:"ack_timeout_seconds"`
+	Auth                  EGTSAuthConf `toml:"auth" json:"auth"`
+}
+
+type EGTSAuthConf struct {
+	Enabled  bool   `toml:"enabled" json:"enabled"`
+	UserName string `toml:"username" json:"username"`
+	Password string `toml:"password" json:"password"`
 }
 
 type FileDestinationConf struct {
@@ -89,6 +105,7 @@ func DefaultConfiguration() *Configuration {
 		},
 		DestinationsCfg: DestinationsConf{
 			Stdout: true,
+			EGTS:   EGTSDestinationConf{Host: "127.0.0.1", Port: 8082, ConnectTimeoutSeconds: 5, AckTimeoutSeconds: 10},
 			File: FileDestinationConf{
 				Enabled:   false,
 				Directory: "./data/packets",
@@ -296,6 +313,66 @@ func PrepareEnvConfiguration() (*Configuration, error) {
 		cfg.DestinationsCfg.File.Rotation.MaxTotalSizeBytes = maxTotalSize
 	}
 
+	relayEnabled, exists := os.LookupEnv("EGTS_RELAY_ENABLED")
+	if exists {
+		value, err := strconv.ParseBool(relayEnabled)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_RELAY_ENABLED: %w", err)
+		}
+		cfg.DestinationsCfg.EGTS.Enabled = value
+	}
+
+	relayHost, exists := os.LookupEnv("EGTS_RELAY_HOST")
+	if exists {
+		cfg.DestinationsCfg.EGTS.Host = relayHost
+	}
+
+	relayPort, exists := os.LookupEnv("EGTS_RELAY_PORT")
+	if exists {
+		value, err := strconv.Atoi(relayPort)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_RELAY_PORT: %w", err)
+		}
+		cfg.DestinationsCfg.EGTS.Port = value
+	}
+
+	relayConnectTimeoutSeconds, exists := os.LookupEnv("EGTS_RELAY_CONNECT_TIMEOUT_SECONDS")
+	if exists {
+		value, err := strconv.Atoi(relayConnectTimeoutSeconds)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_RELAY_CONNECT_TIMEOUT_SECONDS: %w", err)
+		}
+		cfg.DestinationsCfg.EGTS.ConnectTimeoutSeconds = value
+	}
+
+	relayAckTimeoutSeconds, exists := os.LookupEnv("EGTS_RELAY_ACK_TIMEOUT_SECONDS")
+	if exists {
+		value, err := strconv.Atoi(relayAckTimeoutSeconds)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_RELAY_ACK_TIMEOUT_SECONDS: %w", err)
+		}
+		cfg.DestinationsCfg.EGTS.AckTimeoutSeconds = value
+	}
+
+	relayAuthEnabled, exists := os.LookupEnv("EGTS_RELAY_AUTH_ENABLED")
+	if exists {
+		value, err := strconv.ParseBool(relayAuthEnabled)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_RELAY_AUTH_ENABLED: %w", err)
+		}
+		cfg.DestinationsCfg.EGTS.Auth.Enabled = value
+	}
+
+	relayAuthUsername, exists := os.LookupEnv("EGTS_RELAY_AUTH_USERNAME")
+	if exists {
+		cfg.DestinationsCfg.EGTS.Auth.UserName = relayAuthUsername
+	}
+
+	relayAuthPassword, exists := os.LookupEnv("EGTS_RELAY_AUTH_PASSWORD")
+	if exists {
+		cfg.DestinationsCfg.EGTS.Auth.Password = relayAuthPassword
+	}
+
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
@@ -349,7 +426,11 @@ func (cfg *Configuration) Validate() error {
 			return fmt.Errorf("destinations_cfg.file.rotation: %w", err)
 		}
 	}
-	if !cfg.DestinationsCfg.Stdout && !cfg.DestinationsCfg.File.Enabled {
+	err := cfg.DestinationsCfg.EGTS.Validate()
+	if err != nil {
+		return err
+	}
+	if !cfg.DestinationsCfg.Stdout && !cfg.DestinationsCfg.File.Enabled && !cfg.DestinationsCfg.EGTS.Enabled {
 		return fmt.Errorf("At least one packet destination must be enabled")
 	}
 	return cfg.ValidateOutputs(os.Stdout, os.Stderr)

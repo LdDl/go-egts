@@ -2,6 +2,7 @@ package server
 
 import (
 	"bufio"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/LdDl/go-egts/egts/subrecord"
 	"github.com/LdDl/go-egts/gateway/configuration"
 	"github.com/LdDl/go-egts/gateway/destination"
 )
@@ -23,6 +25,9 @@ type dumpRecord struct {
 	Raw        []byte             `json:"raw"`
 	Stdout     bool               `json:"pending_stdout"`
 	File       bool               `json:"pending_file"`
+	EGTS       bool               `json:"pending_egts"`
+	SessionID  *string            `json:"session_id"`
+	Identity   []byte             `json:"identity"`
 }
 
 func (s *server) restoreDump() (err error) {
@@ -50,7 +55,7 @@ func (s *server) restoreDump() (err error) {
 	}
 	var header dumpHeader
 	err = json.Unmarshal(scanner.Bytes(), &header)
-	if err != nil || header.Version != 1 {
+	if err != nil || (header.Version != 1 && header.Version != 2) {
 		return fmt.Errorf("Invalid packet dump version")
 	}
 	var pending []*pendingPacket
@@ -63,14 +68,46 @@ func (s *server) restoreDump() (err error) {
 		if err != nil {
 			return fmt.Errorf("Invalid packet dump record: %w", err)
 		}
-		if (!saved.Stdout && !saved.File) || (saved.Stdout && !s.cfg.DestinationsCfg.Stdout) || (saved.File && !s.cfg.DestinationsCfg.File.Enabled) {
+		if (!saved.Stdout && !saved.File && !saved.EGTS) || (saved.Stdout && !s.cfg.DestinationsCfg.Stdout) || (saved.File && !s.cfg.DestinationsCfg.File.Enabled) || (saved.EGTS && !s.cfg.DestinationsCfg.EGTS.Enabled) {
 			return fmt.Errorf("Packet dump requires an unavailable destination")
 		}
 		record, err := destination.NewRecord(saved.ReceivedAt, saved.Source, saved.Raw)
 		if err != nil {
 			return fmt.Errorf("Invalid packet in dump: %w", err)
 		}
-		pending = append(pending, &pendingPacket{record: record, stdout: saved.Stdout, file: saved.File, done: make(chan struct{})})
+		item := &pendingPacket{record: record, stdout: saved.Stdout, file: saved.File, egts: saved.EGTS, done: make(chan struct{})}
+		if saved.EGTS {
+			if header.Version != 2 || saved.SessionID == nil || len(*saved.SessionID) != 32 {
+				return fmt.Errorf("Invalid relay session in packet dump")
+			}
+			_, err = hex.DecodeString(*saved.SessionID)
+			if err != nil {
+				return fmt.Errorf("Invalid relay session identifier")
+			}
+			if len(saved.Identity) > 0 {
+				identity := subrecord.SRTermIdentity{}
+				err = identity.Decode(saved.Identity)
+				if err != nil {
+					return fmt.Errorf("Invalid relay identity in packet dump: %w", err)
+				}
+			}
+			forward, err := shouldRelay(&record.Packet)
+			if err != nil || !forward {
+				return fmt.Errorf("Packet dump contains invalid relay data")
+			}
+			session := s.relays[*saved.SessionID]
+			if session == nil {
+				writer, err := destination.PrepareEGTS(&s.cfg)
+				if err != nil {
+					return err
+				}
+				session = &relaySession{id: *saved.SessionID, writer: writer, closed: true}
+				s.relays[session.id] = session
+			}
+			session.pending++
+			item.relay = &relayPacket{session: session, identity: saved.Identity}
+		}
+		pending = append(pending, item)
 	}
 	err = scanner.Err()
 	if err != nil {
@@ -85,8 +122,13 @@ func (s *server) saveDump() (err error) {
 	s.mu.Lock()
 	var pending []dumpRecord
 	for _, item := range s.queue {
-		if item.stdout || item.file {
-			pending = append(pending, dumpRecord{ReceivedAt: item.record.ReceivedAt, Source: item.record.Source, Raw: item.record.Raw, Stdout: item.stdout, File: item.file})
+		if item.stdout || item.file || item.egts {
+			saved := dumpRecord{ReceivedAt: item.record.ReceivedAt, Source: item.record.Source, Raw: item.record.Raw, Stdout: item.stdout, File: item.file, EGTS: item.egts}
+			if item.egts {
+				saved.SessionID = &item.relay.session.id
+				saved.Identity = item.relay.identity
+			}
+			pending = append(pending, saved)
 		}
 	}
 	s.mu.Unlock()
@@ -112,7 +154,11 @@ func (s *server) saveDump() (err error) {
 		}
 	}()
 	encoder := json.NewEncoder(file)
-	err = encoder.Encode(dumpHeader{Version: 1})
+	version := 1
+	if s.cfg.DestinationsCfg.EGTS.Enabled {
+		version = 2
+	}
+	err = encoder.Encode(dumpHeader{Version: version})
 	if err != nil {
 		return fmt.Errorf("Can't write packet dump header: %w", err)
 	}

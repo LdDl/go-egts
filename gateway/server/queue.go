@@ -20,10 +20,12 @@ type pendingPacket struct {
 	record *destination.Record
 	stdout bool
 	file   bool
+	egts   bool
+	relay  *relayPacket
 	done   chan struct{}
 }
 
-func (s *server) enqueue(record *destination.Record) (*pendingPacket, error) {
+func (s *server) enqueue(record *destination.Record, relay *relayPacket) (*pendingPacket, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !s.accepting {
@@ -33,6 +35,20 @@ func (s *server) enqueue(record *destination.Record) (*pendingPacket, error) {
 		return nil, ErrQueueFull
 	}
 	item := &pendingPacket{record: record, stdout: s.cfg.DestinationsCfg.Stdout, file: s.cfg.DestinationsCfg.File.Enabled, done: make(chan struct{})}
+	if s.cfg.DestinationsCfg.EGTS.Enabled {
+		forward, err := shouldRelay(&record.Packet)
+		if err != nil {
+			return nil, err
+		}
+		if forward {
+			if relay == nil || relay.session == nil {
+				return nil, fmt.Errorf("Missing EGTS relay session")
+			}
+			item.egts = true
+			item.relay = relay
+			relay.session.pending++
+		}
+	}
 	s.queue = append(s.queue, item)
 	select {
 	case s.wake <- struct{}{}:
@@ -62,6 +78,7 @@ func (s *server) deliver(ctx context.Context) error {
 			}
 		}
 		var deliveryErr error
+		attemptStarted := time.Now()
 		changed := false
 		if item.stdout {
 			attempt, cancel := context.WithTimeout(ctx, time.Second)
@@ -85,13 +102,44 @@ func (s *server) deliver(ctx context.Context) error {
 				changed = true
 			}
 		}
+		if item.egts && ctx.Err() == nil {
+			remaining := time.Duration(s.cfg.DeliveryCfg.DumpAfterSeconds) * time.Second
+			if !failedSince.IsZero() {
+				remaining -= time.Since(failedSince)
+			}
+			attempt, cancel := context.WithTimeout(ctx, remaining)
+			err := item.relay.session.writer.WriteContext(attempt, item.record, item.relay.identity)
+			cancel()
+			if err != nil {
+				if deliveryErr == nil {
+					deliveryErr = err
+				}
+			} else {
+				item.egts = false
+				changed = true
+				s.mu.Lock()
+				session := item.relay.session
+				session.pending--
+				finished := session.pending == 0 && session.closed
+				if finished {
+					delete(s.relays, session.id)
+				}
+				s.mu.Unlock()
+				if finished {
+					err = session.writer.Close()
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
 		if s.hasDump && changed {
 			err := s.saveDump()
 			if err != nil {
 				return err
 			}
 		}
-		if !item.stdout && !item.file {
+		if !item.stdout && !item.file && !item.egts {
 			s.mu.Lock()
 			s.queue[0] = nil
 			s.queue = s.queue[1:]
@@ -104,7 +152,7 @@ func (s *server) deliver(ctx context.Context) error {
 			return nil
 		}
 		if failedSince.IsZero() {
-			failedSince = time.Now()
+			failedSince = attemptStarted
 			log.Log().Str("scope", logger.SCOPE_DELIVERY).Str("event", logger.EVENT_DELIVERY_ERROR).
 				Err(deliveryErr).Msg("Packet delivery failed; retrying")
 		}

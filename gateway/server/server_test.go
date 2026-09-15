@@ -106,7 +106,7 @@ func TestGatewayConnections(t *testing.T) {
 					assert.Equal(t, len(chunk), n)
 				}
 				for i, code := range tc.codes {
-					raw, err := readPacket(conn)
+					raw, err := packet.ReadFrame(conn)
 					assert.NoError(t, err)
 					if err != nil {
 						return
@@ -198,7 +198,7 @@ func TestGatewayAuthentication(t *testing.T) {
 			_, err = conn.Write(identity)
 			assert.NoError(t, err)
 			for _, kind := range []uint8{packet.EGTS_PT_RESPONSE, packet.EGTS_PT_APPDATA} {
-				raw, err := readPacket(conn)
+				raw, err := packet.ReadFrame(conn)
 				assert.NoError(t, err)
 				if err != nil {
 					return
@@ -229,7 +229,7 @@ func TestGatewayAuthentication(t *testing.T) {
 				expected = packet.EGTS_PC_AUTH_DENIED
 			}
 			for _, kind := range []uint8{packet.EGTS_PT_RESPONSE, packet.EGTS_PT_APPDATA} {
-				raw, err := readPacket(conn)
+				raw, err := packet.ReadFrame(conn)
 				assert.NoError(t, err)
 				if err != nil {
 					return
@@ -245,14 +245,14 @@ func TestGatewayAuthentication(t *testing.T) {
 				}
 			}
 			if password == "wrong" {
-				_, err = readPacket(conn)
+				_, err = packet.ReadFrame(conn)
 				assert.ErrorIs(t, err, io.EOF)
 			} else {
 				telemetry, err := hex.DecodeString("0100000b002300000001991800000001ef0000000202101500d2312b104fba3a9ed227bc35030000b200000000006a8d")
 				assert.NoError(t, err)
 				_, err = conn.Write(telemetry)
 				assert.NoError(t, err)
-				raw, err = readPacket(conn)
+				raw, err = packet.ReadFrame(conn)
 				assert.NoError(t, err)
 				response, err := packet.ReadPacket(raw)
 				assert.NoError(t, err)
@@ -281,7 +281,7 @@ func TestReadPacketErrors(t *testing.T) {
 	raw, err := hex.DecodeString("0100000b002300000001991800000001ef0000000202101500d2312b104fba3a9ed227bc35030000b200000000006a8d")
 	assert.NoError(t, err)
 	for length := 0; length < len(raw); length++ {
-		data, err := readPacket(bytes.NewReader(raw[:length]))
+		data, err := packet.ReadFrame(bytes.NewReader(raw[:length]))
 		assert.Error(t, err)
 		assert.Nil(t, data)
 	}
@@ -291,7 +291,7 @@ func TestReadPacketErrors(t *testing.T) {
 		if offset == 2 {
 			corrupted[offset] ^= 0x21
 		}
-		data, err := readPacket(bytes.NewReader(corrupted))
+		data, err := packet.ReadFrame(bytes.NewReader(corrupted))
 		assert.Error(t, err)
 		assert.Nil(t, data)
 	}
@@ -320,7 +320,7 @@ func TestAuthenticationRequired(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = client.Write(raw)
 	assert.NoError(t, err)
-	answer, err := readPacket(client)
+	answer, err := packet.ReadFrame(client)
 	assert.NoError(t, err)
 	if err != nil {
 		return

@@ -27,6 +27,7 @@ type server struct {
 	queue       []*pendingPacket
 	wake        chan struct{}
 	hasDump     bool
+	relays      map[string]*relaySession
 }
 
 func Run(ctx context.Context, cfg *configuration.Configuration) error {
@@ -50,7 +51,7 @@ func Run(ctx context.Context, cfg *configuration.Configuration) error {
 }
 
 func newServer(cfg *configuration.Configuration) (*server, error) {
-	s := &server{cfg: *cfg, clients: make(map[net.Conn]struct{}), wake: make(chan struct{}, 1)}
+	s := &server{cfg: *cfg, clients: make(map[net.Conn]struct{}), wake: make(chan struct{}, 1), relays: make(map[string]*relaySession)}
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
@@ -177,6 +178,16 @@ func (s *server) serve(ctx context.Context, listener net.Listener) error {
 				result = err
 			} else {
 				result = fmt.Errorf("%w; Can't close packet stdout: %v", result, err)
+			}
+		}
+	}
+	for _, session := range s.relays {
+		err = session.writer.Close()
+		if err != nil {
+			if result == nil {
+				result = err
+			} else {
+				result = fmt.Errorf("%w; Can't close EGTS destination: %v", result, err)
 			}
 		}
 	}

@@ -3,14 +3,12 @@ package server
 import (
 	"context"
 	"crypto/subtle"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"time"
 
-	"github.com/LdDl/go-egts/crc"
 	"github.com/LdDl/go-egts/egts/packet"
 	"github.com/LdDl/go-egts/egts/subrecord"
 	"github.com/LdDl/go-egts/gateway/destination"
@@ -18,55 +16,29 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func readPacket(conn io.Reader) ([]byte, error) {
-	header := make([]byte, 10)
-	_, err := io.ReadFull(conn, header)
-	if err != nil {
-		return nil, err
-	}
-	headerLength := 11
-	if header[2]&0x20 != 0 {
-		headerLength = 16
-	}
-	if header[0] != 1 || int(header[3]) != headerLength {
-		return nil, fmt.Errorf("Invalid EGTS header")
-	}
-	header = append(header, make([]byte, headerLength-10)...)
-	_, err = io.ReadFull(conn, header[10:])
-	if err != nil {
-		if errors.Is(err, io.EOF) {
-			return nil, io.ErrUnexpectedEOF
-		}
-		return nil, err
-	}
-	if byte(crc.Crc(8, header[:headerLength-1])) != header[headerLength-1] {
-		return nil, fmt.Errorf("Invalid EGTS header checksum")
-	}
-	bodyLength := int(binary.LittleEndian.Uint16(header[5:7]))
-	if bodyLength > 0 {
-		bodyLength += 2
-	}
-	if headerLength+bodyLength > 65535 {
-		return nil, fmt.Errorf("EGTS packet exceeds 65535 bytes")
-	}
-	raw := append(header, make([]byte, bodyLength)...)
-	_, err = io.ReadFull(conn, raw[headerLength:])
-	if err != nil {
-		if errors.Is(err, io.EOF) {
-			return nil, io.ErrUnexpectedEOF
-		}
-		return nil, err
-	}
-	return raw, nil
-}
-
 func (s *server) handleConnection(ctx context.Context, conn net.Conn) error {
 	authorized := !s.cfg.AuthCfg.Enabled
 	source := destination.Source{RemoteAddress: conn.RemoteAddr().String()}
 	var pid uint16
 	var rn uint16
+	var session *relaySession
+	var relayIdentity []byte
+	if s.cfg.DestinationsCfg.EGTS.Enabled {
+		var err error
+		session, err = s.newRelaySession()
+		if err != nil {
+			return err
+		}
+		defer func() {
+			err := s.endRelaySession(session)
+			if err != nil {
+				log.Log().Str("scope", logger.SCOPE_DELIVERY).Str("event", logger.EVENT_DELIVERY_ERROR).
+					Err(err).Msg("Can't close terminal relay session")
+			}
+		}()
+	}
 	for {
-		raw, err := readPacket(conn)
+		raw, err := packet.ReadFrame(conn)
 		if errors.Is(err, io.EOF) {
 			return nil
 		}
@@ -91,6 +63,7 @@ func (s *server) handleConnection(ctx context.Context, conn net.Conn) error {
 		requestCredentials := false
 		nextAuthorized := authorized
 		nextSource := source
+		nextRelayIdentity := relayIdentity
 		if decodeErr == nil {
 			services := pkg.ServicesFrameData.(*packet.ServicesFrameData)
 			for _, service := range *services {
@@ -105,6 +78,12 @@ func (s *server) handleConnection(ctx context.Context, conn net.Conn) error {
 						nextSource.TerminalID = &id
 						authRequest = true
 						identityRequest = true
+						if session != nil {
+							nextRelayIdentity, err = data.Encode()
+							if err != nil {
+								return err
+							}
+						}
 					case *subrecord.SRAuthInfo:
 						hasCredentials = true
 						onlyIdentity = false
@@ -128,9 +107,12 @@ func (s *server) handleConnection(ctx context.Context, conn net.Conn) error {
 			}
 			if pkg.ErrorCode == packet.EGTS_PC_OK && !requestCredentials {
 				record := &destination.Record{ReceivedAt: receivedAt, Source: nextSource, Packet: pkg, Raw: raw}
-				item, err := s.enqueue(record)
+				item, err := s.enqueue(record, &relayPacket{session: session, identity: nextRelayIdentity})
 				if err != nil {
 					pkg.ErrorCode = packet.EGTS_PC_NO_RES_AVAIL
+					if errors.Is(err, ErrRelayCredentials) {
+						pkg.ErrorCode = packet.EGTS_PC_INC_DATAFORM
+					}
 				} else if s.cfg.DeliveryCfg.AckMode == "delivered" {
 					select {
 					case <-item.done:
@@ -191,6 +173,7 @@ func (s *server) handleConnection(ctx context.Context, conn net.Conn) error {
 		if pkg.ErrorCode == packet.EGTS_PC_OK {
 			authorized = nextAuthorized
 			source = nextSource
+			relayIdentity = nextRelayIdentity
 		}
 		if pkg.ErrorCode == packet.EGTS_PC_AUTH_DENIED {
 			return nil

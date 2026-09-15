@@ -62,7 +62,7 @@ func TestQueueFailureAndRestore(t *testing.T) {
 			if mode == "queued" {
 				err = conn.SetDeadline(time.Now().Add(2 * time.Second))
 				assert.NoError(t, err)
-				answer, err := readPacket(conn)
+				answer, err := packet.ReadFrame(conn)
 				assert.NoError(t, err)
 				if err != nil {
 					return
@@ -72,7 +72,7 @@ func TestQueueFailureAndRestore(t *testing.T) {
 				assert.Zero(t, response.ServicesFrameData.(*packet.PTResponse).ProcessingResult)
 				_, err = conn.Write(raw)
 				assert.NoError(t, err)
-				answer, err = readPacket(conn)
+				answer, err = packet.ReadFrame(conn)
 				assert.NoError(t, err)
 				response, err = packet.ReadPacket(answer)
 				assert.NoError(t, err)
@@ -80,7 +80,7 @@ func TestQueueFailureAndRestore(t *testing.T) {
 			} else {
 				err = conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 				assert.NoError(t, err)
-				_, err = readPacket(conn)
+				_, err = packet.ReadFrame(conn)
 				var timeout net.Error
 				assert.ErrorAs(t, err, &timeout)
 				if timeout != nil {
@@ -209,7 +209,7 @@ func TestDumpPreservesDestinationProgress(t *testing.T) {
 }
 
 func TestInvalidDumpIsPreserved(t *testing.T) {
-	for _, data := range []string{"", "{", "{\"version\":2}\n", "{\"version\":1}\n{", "{\"version\":1}\n{}\n", "{\"version\":1}\n{\"pending_file\":true,\"raw\":\"bad base64\"}\n"} {
+	for _, data := range []string{"", "{", "{\"version\":99}\n", "{\"version\":1}\n{", "{\"version\":1}\n{}\n", "{\"version\":1}\n{\"pending_file\":true,\"raw\":\"bad base64\"}\n"} {
 		root := t.TempDir()
 		cfg := configuration.DefaultConfiguration()
 		cfg.DeliveryCfg.DumpDirectory = filepath.Join(root, "queue")
@@ -237,15 +237,15 @@ func TestQueueBoundaries(t *testing.T) {
 	cfg.DeliveryCfg.QueueCapacity = 1
 	s := &server{cfg: *cfg, accepting: true, wake: make(chan struct{}, 1)}
 	record := &destination.Record{}
-	first, err := s.enqueue(record)
+	first, err := s.enqueue(record, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, first)
-	second, err := s.enqueue(record)
+	second, err := s.enqueue(record, nil)
 	assert.ErrorIs(t, err, ErrQueueFull)
 	assert.Nil(t, second)
 	assert.Len(t, s.queue, 1)
 	s.accepting = false
-	third, err := s.enqueue(record)
+	third, err := s.enqueue(record, nil)
 	assert.ErrorIs(t, err, ErrStopped)
 	assert.Nil(t, third)
 }
