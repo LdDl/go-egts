@@ -17,9 +17,11 @@ import (
 func TestApplicationFileLogger(t *testing.T) {
 	previousLogger := log.Logger
 	previousTimeFormat := zerolog.TimeFieldFormat
+	previousErrorHandler := zerolog.ErrorHandler
 	t.Cleanup(func() {
 		log.Logger = previousLogger
 		zerolog.TimeFieldFormat = previousTimeFormat
+		zerolog.ErrorHandler = previousErrorHandler
 	})
 	root := t.TempDir()
 	cfg := configuration.DefaultConfiguration()

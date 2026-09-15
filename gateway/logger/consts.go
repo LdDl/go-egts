@@ -9,4 +9,5 @@ var (
 	SCOPE_CONFIG        = "configuration"
 	SCOPE_STARTUP       = "startup"
 	SCOPE_SHUTDOWN      = "shutdown"
+	SCOPE_LOGGER        = "logger"
 )

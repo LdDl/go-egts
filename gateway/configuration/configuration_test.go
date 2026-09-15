@@ -39,6 +39,11 @@ dump_directory = "/tmp/gateway/queue"
 [logs_cfg]
 output = "stderr"
 directory = "/tmp/gateway/logs"
+[logs_cfg.rotation]
+max_file_size_bytes = 1024
+max_backups = 2
+max_age_days = 3
+max_total_size_bytes = 4096
 [destinations_cfg]
 stdout = false
 [destinations_cfg.file]
@@ -64,7 +69,10 @@ directory = "/tmp/gateway/packets"
 			DumpAfterSeconds: 15,
 			DumpDirectory:    "/tmp/gateway/queue",
 		},
-		LogsCfg: configuration.LogsConf{Output: "stderr", Directory: "/tmp/gateway/logs"},
+		LogsCfg: configuration.LogsConf{
+			Output: "stderr", Directory: "/tmp/gateway/logs",
+			Rotation: configuration.RotationConf{MaxFileSizeBytes: 1024, MaxBackups: 2, MaxAgeDays: 3, MaxTotalSizeBytes: 4096},
+		},
 		DestinationsCfg: configuration.DestinationsConf{
 			Stdout: false,
 			File:   configuration.FileDestinationConf{Enabled: true, Directory: "/tmp/gateway/packets"},
@@ -142,19 +150,23 @@ func TestPrepareFileConfigurationErrors(t *testing.T) {
 
 func TestPrepareEnvConfiguration(t *testing.T) {
 	values := map[string]string{
-		"EGTS_SERVER_HOST":            "::1",
-		"EGTS_SERVER_PORT":            "65535",
-		"EGTS_AUTH_ENABLED":           "true",
-		"EGTS_AUTH_PASSWORD":          "test password # with spaces",
-		"EGTS_ACK_MODE":               "delivered",
-		"EGTS_QUEUE_CAPACITY":         "32",
-		"EGTS_DUMP_AFTER_SECONDS":     "15",
-		"EGTS_DUMP_DIRECTORY":         "/tmp/gateway/queue",
-		"EGTS_LOG_OUTPUT":             "stderr",
-		"EGTS_LOG_DIRECTORY":          "/tmp/gateway/logs",
-		"EGTS_PACKETS_STDOUT":         "false",
-		"EGTS_PACKETS_FILE_ENABLED":   "true",
-		"EGTS_PACKETS_FILE_DIRECTORY": "/tmp/gateway/packets",
+		"EGTS_SERVER_HOST":              "::1",
+		"EGTS_SERVER_PORT":              "65535",
+		"EGTS_AUTH_ENABLED":             "true",
+		"EGTS_AUTH_PASSWORD":            "test password # with spaces",
+		"EGTS_ACK_MODE":                 "delivered",
+		"EGTS_QUEUE_CAPACITY":           "32",
+		"EGTS_DUMP_AFTER_SECONDS":       "15",
+		"EGTS_DUMP_DIRECTORY":           "/tmp/gateway/queue",
+		"EGTS_LOG_OUTPUT":               "stderr",
+		"EGTS_LOG_DIRECTORY":            "/tmp/gateway/logs",
+		"EGTS_LOG_MAX_FILE_SIZE_BYTES":  "1024",
+		"EGTS_LOG_MAX_BACKUPS":          "2",
+		"EGTS_LOG_MAX_AGE_DAYS":         "3",
+		"EGTS_LOG_MAX_TOTAL_SIZE_BYTES": "4096",
+		"EGTS_PACKETS_STDOUT":           "false",
+		"EGTS_PACKETS_FILE_ENABLED":     "true",
+		"EGTS_PACKETS_FILE_DIRECTORY":   "/tmp/gateway/packets",
 	}
 	for key, value := range values {
 		t.Setenv(key, value)
@@ -173,7 +185,10 @@ func TestPrepareEnvConfiguration(t *testing.T) {
 			DumpAfterSeconds: 15,
 			DumpDirectory:    "/tmp/gateway/queue",
 		},
-		LogsCfg: configuration.LogsConf{Output: "stderr", Directory: "/tmp/gateway/logs"},
+		LogsCfg: configuration.LogsConf{
+			Output: "stderr", Directory: "/tmp/gateway/logs",
+			Rotation: configuration.RotationConf{MaxFileSizeBytes: 1024, MaxBackups: 2, MaxAgeDays: 3, MaxTotalSizeBytes: 4096},
+		},
 		DestinationsCfg: configuration.DestinationsConf{
 			Stdout: false,
 			File:   configuration.FileDestinationConf{Enabled: true, Directory: "/tmp/gateway/packets"},
@@ -199,19 +214,23 @@ func TestPrepareEnvConfiguration(t *testing.T) {
 
 func TestPrepareEnvConfigurationErrors(t *testing.T) {
 	values := map[string]string{
-		"EGTS_SERVER_HOST":            "127.0.0.1",
-		"EGTS_SERVER_PORT":            "8081",
-		"EGTS_AUTH_ENABLED":           "false",
-		"EGTS_AUTH_PASSWORD":          "",
-		"EGTS_ACK_MODE":               "queued",
-		"EGTS_QUEUE_CAPACITY":         "1024",
-		"EGTS_DUMP_AFTER_SECONDS":     "60",
-		"EGTS_DUMP_DIRECTORY":         "./data/queue",
-		"EGTS_LOG_OUTPUT":             "stderr",
-		"EGTS_LOG_DIRECTORY":          "./data/logs",
-		"EGTS_PACKETS_STDOUT":         "true",
-		"EGTS_PACKETS_FILE_ENABLED":   "false",
-		"EGTS_PACKETS_FILE_DIRECTORY": "./data/packets",
+		"EGTS_SERVER_HOST":              "127.0.0.1",
+		"EGTS_SERVER_PORT":              "8081",
+		"EGTS_AUTH_ENABLED":             "false",
+		"EGTS_AUTH_PASSWORD":            "",
+		"EGTS_ACK_MODE":                 "queued",
+		"EGTS_QUEUE_CAPACITY":           "1024",
+		"EGTS_DUMP_AFTER_SECONDS":       "60",
+		"EGTS_DUMP_DIRECTORY":           "./data/queue",
+		"EGTS_LOG_OUTPUT":               "stderr",
+		"EGTS_LOG_DIRECTORY":            "./data/logs",
+		"EGTS_LOG_MAX_FILE_SIZE_BYTES":  "10485760",
+		"EGTS_LOG_MAX_BACKUPS":          "5",
+		"EGTS_LOG_MAX_AGE_DAYS":         "7",
+		"EGTS_LOG_MAX_TOTAL_SIZE_BYTES": "62914560",
+		"EGTS_PACKETS_STDOUT":           "true",
+		"EGTS_PACKETS_FILE_ENABLED":     "false",
+		"EGTS_PACKETS_FILE_DIRECTORY":   "./data/packets",
 	}
 	for key, value := range values {
 		t.Setenv(key, value)
@@ -234,6 +253,11 @@ func TestPrepareEnvConfigurationErrors(t *testing.T) {
 		{name: "invalid packet stdout", key: "EGTS_PACKETS_STDOUT", value: "maybe", errorText: "EGTS_PACKETS_STDOUT"},
 		{name: "invalid packet file flag", key: "EGTS_PACKETS_FILE_ENABLED", value: "maybe", errorText: "EGTS_PACKETS_FILE_ENABLED"},
 		{name: "no packet destination", key: "EGTS_PACKETS_STDOUT", value: "false", errorText: "At least one packet destination"},
+		{name: "invalid file limit", key: "EGTS_LOG_MAX_FILE_SIZE_BYTES", value: "10MB", errorText: "EGTS_LOG_MAX_FILE_SIZE_BYTES"},
+		{name: "file limit overflow", key: "EGTS_LOG_MAX_FILE_SIZE_BYTES", value: "9999999999999999999999", errorText: "EGTS_LOG_MAX_FILE_SIZE_BYTES"},
+		{name: "invalid archive count", key: "EGTS_LOG_MAX_BACKUPS", value: "many", errorText: "EGTS_LOG_MAX_BACKUPS"},
+		{name: "invalid archive age", key: "EGTS_LOG_MAX_AGE_DAYS", value: "1d", errorText: "EGTS_LOG_MAX_AGE_DAYS"},
+		{name: "invalid total limit", key: "EGTS_LOG_MAX_TOTAL_SIZE_BYTES", value: "", errorText: "EGTS_LOG_MAX_TOTAL_SIZE_BYTES"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

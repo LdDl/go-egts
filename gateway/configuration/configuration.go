@@ -38,8 +38,16 @@ type DeliveryConf struct {
 }
 
 type LogsConf struct {
-	Output    string `toml:"output" json:"output"`
-	Directory string `toml:"directory" json:"directory"`
+	Output    string       `toml:"output" json:"output"`
+	Directory string       `toml:"directory" json:"directory"`
+	Rotation  RotationConf `toml:"rotation" json:"rotation"`
+}
+
+type RotationConf struct {
+	MaxFileSizeBytes  int64 `toml:"max_file_size_bytes" json:"max_file_size_bytes"`
+	MaxBackups        int   `toml:"max_backups" json:"max_backups"`
+	MaxAgeDays        int   `toml:"max_age_days" json:"max_age_days"`
+	MaxTotalSizeBytes int64 `toml:"max_total_size_bytes" json:"max_total_size_bytes"`
 }
 
 type DestinationsConf struct {
@@ -71,6 +79,12 @@ func DefaultConfiguration() *Configuration {
 		LogsCfg: LogsConf{
 			Output:    "stderr",
 			Directory: "./data/logs",
+			Rotation: RotationConf{
+				MaxFileSizeBytes:  10485760,
+				MaxBackups:        5,
+				MaxAgeDays:        7,
+				MaxTotalSizeBytes: 62914560,
+			},
 		},
 		DestinationsCfg: DestinationsConf{
 			Stdout: true,
@@ -190,6 +204,38 @@ func PrepareEnvConfiguration() (*Configuration, error) {
 	if exists {
 		cfg.LogsCfg.Directory = logDirectory
 	}
+	maxFileSizeStr, exists := os.LookupEnv("EGTS_LOG_MAX_FILE_SIZE_BYTES")
+	if exists {
+		maxFileSize, err := strconv.ParseInt(maxFileSizeStr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_LOG_MAX_FILE_SIZE_BYTES: %w", err)
+		}
+		cfg.LogsCfg.Rotation.MaxFileSizeBytes = maxFileSize
+	}
+	maxBackupsStr, exists := os.LookupEnv("EGTS_LOG_MAX_BACKUPS")
+	if exists {
+		maxBackups, err := strconv.Atoi(maxBackupsStr)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_LOG_MAX_BACKUPS: %w", err)
+		}
+		cfg.LogsCfg.Rotation.MaxBackups = maxBackups
+	}
+	maxAgeStr, exists := os.LookupEnv("EGTS_LOG_MAX_AGE_DAYS")
+	if exists {
+		maxAge, err := strconv.Atoi(maxAgeStr)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_LOG_MAX_AGE_DAYS: %w", err)
+		}
+		cfg.LogsCfg.Rotation.MaxAgeDays = maxAge
+	}
+	maxTotalSizeStr, exists := os.LookupEnv("EGTS_LOG_MAX_TOTAL_SIZE_BYTES")
+	if exists {
+		maxTotalSize, err := strconv.ParseInt(maxTotalSizeStr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_LOG_MAX_TOTAL_SIZE_BYTES: %w", err)
+		}
+		cfg.LogsCfg.Rotation.MaxTotalSizeBytes = maxTotalSize
+	}
 	packetsStdoutStr, exists := os.LookupEnv("EGTS_PACKETS_STDOUT")
 	if exists {
 		packetsStdout, err := strconv.ParseBool(packetsStdoutStr)
@@ -245,6 +291,12 @@ func (cfg *Configuration) Validate() error {
 	}
 	if cfg.LogsCfg.Output == "file" && strings.TrimSpace(cfg.LogsCfg.Directory) == "" {
 		return fmt.Errorf("logs_cfg.directory must not be empty for file output")
+	}
+	if cfg.LogsCfg.Output == "file" {
+		err := cfg.LogsCfg.Rotation.Validate()
+		if err != nil {
+			return err
+		}
 	}
 	if cfg.DestinationsCfg.File.Enabled && strings.TrimSpace(cfg.DestinationsCfg.File.Directory) == "" {
 		return fmt.Errorf("destinations_cfg.file.directory must not be empty for file output")

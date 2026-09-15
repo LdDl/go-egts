@@ -57,6 +57,11 @@ func main() {
 	if logFile != nil {
 		err = logFile.Close()
 		if err != nil {
+			var conflict *configuration.OutputConflictError
+			isConflict := errors.As(err, &conflict)
+			if isConflict && conflict.StderrUnsafe {
+				os.Exit(1)
+			}
 			log.Logger = log.Output(os.Stderr)
 			log.Log().
 				Str("scope", logger.SCOPE_SHUTDOWN).

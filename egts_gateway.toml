@@ -16,6 +16,15 @@ dump_directory = "./data/queue"
 output = "stderr"
 directory = "./data/logs"
 
+[logs_cfg.rotation]
+max_file_size_bytes = 10485760
+# Zero removes every rotated archive.
+max_backups = 5
+# Zero disables archive expiration by age.
+max_age_days = 7
+# Includes application.log and its archives.
+max_total_size_bytes = 62914560
+
 [destinations_cfg]
 stdout = true
 
