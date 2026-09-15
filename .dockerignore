@@ -1,0 +1,13 @@
+.git
+.github
+.codex
+.idea
+.vscode
+**/.env
+**/.env.*
+**/data
+**/*.dump
+**/*.log
+**/*.ndjson
+/egts_gateway
+/main
