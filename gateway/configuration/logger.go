@@ -13,44 +13,22 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func PrepareLogger(cfg *Configuration) (*LogFile, error) {
+func PrepareLogger(cfg *Configuration) (*RotatingFile, error) {
 	err := cfg.ValidateOutputs(os.Stdout, os.Stderr)
 	if err != nil {
 		return nil, err
 	}
 	var writer io.Writer
-	var logFile *LogFile
+	var logFile *RotatingFile
 	switch cfg.LogsCfg.Output {
 	case "stdout":
 		writer = os.Stdout
 	case "stderr":
 		writer = os.Stderr
 	case "file":
-		err = cfg.LogsCfg.Rotation.Validate()
+		logFile, err = prepareRotatingFile(cfg, cfg.LogsCfg.Directory, LOG_FILENAME, cfg.LogsCfg.Rotation)
 		if err != nil {
-			return nil, err
-		}
-		directory, err := resolveDirectory(cfg.LogsCfg.Directory)
-		if err != nil {
-			return nil, fmt.Errorf("Can't resolve application log directory: %w", err)
-		}
-		err = os.MkdirAll(directory, 0750)
-		if err != nil {
-			return nil, fmt.Errorf("Can't create application log directory: %w", err)
-		}
-		logFile = &LogFile{cfg: *cfg}
-		logFile.cfg.LogsCfg.Directory = directory
-		err = logFile.open()
-		if err == nil && logFile.size > cfg.LogsCfg.Rotation.MaxFileSizeBytes {
-			err = logFile.rotate()
-		}
-		if err == nil {
-			err = logFile.cleanup(0)
-		}
-		if err != nil {
-			logFile.writeErr = err
-			closeErr := logFile.Close()
-			return nil, closeErr
+			return nil, fmt.Errorf("Can't prepare application log: %w", err)
 		}
 		writer = logFile
 	default:

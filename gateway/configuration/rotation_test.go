@@ -118,7 +118,7 @@ func TestLogRotationRetention(t *testing.T) {
 			if err != nil {
 				return
 			}
-			var file *LogFile
+			var file *RotatingFile
 			if stage != "startup" {
 				file, err = PrepareLogger(cfg)
 				assert.NoError(t, err)

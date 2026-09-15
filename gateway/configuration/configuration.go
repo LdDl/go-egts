@@ -56,8 +56,9 @@ type DestinationsConf struct {
 }
 
 type FileDestinationConf struct {
-	Enabled   bool   `toml:"enabled" json:"enabled"`
-	Directory string `toml:"directory" json:"directory"`
+	Enabled   bool         `toml:"enabled" json:"enabled"`
+	Directory string       `toml:"directory" json:"directory"`
+	Rotation  RotationConf `toml:"rotation" json:"rotation"`
 }
 
 func DefaultConfiguration() *Configuration {
@@ -91,6 +92,12 @@ func DefaultConfiguration() *Configuration {
 			File: FileDestinationConf{
 				Enabled:   false,
 				Directory: "./data/packets",
+				Rotation: RotationConf{
+					MaxFileSizeBytes:  10485760,
+					MaxBackups:        5,
+					MaxAgeDays:        7,
+					MaxTotalSizeBytes: 62914560,
+				},
 			},
 		},
 	}
@@ -256,6 +263,38 @@ func PrepareEnvConfiguration() (*Configuration, error) {
 	if exists {
 		cfg.DestinationsCfg.File.Directory = packetsDirectory
 	}
+	packetsMaxFileSizeStr, exists := os.LookupEnv("EGTS_PACKETS_FILE_MAX_FILE_SIZE_BYTES")
+	if exists {
+		maxFileSize, err := strconv.ParseInt(packetsMaxFileSizeStr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_PACKETS_FILE_MAX_FILE_SIZE_BYTES: %w", err)
+		}
+		cfg.DestinationsCfg.File.Rotation.MaxFileSizeBytes = maxFileSize
+	}
+	packetsMaxBackupsStr, exists := os.LookupEnv("EGTS_PACKETS_FILE_MAX_BACKUPS")
+	if exists {
+		maxBackups, err := strconv.Atoi(packetsMaxBackupsStr)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_PACKETS_FILE_MAX_BACKUPS: %w", err)
+		}
+		cfg.DestinationsCfg.File.Rotation.MaxBackups = maxBackups
+	}
+	packetsMaxAgeStr, exists := os.LookupEnv("EGTS_PACKETS_FILE_MAX_AGE_DAYS")
+	if exists {
+		maxAge, err := strconv.Atoi(packetsMaxAgeStr)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_PACKETS_FILE_MAX_AGE_DAYS: %w", err)
+		}
+		cfg.DestinationsCfg.File.Rotation.MaxAgeDays = maxAge
+	}
+	packetsMaxTotalSizeStr, exists := os.LookupEnv("EGTS_PACKETS_FILE_MAX_TOTAL_SIZE_BYTES")
+	if exists {
+		maxTotalSize, err := strconv.ParseInt(packetsMaxTotalSizeStr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_PACKETS_FILE_MAX_TOTAL_SIZE_BYTES: %w", err)
+		}
+		cfg.DestinationsCfg.File.Rotation.MaxTotalSizeBytes = maxTotalSize
+	}
 
 	err := cfg.Validate()
 	if err != nil {
@@ -295,11 +334,17 @@ func (cfg *Configuration) Validate() error {
 	if cfg.LogsCfg.Output == "file" {
 		err := cfg.LogsCfg.Rotation.Validate()
 		if err != nil {
-			return err
+			return fmt.Errorf("logs_cfg.rotation: %w", err)
 		}
 	}
 	if cfg.DestinationsCfg.File.Enabled && strings.TrimSpace(cfg.DestinationsCfg.File.Directory) == "" {
 		return fmt.Errorf("destinations_cfg.file.directory must not be empty for file output")
+	}
+	if cfg.DestinationsCfg.File.Enabled {
+		err := cfg.DestinationsCfg.File.Rotation.Validate()
+		if err != nil {
+			return fmt.Errorf("destinations_cfg.file.rotation: %w", err)
+		}
 	}
 	if !cfg.DestinationsCfg.Stdout && !cfg.DestinationsCfg.File.Enabled {
 		return fmt.Errorf("At least one packet destination must be enabled")

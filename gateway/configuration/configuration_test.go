@@ -49,6 +49,11 @@ stdout = false
 [destinations_cfg.file]
 enabled = true
 directory = "/tmp/gateway/packets"
+[destinations_cfg.file.rotation]
+max_file_size_bytes = 2048
+max_backups = 4
+max_age_days = 5
+max_total_size_bytes = 12288
 `
 	err := os.WriteFile(fname, []byte(data), 0600)
 	assert.NoError(t, err)
@@ -75,7 +80,10 @@ directory = "/tmp/gateway/packets"
 		},
 		DestinationsCfg: configuration.DestinationsConf{
 			Stdout: false,
-			File:   configuration.FileDestinationConf{Enabled: true, Directory: "/tmp/gateway/packets"},
+			File: configuration.FileDestinationConf{
+				Enabled: true, Directory: "/tmp/gateway/packets",
+				Rotation: configuration.RotationConf{MaxFileSizeBytes: 2048, MaxBackups: 4, MaxAgeDays: 5, MaxTotalSizeBytes: 12288},
+			},
 		},
 	}
 	assert.Equal(t, want, cfg)
@@ -150,23 +158,27 @@ func TestPrepareFileConfigurationErrors(t *testing.T) {
 
 func TestPrepareEnvConfiguration(t *testing.T) {
 	values := map[string]string{
-		"EGTS_SERVER_HOST":              "::1",
-		"EGTS_SERVER_PORT":              "65535",
-		"EGTS_AUTH_ENABLED":             "true",
-		"EGTS_AUTH_PASSWORD":            "test password # with spaces",
-		"EGTS_ACK_MODE":                 "delivered",
-		"EGTS_QUEUE_CAPACITY":           "32",
-		"EGTS_DUMP_AFTER_SECONDS":       "15",
-		"EGTS_DUMP_DIRECTORY":           "/tmp/gateway/queue",
-		"EGTS_LOG_OUTPUT":               "stderr",
-		"EGTS_LOG_DIRECTORY":            "/tmp/gateway/logs",
-		"EGTS_LOG_MAX_FILE_SIZE_BYTES":  "1024",
-		"EGTS_LOG_MAX_BACKUPS":          "2",
-		"EGTS_LOG_MAX_AGE_DAYS":         "3",
-		"EGTS_LOG_MAX_TOTAL_SIZE_BYTES": "4096",
-		"EGTS_PACKETS_STDOUT":           "false",
-		"EGTS_PACKETS_FILE_ENABLED":     "true",
-		"EGTS_PACKETS_FILE_DIRECTORY":   "/tmp/gateway/packets",
+		"EGTS_SERVER_HOST":                       "::1",
+		"EGTS_SERVER_PORT":                       "65535",
+		"EGTS_AUTH_ENABLED":                      "true",
+		"EGTS_AUTH_PASSWORD":                     "test password # with spaces",
+		"EGTS_ACK_MODE":                          "delivered",
+		"EGTS_QUEUE_CAPACITY":                    "32",
+		"EGTS_DUMP_AFTER_SECONDS":                "15",
+		"EGTS_DUMP_DIRECTORY":                    "/tmp/gateway/queue",
+		"EGTS_LOG_OUTPUT":                        "stderr",
+		"EGTS_LOG_DIRECTORY":                     "/tmp/gateway/logs",
+		"EGTS_LOG_MAX_FILE_SIZE_BYTES":           "1024",
+		"EGTS_LOG_MAX_BACKUPS":                   "2",
+		"EGTS_LOG_MAX_AGE_DAYS":                  "3",
+		"EGTS_LOG_MAX_TOTAL_SIZE_BYTES":          "4096",
+		"EGTS_PACKETS_STDOUT":                    "false",
+		"EGTS_PACKETS_FILE_ENABLED":              "true",
+		"EGTS_PACKETS_FILE_DIRECTORY":            "/tmp/gateway/packets",
+		"EGTS_PACKETS_FILE_MAX_FILE_SIZE_BYTES":  "2048",
+		"EGTS_PACKETS_FILE_MAX_BACKUPS":          "4",
+		"EGTS_PACKETS_FILE_MAX_AGE_DAYS":         "5",
+		"EGTS_PACKETS_FILE_MAX_TOTAL_SIZE_BYTES": "12288",
 	}
 	for key, value := range values {
 		t.Setenv(key, value)
@@ -191,7 +203,10 @@ func TestPrepareEnvConfiguration(t *testing.T) {
 		},
 		DestinationsCfg: configuration.DestinationsConf{
 			Stdout: false,
-			File:   configuration.FileDestinationConf{Enabled: true, Directory: "/tmp/gateway/packets"},
+			File: configuration.FileDestinationConf{
+				Enabled: true, Directory: "/tmp/gateway/packets",
+				Rotation: configuration.RotationConf{MaxFileSizeBytes: 2048, MaxBackups: 4, MaxAgeDays: 5, MaxTotalSizeBytes: 12288},
+			},
 		},
 	}
 	assert.Equal(t, want, cfg)
@@ -214,23 +229,27 @@ func TestPrepareEnvConfiguration(t *testing.T) {
 
 func TestPrepareEnvConfigurationErrors(t *testing.T) {
 	values := map[string]string{
-		"EGTS_SERVER_HOST":              "127.0.0.1",
-		"EGTS_SERVER_PORT":              "8081",
-		"EGTS_AUTH_ENABLED":             "false",
-		"EGTS_AUTH_PASSWORD":            "",
-		"EGTS_ACK_MODE":                 "queued",
-		"EGTS_QUEUE_CAPACITY":           "1024",
-		"EGTS_DUMP_AFTER_SECONDS":       "60",
-		"EGTS_DUMP_DIRECTORY":           "./data/queue",
-		"EGTS_LOG_OUTPUT":               "stderr",
-		"EGTS_LOG_DIRECTORY":            "./data/logs",
-		"EGTS_LOG_MAX_FILE_SIZE_BYTES":  "10485760",
-		"EGTS_LOG_MAX_BACKUPS":          "5",
-		"EGTS_LOG_MAX_AGE_DAYS":         "7",
-		"EGTS_LOG_MAX_TOTAL_SIZE_BYTES": "62914560",
-		"EGTS_PACKETS_STDOUT":           "true",
-		"EGTS_PACKETS_FILE_ENABLED":     "false",
-		"EGTS_PACKETS_FILE_DIRECTORY":   "./data/packets",
+		"EGTS_SERVER_HOST":                       "127.0.0.1",
+		"EGTS_SERVER_PORT":                       "8081",
+		"EGTS_AUTH_ENABLED":                      "false",
+		"EGTS_AUTH_PASSWORD":                     "",
+		"EGTS_ACK_MODE":                          "queued",
+		"EGTS_QUEUE_CAPACITY":                    "1024",
+		"EGTS_DUMP_AFTER_SECONDS":                "60",
+		"EGTS_DUMP_DIRECTORY":                    "./data/queue",
+		"EGTS_LOG_OUTPUT":                        "stderr",
+		"EGTS_LOG_DIRECTORY":                     "./data/logs",
+		"EGTS_LOG_MAX_FILE_SIZE_BYTES":           "10485760",
+		"EGTS_LOG_MAX_BACKUPS":                   "5",
+		"EGTS_LOG_MAX_AGE_DAYS":                  "7",
+		"EGTS_LOG_MAX_TOTAL_SIZE_BYTES":          "62914560",
+		"EGTS_PACKETS_STDOUT":                    "true",
+		"EGTS_PACKETS_FILE_ENABLED":              "false",
+		"EGTS_PACKETS_FILE_DIRECTORY":            "./data/packets",
+		"EGTS_PACKETS_FILE_MAX_FILE_SIZE_BYTES":  "10485760",
+		"EGTS_PACKETS_FILE_MAX_BACKUPS":          "5",
+		"EGTS_PACKETS_FILE_MAX_AGE_DAYS":         "7",
+		"EGTS_PACKETS_FILE_MAX_TOTAL_SIZE_BYTES": "62914560",
 	}
 	for key, value := range values {
 		t.Setenv(key, value)
@@ -258,6 +277,11 @@ func TestPrepareEnvConfigurationErrors(t *testing.T) {
 		{name: "invalid archive count", key: "EGTS_LOG_MAX_BACKUPS", value: "many", errorText: "EGTS_LOG_MAX_BACKUPS"},
 		{name: "invalid archive age", key: "EGTS_LOG_MAX_AGE_DAYS", value: "1d", errorText: "EGTS_LOG_MAX_AGE_DAYS"},
 		{name: "invalid total limit", key: "EGTS_LOG_MAX_TOTAL_SIZE_BYTES", value: "", errorText: "EGTS_LOG_MAX_TOTAL_SIZE_BYTES"},
+		{name: "invalid packet file limit", key: "EGTS_PACKETS_FILE_MAX_FILE_SIZE_BYTES", value: "10MB", errorText: "EGTS_PACKETS_FILE_MAX_FILE_SIZE_BYTES"},
+		{name: "packet file limit overflow", key: "EGTS_PACKETS_FILE_MAX_FILE_SIZE_BYTES", value: "9223372036854775808", errorText: "EGTS_PACKETS_FILE_MAX_FILE_SIZE_BYTES"},
+		{name: "invalid packet archive count", key: "EGTS_PACKETS_FILE_MAX_BACKUPS", value: "many", errorText: "EGTS_PACKETS_FILE_MAX_BACKUPS"},
+		{name: "invalid packet archive age", key: "EGTS_PACKETS_FILE_MAX_AGE_DAYS", value: "1d", errorText: "EGTS_PACKETS_FILE_MAX_AGE_DAYS"},
+		{name: "invalid packet total limit", key: "EGTS_PACKETS_FILE_MAX_TOTAL_SIZE_BYTES", value: "", errorText: "EGTS_PACKETS_FILE_MAX_TOTAL_SIZE_BYTES"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
