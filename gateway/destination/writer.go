@@ -1,10 +1,13 @@
 package destination
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/LdDl/go-egts/gateway/configuration"
 )
@@ -15,6 +18,8 @@ type Writer struct {
 	name     string
 	output   io.Writer
 	stdout   *os.File
+	stream   *os.File
+	deadline bool
 	file     *configuration.RotatingFile
 	closed   bool
 	writeErr error
@@ -28,7 +33,22 @@ func PrepareStdout(cfg *configuration.Configuration) (*Writer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Writer{cfg: *cfg, name: "stdout", output: os.Stdout, stdout: os.Stdout}, nil
+	stream, err := openStdout()
+	if err != nil {
+		return nil, fmt.Errorf("Can't open packet stdout: %w", err)
+	}
+	err = stream.SetWriteDeadline(time.Time{})
+	deadline := err == nil
+	if err != nil && !errors.Is(err, os.ErrNoDeadline) {
+		if stream != os.Stdout {
+			closeErr := stream.Close()
+			if closeErr != nil {
+				return nil, fmt.Errorf("%w; Can't close stdout: %v", err, closeErr)
+			}
+		}
+		return nil, err
+	}
+	return &Writer{cfg: *cfg, name: "stdout", output: stream, stdout: os.Stdout, stream: stream, deadline: deadline}, nil
 }
 
 func PrepareFile(cfg *configuration.Configuration) (*Writer, error) {
@@ -41,6 +61,10 @@ func PrepareFile(cfg *configuration.Configuration) (*Writer, error) {
 
 // Write delivers one record to this destination. Other destinations are written separately.
 func (w *Writer) Write(record *Record) error {
+	return w.WriteContext(context.Background(), record)
+}
+
+func (w *Writer) WriteContext(ctx context.Context, record *Record) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.closed {
@@ -48,6 +72,9 @@ func (w *Writer) Write(record *Record) error {
 	}
 	if w.writeErr != nil {
 		return w.writeErr
+	}
+	if ctx.Err() != nil {
+		return ctx.Err()
 	}
 	data, err := record.Encode()
 	if err != nil {
@@ -57,7 +84,38 @@ func (w *Writer) Write(record *Record) error {
 	if err != nil {
 		return err
 	}
+	if w.deadline {
+		deadline, _ := ctx.Deadline()
+		err = w.stream.SetWriteDeadline(deadline)
+		if err != nil {
+			return err
+		}
+	}
+	var finished chan struct{}
+	var interrupted chan error
+	if w.deadline && ctx.Done() != nil {
+		finished = make(chan struct{})
+		interrupted = make(chan error, 1)
+		go func() {
+			select {
+			case <-ctx.Done():
+				interrupted <- w.stream.SetWriteDeadline(time.Now())
+			case <-finished:
+				interrupted <- nil
+			}
+		}()
+	}
 	n, err := w.output.Write(data)
+	if finished != nil {
+		close(finished)
+		interruptErr := <-interrupted
+		if err == nil && interruptErr != nil {
+			err = interruptErr
+		}
+		if err != nil && ctx.Err() != nil {
+			err = ctx.Err()
+		}
+	}
 	if err == nil && n != len(data) {
 		err = io.ErrShortWrite
 	}
@@ -83,6 +141,12 @@ func (w *Writer) Close() error {
 		err := w.file.Close()
 		if err != nil {
 			w.writeErr = fmt.Errorf("Can't close packet file: %w", err)
+		}
+	}
+	if w.stream != nil && w.stream != w.stdout {
+		err := w.stream.Close()
+		if err != nil {
+			w.writeErr = fmt.Errorf("Can't close packet stdout: %w", err)
 		}
 	}
 	return w.writeErr

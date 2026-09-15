@@ -1,3 +1,4 @@
 main
 /egts_gateway
 /.env
+data/packets/

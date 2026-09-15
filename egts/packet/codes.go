@@ -20,6 +20,9 @@ var (
 	StateData         = uint8(20) // EGTS_SR_STATE_DATA
 	AccelerationData  = uint8(21) // EGTS_SR_ACCEL_DATA
 	LiquidLevelSensor = uint8(27) // EGTS_SR_LIQUID_LEVEL_SENSOR
+
+	// EGTS_SR_AUTH_PARAMS
+	AuthParams = uint8(6)
 )
 
 // Типы кодов результатов

@@ -313,14 +313,17 @@ func (cfg *Configuration) Validate() error {
 	if cfg.AuthCfg.Enabled && cfg.AuthCfg.Password == "" {
 		return fmt.Errorf("auth_cfg.password is required when authentication is enabled")
 	}
+	if cfg.AuthCfg.Enabled && (len(cfg.AuthCfg.Password) > 32 || strings.ContainsRune(cfg.AuthCfg.Password, 0)) {
+		return fmt.Errorf("auth_cfg.password must not exceed 32 bytes or contain a null byte")
+	}
 	if cfg.DeliveryCfg.AckMode != "queued" && cfg.DeliveryCfg.AckMode != "delivered" {
 		return fmt.Errorf("delivery_cfg.ack_mode must be queued or delivered")
 	}
 	if cfg.DeliveryCfg.QueueCapacity < 1 {
 		return fmt.Errorf("delivery_cfg.queue_capacity must be positive")
 	}
-	if cfg.DeliveryCfg.DumpAfterSeconds < 1 {
-		return fmt.Errorf("delivery_cfg.dump_after_seconds must be positive")
+	if cfg.DeliveryCfg.DumpAfterSeconds < 1 || int64(cfg.DeliveryCfg.DumpAfterSeconds) > 9223372036 {
+		return fmt.Errorf("delivery_cfg.dump_after_seconds must be between 1 and 9223372036")
 	}
 	if strings.TrimSpace(cfg.DeliveryCfg.DumpDirectory) == "" {
 		return fmt.Errorf("delivery_cfg.dump_directory must not be empty")
