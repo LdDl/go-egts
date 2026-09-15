@@ -55,6 +55,7 @@ type DestinationsConf struct {
 	File     FileDestinationConf       `toml:"file" json:"file"`
 	EGTS     []EGTSDestinationConf     `toml:"egts" json:"egts"`
 	RabbitMQ []RabbitMQDestinationConf `toml:"rabbitmq" json:"rabbitmq"`
+	Valkey   []ValkeyDestinationConf   `toml:"valkey" json:"valkey"`
 }
 
 type EGTSDestinationConf struct {
@@ -167,7 +168,7 @@ func PrepareFileConfiguration(fname string) (*Configuration, error) {
 	if len(unknown) != 0 {
 		return nil, fmt.Errorf("Unknown configuration key: %s", unknown[0].String())
 	}
-	if len(cfg.DestinationsCfg.EGTS) > 0 || len(cfg.DestinationsCfg.RabbitMQ) > 0 {
+	if len(cfg.DestinationsCfg.EGTS) > 0 || len(cfg.DestinationsCfg.RabbitMQ) > 0 || len(cfg.DestinationsCfg.Valkey) > 0 {
 		var raw destinationsFileConfiguration
 		metadata, err = toml.Decode(string(data), &raw)
 		if err != nil {
@@ -201,6 +202,21 @@ func PrepareFileConfiguration(fname string) (*Configuration, error) {
 					return nil, fmt.Errorf("Can't decode RabbitMQ destination %d", i)
 				}
 				cfg.DestinationsCfg.RabbitMQ[i] = rabbit
+			}
+		}
+		if len(cfg.DestinationsCfg.Valkey) > 0 {
+			var entries []toml.Primitive
+			err = metadata.PrimitiveDecode(raw.DestinationsCfg["valkey"], &entries)
+			if err != nil {
+				return nil, fmt.Errorf("Can't decode Valkey destination list")
+			}
+			for i, entry := range entries {
+				valkey := DefaultValkeyDestination()
+				err = metadata.PrimitiveDecode(entry, &valkey)
+				if err != nil {
+					return nil, fmt.Errorf("Can't decode Valkey destination %d", i)
+				}
+				cfg.DestinationsCfg.Valkey[i] = valkey
 			}
 		}
 	}
@@ -446,6 +462,10 @@ func PrepareEnvConfiguration() (*Configuration, error) {
 	if err != nil {
 		return nil, err
 	}
+	cfg.DestinationsCfg.Valkey, err = prepareValkeyEnvConfiguration()
+	if err != nil {
+		return nil, err
+	}
 
 	err = cfg.Validate()
 	if err != nil {
@@ -530,7 +550,22 @@ func (cfg *Configuration) Validate() error {
 			hasRabbit = true
 		}
 	}
-	if !cfg.DestinationsCfg.Stdout && !cfg.DestinationsCfg.File.Enabled && !hasRelay && !hasRabbit {
+	valkeyIDs := make(map[string]bool)
+	hasValkey := false
+	for _, valkey := range cfg.DestinationsCfg.Valkey {
+		err := valkey.Validate()
+		if err != nil {
+			return fmt.Errorf("Valkey destination %q: %w", valkey.ID, err)
+		}
+		if valkeyIDs[valkey.ID] {
+			return fmt.Errorf("Duplicate Valkey destination ID %q", valkey.ID)
+		}
+		valkeyIDs[valkey.ID] = true
+		if valkey.Enabled {
+			hasValkey = true
+		}
+	}
+	if !cfg.DestinationsCfg.Stdout && !cfg.DestinationsCfg.File.Enabled && !hasRelay && !hasRabbit && !hasValkey {
 		return fmt.Errorf("At least one packet destination must be enabled")
 	}
 	return cfg.ValidateOutputs(os.Stdout, os.Stderr)

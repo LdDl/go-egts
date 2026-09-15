@@ -4,11 +4,12 @@ go 1.20
 
 require (
 	github.com/BurntSushi/toml v1.5.0
+	github.com/gomodule/redigo v1.9.3
 	github.com/joho/godotenv v1.5.1
 	github.com/pkg/errors v0.9.1
 	github.com/rabbitmq/amqp091-go v1.14.0
 	github.com/rs/zerolog v1.34.0
-	github.com/stretchr/testify v1.8.2
+	github.com/stretchr/testify v1.8.4
 )
 
 require (

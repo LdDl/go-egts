@@ -313,6 +313,14 @@ func TestExampleConfigurations(t *testing.T) {
 		rabbit.Password = "egts_" + id
 		rabbit.Vhost = "egts"
 		want.DestinationsCfg.RabbitMQ = append(want.DestinationsCfg.RabbitMQ, rabbit)
+		valkey := configuration.DefaultValkeyDestination()
+		valkey.ID = id
+		valkey.Port = 6379 + i
+		valkey.Password = "egts_" + id
+		if id == "backup" {
+			valkey.UserName = "egts_backup"
+		}
+		want.DestinationsCfg.Valkey = append(want.DestinationsCfg.Valkey, valkey)
 	}
 	assert.Equal(t, want, cfg)
 }

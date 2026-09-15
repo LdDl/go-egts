@@ -92,3 +92,27 @@ ack_timeout_seconds = 10
 enabled = false
 username = ""
 password = ""
+
+[[destinations_cfg.valkey]]
+id = "monitoring"
+enabled = false
+host = "127.0.0.1"
+port = 6379
+username = ""
+password = "egts_monitoring"
+database = 0
+stream_name = "egts.packets"
+connect_timeout_seconds = 5
+write_timeout_seconds = 10
+
+[[destinations_cfg.valkey]]
+id = "backup"
+enabled = false
+host = "127.0.0.1"
+port = 6380
+username = "egts_backup"
+password = "egts_backup"
+database = 0
+stream_name = "egts.packets"
+connect_timeout_seconds = 5
+write_timeout_seconds = 10

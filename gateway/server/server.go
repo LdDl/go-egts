@@ -29,6 +29,7 @@ type server struct {
 	hasDump     bool
 	relays      map[string]*relaySession
 	rabbits     map[string]*destination.RabbitMQ
+	valkeys     map[string]*destination.Valkey
 }
 
 func Run(ctx context.Context, cfg *configuration.Configuration) error {
@@ -52,9 +53,10 @@ func Run(ctx context.Context, cfg *configuration.Configuration) error {
 }
 
 func newServer(cfg *configuration.Configuration) (*server, error) {
-	s := &server{cfg: *cfg, clients: make(map[net.Conn]struct{}), wake: make(chan struct{}, 1), relays: make(map[string]*relaySession), rabbits: make(map[string]*destination.RabbitMQ)}
+	s := &server{cfg: *cfg, clients: make(map[net.Conn]struct{}), wake: make(chan struct{}, 1), relays: make(map[string]*relaySession), rabbits: make(map[string]*destination.RabbitMQ), valkeys: make(map[string]*destination.Valkey)}
 	s.cfg.DestinationsCfg.EGTS = append([]configuration.EGTSDestinationConf(nil), cfg.DestinationsCfg.EGTS...)
 	s.cfg.DestinationsCfg.RabbitMQ = append([]configuration.RabbitMQDestinationConf(nil), cfg.DestinationsCfg.RabbitMQ...)
+	s.cfg.DestinationsCfg.Valkey = append([]configuration.ValkeyDestinationConf(nil), cfg.DestinationsCfg.Valkey...)
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
@@ -84,6 +86,16 @@ func newServer(cfg *configuration.Configuration) (*server, error) {
 			return nil, err
 		}
 		s.rabbits[rabbit.ID] = writer
+	}
+	for _, valkey := range s.cfg.DestinationsCfg.Valkey {
+		if !valkey.Enabled {
+			continue
+		}
+		writer, err := destination.PrepareValkey(valkey)
+		if err != nil {
+			return nil, err
+		}
+		s.valkeys[valkey.ID] = writer
 	}
 	if cfg.DestinationsCfg.File.Enabled {
 		s.file, err = destination.PrepareFile(&s.cfg)
@@ -211,6 +223,16 @@ func (s *server) serve(ctx context.Context, listener net.Listener) error {
 				result = err
 			} else {
 				result = fmt.Errorf("%w; Can't close RabbitMQ destination %s: %v", result, id, err)
+			}
+		}
+	}
+	for id, valkey := range s.valkeys {
+		err = valkey.Close()
+		if err != nil {
+			if result == nil {
+				result = err
+			} else {
+				result = fmt.Errorf("%w; Can't close Valkey destination %s: %v", result, id, err)
 			}
 		}
 	}

@@ -23,6 +23,7 @@ type pendingPacket struct {
 	file     bool
 	egts     map[string]bool
 	rabbitmq map[string]bool
+	valkey   map[string]bool
 	relay    *relayPacket
 	done     chan struct{}
 }
@@ -83,6 +84,14 @@ func (s *server) enqueue(record *destination.Record, relay *relayPacket) (*pendi
 			item.rabbitmq[cfg.ID] = true
 		}
 	}
+	for _, cfg := range s.cfg.DestinationsCfg.Valkey {
+		if cfg.Enabled {
+			if item.valkey == nil {
+				item.valkey = make(map[string]bool)
+			}
+			item.valkey[cfg.ID] = true
+		}
+	}
 	s.queue = append(s.queue, item)
 	select {
 	case s.wake <- struct{}{}:
@@ -115,6 +124,11 @@ func (s *server) deliver(ctx context.Context) error {
 			targets = append(targets, deliveryTarget{kind: "rabbitmq", id: cfg.ID})
 		}
 	}
+	for _, cfg := range s.cfg.DestinationsCfg.Valkey {
+		if cfg.Enabled {
+			targets = append(targets, deliveryTarget{kind: "valkey", id: cfg.ID})
+		}
+	}
 	results := make(chan deliveryResult, len(targets))
 	var resultErr error
 	for {
@@ -122,7 +136,7 @@ func (s *server) deliver(ctx context.Context) error {
 		s.mu.Lock()
 		pending := s.queue[:0]
 		for _, item := range s.queue {
-			if !item.stdout && !item.file && len(item.egts) == 0 && len(item.rabbitmq) == 0 {
+			if !item.stdout && !item.file && len(item.egts) == 0 && len(item.rabbitmq) == 0 && len(item.valkey) == 0 {
 				close(item.done)
 			} else {
 				pending = append(pending, item)
@@ -153,7 +167,7 @@ func (s *server) deliver(ctx context.Context) error {
 			s.mu.Lock()
 			var item *pendingPacket
 			for _, candidate := range s.queue {
-				if (target.kind == "stdout" && candidate.stdout) || (target.kind == "file" && candidate.file) || (target.kind == "egts" && candidate.egts[target.id]) || (target.kind == "rabbitmq" && candidate.rabbitmq[target.id]) {
+				if (target.kind == "stdout" && candidate.stdout) || (target.kind == "file" && candidate.file) || (target.kind == "egts" && candidate.egts[target.id]) || (target.kind == "rabbitmq" && candidate.rabbitmq[target.id]) || (target.kind == "valkey" && candidate.valkey[target.id]) {
 					item = candidate
 					break
 				}
@@ -186,6 +200,8 @@ func (s *server) deliver(ctx context.Context) error {
 					err = item.relay.session.writers[target.id].WriteContext(attempt, item.record, item.relay.identity)
 				case "rabbitmq":
 					err = s.rabbits[target.id].WriteContext(attempt, item.record)
+				case "valkey":
+					err = s.valkeys[target.id].WriteContext(attempt, item.record)
 				}
 				stop()
 				results <- deliveryResult{target: index, item: item, err: err}
@@ -254,6 +270,8 @@ func (s *server) deliver(ctx context.Context) error {
 			result.item.file = false
 		case "rabbitmq":
 			delete(result.item.rabbitmq, target.id)
+		case "valkey":
+			delete(result.item.valkey, target.id)
 		case "egts":
 			delete(result.item.egts, target.id)
 			session := result.item.relay.session
