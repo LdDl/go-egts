@@ -1,4 +1,14 @@
-main
+.git
+.github
+.codex
+.idea
+.vscode
+**/.env
+**/.env.*
+**/data
+**/*.dump
+**/*.log
+**/*.ndjson
 /egts_gateway
 /egts_gateway.exe
 /linux-amd64-egts_gateway.tar.gz
@@ -6,6 +16,4 @@ main
 /windows-amd64-egts_gateway.zip
 /darwin-amd64-egts_gateway.tar.gz
 /darwin-arm64-egts_gateway.tar.gz
-/.env
-/data/
-/gateway/infrastructure/.env
+/main

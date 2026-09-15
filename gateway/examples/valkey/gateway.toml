@@ -1,0 +1,39 @@
+[server_cfg]
+host = "127.0.0.1"
+port = 28085
+
+[delivery_cfg]
+ack_mode = "delivered"
+queue_capacity = 1024
+dump_after_seconds = 60
+dump_directory = "./data/valkey-demo/queue"
+
+[logs_cfg]
+output = "stderr"
+
+[destinations_cfg]
+stdout = false
+
+[[destinations_cfg.valkey]]
+id = "monitoring"
+enabled = true
+host = "127.0.0.1"
+port = 6379
+username = ""
+password = "egts_monitoring"
+database = 0
+stream_name = "egts.packets"
+connect_timeout_seconds = 5
+write_timeout_seconds = 10
+
+[[destinations_cfg.valkey]]
+id = "backup"
+enabled = true
+host = "127.0.0.1"
+port = 6380
+username = "egts_backup"
+password = "egts_backup"
+database = 0
+stream_name = "egts.packets"
+connect_timeout_seconds = 5
+write_timeout_seconds = 10

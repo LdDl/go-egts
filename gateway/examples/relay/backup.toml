@@ -1,0 +1,17 @@
+[server_cfg]
+host = "127.0.0.1"
+port = 28083
+
+[delivery_cfg]
+ack_mode = "delivered"
+dump_directory = "./data/relay-demo/backup/queue"
+
+[logs_cfg]
+output = "stderr"
+
+[destinations_cfg]
+stdout = false
+
+[destinations_cfg.file]
+enabled = true
+directory = "./data/relay-demo/backup/packets"

@@ -1,0 +1,31 @@
+[server_cfg]
+host = "127.0.0.1"
+port = 28081
+
+[delivery_cfg]
+ack_mode = "delivered"
+queue_capacity = 1024
+dump_after_seconds = 60
+dump_directory = "./data/relay-demo/gateway/queue"
+
+[logs_cfg]
+output = "stderr"
+
+[destinations_cfg]
+stdout = false
+
+[[destinations_cfg.egts]]
+id = "monitoring"
+enabled = true
+host = "127.0.0.1"
+port = 28082
+connect_timeout_seconds = 5
+ack_timeout_seconds = 10
+
+[[destinations_cfg.egts]]
+id = "backup"
+enabled = true
+host = "127.0.0.1"
+port = 28083
+connect_timeout_seconds = 5
+ack_timeout_seconds = 10

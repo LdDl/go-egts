@@ -1,0 +1,150 @@
+name: egts-infrastructure
+
+services:
+  rabbitmq_monitoring:
+    image: rabbitmq:4.3.5-management
+    hostname: rabbitmq-monitoring
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1.0
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER_MONITORING:-egts_monitoring}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD_MONITORING:-egts_monitoring}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST_MONITORING:-egts}
+    ports:
+      - "${RABBITMQ_BIND_HOST_MONITORING:-127.0.0.1}:${RABBITMQ_PORT_MONITORING:-5672}:5672"
+      - "${RABBITMQ_BIND_HOST_MONITORING:-127.0.0.1}:${RABBITMQ_MANAGEMENT_PORT_MONITORING:-15672}:15672"
+    volumes:
+      - rabbitmq_monitoring_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_local_alarms"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  rabbitmq_backup:
+    image: rabbitmq:4.3.5-management
+    hostname: rabbitmq-backup
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1.0
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER_BACKUP:-egts_backup}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD_BACKUP:-egts_backup}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST_BACKUP:-egts}
+    ports:
+      - "${RABBITMQ_BIND_HOST_BACKUP:-127.0.0.1}:${RABBITMQ_PORT_BACKUP:-5673}:5672"
+      - "${RABBITMQ_BIND_HOST_BACKUP:-127.0.0.1}:${RABBITMQ_MANAGEMENT_PORT_BACKUP:-15673}:15672"
+    volumes:
+      - rabbitmq_backup_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_local_alarms"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  valkey_monitoring:
+    image: valkey/valkey:9.1.2-alpine3.24
+    hostname: valkey-monitoring
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1.0
+    stop_grace_period: 30s
+    environment:
+      VALKEYCLI_AUTH: ${VALKEY_PASSWORD_MONITORING:-egts_monitoring}
+    command:
+      - valkey-server
+      - --requirepass
+      - ${VALKEY_PASSWORD_MONITORING:-egts_monitoring}
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - always
+      - --save
+      - ""
+      - --maxmemory
+      - ${VALKEY_MAXMEMORY_MONITORING:-128mb}
+      - --maxmemory-policy
+      - noeviction
+    ports:
+      - "${VALKEY_BIND_HOST_MONITORING:-127.0.0.1}:${VALKEY_PORT_MONITORING:-6379}:6379"
+    volumes:
+      - valkey_monitoring_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", 'test "$$(valkey-cli --raw ping)" = "PONG"']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  valkey_backup:
+    image: valkey/valkey:9.1.2-alpine3.24
+    hostname: valkey-backup
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1.0
+    stop_grace_period: 30s
+    environment:
+      VALKEYCLI_AUTH: ${VALKEY_PASSWORD_BACKUP:-egts_backup}
+      VALKEY_USERNAME: ${VALKEY_USERNAME_BACKUP:-egts_backup}
+    command:
+      - valkey-server
+      - --user
+      - default
+      - reset
+      - "off"
+      - --user
+      - ${VALKEY_USERNAME_BACKUP:-egts_backup}
+      - "on"
+      - ">${VALKEY_PASSWORD_BACKUP:-egts_backup}"
+      - "~*"
+      - "&*"
+      - "+@all"
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - always
+      - --save
+      - ""
+      - --maxmemory
+      - ${VALKEY_MAXMEMORY_BACKUP:-128mb}
+      - --maxmemory-policy
+      - noeviction
+    ports:
+      - "${VALKEY_BIND_HOST_BACKUP:-127.0.0.1}:${VALKEY_PORT_BACKUP:-6380}:6379"
+    volumes:
+      - valkey_backup_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", 'test "$$(valkey-cli --raw --user "$$VALKEY_USERNAME" ping)" = "PONG"']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  rabbitmq_monitoring_data:
+  rabbitmq_backup_data:
+  valkey_monitoring_data:
+  valkey_backup_data:

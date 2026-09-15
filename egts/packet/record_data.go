@@ -52,6 +52,12 @@ func (rd *RecordsData) Decode(b []byte) (err error) {
 		case TermIdentity:
 			rdEntity.SubrecordData = &subrecord.SRTermIdentity{}
 			break
+		case AuthInfo:
+			rdEntity.SubrecordData = &subrecord.SRAuthInfo{}
+			break
+		case AuthParams:
+			rdEntity.SubrecordData = &subrecord.SRAuthParams{}
+			break
 		case ResultCode:
 			rdEntity.SubrecordData = &subrecord.SRResultCode{}
 			break

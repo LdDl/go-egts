@@ -1,0 +1,118 @@
+[server_cfg]
+host = "0.0.0.0"
+port = 8081
+
+[auth_cfg]
+enabled = false
+password = ""
+
+[delivery_cfg]
+ack_mode = "queued"
+queue_capacity = 1024
+dump_after_seconds = 60
+dump_directory = "./data/queue"
+
+[logs_cfg]
+output = "stderr"
+directory = "./data/logs"
+
+[logs_cfg.rotation]
+max_file_size_bytes = 10485760
+# Zero removes every rotated archive.
+max_backups = 5
+# Zero disables archive expiration by age.
+max_age_days = 7
+# Includes application.log and its archives.
+max_total_size_bytes = 62914560
+
+[destinations_cfg]
+stdout = true
+
+[[destinations_cfg.rabbitmq]]
+id = "monitoring"
+enabled = false
+host = "127.0.0.1"
+port = 5672
+username = "egts_monitoring"
+password = "egts_monitoring"
+vhost = "egts"
+queue_name = "egts.packets"
+queue_type = "classic"
+connect_timeout_seconds = 5
+publish_timeout_seconds = 10
+
+[[destinations_cfg.rabbitmq]]
+id = "backup"
+enabled = false
+host = "127.0.0.1"
+port = 5673
+username = "egts_backup"
+password = "egts_backup"
+vhost = "egts"
+queue_name = "egts.packets"
+queue_type = "classic"
+connect_timeout_seconds = 5
+publish_timeout_seconds = 10
+
+[destinations_cfg.file]
+enabled = false
+directory = "./data/packets"
+
+[destinations_cfg.file.rotation]
+max_file_size_bytes = 10485760
+# Zero removes every rotated archive.
+max_backups = 5
+# Zero disables archive expiration by age.
+max_age_days = 7
+# Includes packets.ndjson and its archives.
+max_total_size_bytes = 62914560
+
+[[destinations_cfg.egts]]
+id = "monitoring"
+enabled = false
+host = "127.0.0.1"
+port = 8082
+connect_timeout_seconds = 5
+ack_timeout_seconds = 10
+
+[destinations_cfg.egts.auth]
+enabled = false
+username = ""
+password = ""
+
+[[destinations_cfg.egts]]
+id = "backup"
+enabled = false
+host = "127.0.0.1"
+port = 8083
+connect_timeout_seconds = 5
+ack_timeout_seconds = 10
+
+[destinations_cfg.egts.auth]
+enabled = false
+username = ""
+password = ""
+
+[[destinations_cfg.valkey]]
+id = "monitoring"
+enabled = false
+host = "127.0.0.1"
+port = 6379
+username = ""
+password = "egts_monitoring"
+database = 0
+stream_name = "egts.packets"
+connect_timeout_seconds = 5
+write_timeout_seconds = 10
+
+[[destinations_cfg.valkey]]
+id = "backup"
+enabled = false
+host = "127.0.0.1"
+port = 6380
+username = "egts_backup"
+password = "egts_backup"
+database = 0
+stream_name = "egts.packets"
+connect_timeout_seconds = 5
+write_timeout_seconds = 10
