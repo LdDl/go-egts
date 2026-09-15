@@ -1,0 +1,256 @@
+package configuration
+
+import (
+	"errors"
+	"flag"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+
+	"github.com/BurntSushi/toml"
+	"github.com/joho/godotenv"
+)
+
+type Configuration struct {
+	ServerCfg       ServerConf       `toml:"server_cfg" json:"server_cfg"`
+	AuthCfg         AuthConf         `toml:"auth_cfg" json:"auth_cfg"`
+	DeliveryCfg     DeliveryConf     `toml:"delivery_cfg" json:"delivery_cfg"`
+	LogsCfg         LogsConf         `toml:"logs_cfg" json:"logs_cfg"`
+	DestinationsCfg DestinationsConf `toml:"destinations_cfg" json:"destinations_cfg"`
+}
+
+type ServerConf struct {
+	Host string `toml:"host" json:"host"`
+	Port int    `toml:"port" json:"port"`
+}
+
+type AuthConf struct {
+	Enabled  bool   `toml:"enabled" json:"enabled"`
+	Password string `toml:"password" json:"password"`
+}
+
+type DeliveryConf struct {
+	AckMode          string `toml:"ack_mode" json:"ack_mode"`
+	QueueCapacity    int    `toml:"queue_capacity" json:"queue_capacity"`
+	DumpAfterSeconds int    `toml:"dump_after_seconds" json:"dump_after_seconds"`
+	DumpDirectory    string `toml:"dump_directory" json:"dump_directory"`
+}
+
+type LogsConf struct {
+	Output    string `toml:"output" json:"output"`
+	Directory string `toml:"directory" json:"directory"`
+}
+
+type DestinationsConf struct {
+	Stdout bool                `toml:"stdout" json:"stdout"`
+	File   FileDestinationConf `toml:"file" json:"file"`
+}
+
+type FileDestinationConf struct {
+	Enabled   bool   `toml:"enabled" json:"enabled"`
+	Directory string `toml:"directory" json:"directory"`
+}
+
+func DefaultConfiguration() *Configuration {
+	return &Configuration{
+		ServerCfg: ServerConf{
+			Host: "0.0.0.0",
+			Port: 8081,
+		},
+		AuthCfg: AuthConf{
+			Enabled:  false,
+			Password: "",
+		},
+		DeliveryCfg: DeliveryConf{
+			AckMode:          "queued",
+			QueueCapacity:    1024,
+			DumpAfterSeconds: 60,
+			DumpDirectory:    "./data/queue",
+		},
+		LogsCfg: LogsConf{
+			Output:    "stderr",
+			Directory: "./data/logs",
+		},
+		DestinationsCfg: DestinationsConf{
+			Stdout: true,
+			File: FileDestinationConf{
+				Enabled:   false,
+				Directory: "./data/packets",
+			},
+		},
+	}
+}
+
+func PrepareConfiguration() (*Configuration, error) {
+	confName := flag.String("conf", "", "TOML configuration file path; otherwise use ENV and .env")
+	flag.Parse()
+	if flag.NArg() != 0 {
+		return nil, fmt.Errorf("Unexpected positional arguments; use -conf for a TOML file")
+	}
+	if *confName != "" {
+		return PrepareFileConfiguration(*confName)
+	}
+
+	_, err := os.Stat(".env")
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("Can't access .env: %w", err)
+	}
+	if err == nil {
+		err = godotenv.Overload(".env")
+		if err != nil {
+			return nil, fmt.Errorf("Can't load .env")
+		}
+	}
+	return PrepareEnvConfiguration()
+}
+
+func PrepareFileConfiguration(fname string) (*Configuration, error) {
+	data, err := os.ReadFile(fname)
+	if err != nil {
+		return nil, fmt.Errorf("Can't read configuration: %w", err)
+	}
+	cfg := DefaultConfiguration()
+	metadata, err := toml.Decode(string(data), cfg)
+	if err != nil {
+		var parseErr toml.ParseError
+		isParseError := errors.As(err, &parseErr)
+		if isParseError {
+			return nil, fmt.Errorf("Can't decode TOML configuration at line %d", parseErr.Line)
+		}
+		return nil, fmt.Errorf("Can't decode TOML configuration")
+	}
+	unknown := metadata.Undecoded()
+	if len(unknown) != 0 {
+		return nil, fmt.Errorf("Unknown configuration key: %s", unknown[0].String())
+	}
+	err = cfg.Validate()
+	if err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+func PrepareEnvConfiguration() (*Configuration, error) {
+	cfg := DefaultConfiguration()
+
+	host, exists := os.LookupEnv("EGTS_SERVER_HOST")
+	if exists {
+		cfg.ServerCfg.Host = host
+	}
+	portStr, exists := os.LookupEnv("EGTS_SERVER_PORT")
+	if exists {
+		port, err := strconv.Atoi(portStr)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_SERVER_PORT: %w", err)
+		}
+		cfg.ServerCfg.Port = port
+	}
+	authEnabledStr, exists := os.LookupEnv("EGTS_AUTH_ENABLED")
+	if exists {
+		authEnabled, err := strconv.ParseBool(authEnabledStr)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_AUTH_ENABLED: %w", err)
+		}
+		cfg.AuthCfg.Enabled = authEnabled
+	}
+	password, exists := os.LookupEnv("EGTS_AUTH_PASSWORD")
+	if exists {
+		cfg.AuthCfg.Password = password
+	}
+	ackMode, exists := os.LookupEnv("EGTS_ACK_MODE")
+	if exists {
+		cfg.DeliveryCfg.AckMode = ackMode
+	}
+	queueCapacityStr, exists := os.LookupEnv("EGTS_QUEUE_CAPACITY")
+	if exists {
+		queueCapacity, err := strconv.Atoi(queueCapacityStr)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_QUEUE_CAPACITY: %w", err)
+		}
+		cfg.DeliveryCfg.QueueCapacity = queueCapacity
+	}
+	dumpAfterStr, exists := os.LookupEnv("EGTS_DUMP_AFTER_SECONDS")
+	if exists {
+		dumpAfter, err := strconv.Atoi(dumpAfterStr)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_DUMP_AFTER_SECONDS: %w", err)
+		}
+		cfg.DeliveryCfg.DumpAfterSeconds = dumpAfter
+	}
+	dumpDirectory, exists := os.LookupEnv("EGTS_DUMP_DIRECTORY")
+	if exists {
+		cfg.DeliveryCfg.DumpDirectory = dumpDirectory
+	}
+	logOutput, exists := os.LookupEnv("EGTS_LOG_OUTPUT")
+	if exists {
+		cfg.LogsCfg.Output = logOutput
+	}
+	logDirectory, exists := os.LookupEnv("EGTS_LOG_DIRECTORY")
+	if exists {
+		cfg.LogsCfg.Directory = logDirectory
+	}
+	packetsStdoutStr, exists := os.LookupEnv("EGTS_PACKETS_STDOUT")
+	if exists {
+		packetsStdout, err := strconv.ParseBool(packetsStdoutStr)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_PACKETS_STDOUT: %w", err)
+		}
+		cfg.DestinationsCfg.Stdout = packetsStdout
+	}
+	packetsFileEnabledStr, exists := os.LookupEnv("EGTS_PACKETS_FILE_ENABLED")
+	if exists {
+		packetsFileEnabled, err := strconv.ParseBool(packetsFileEnabledStr)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_PACKETS_FILE_ENABLED: %w", err)
+		}
+		cfg.DestinationsCfg.File.Enabled = packetsFileEnabled
+	}
+	packetsDirectory, exists := os.LookupEnv("EGTS_PACKETS_FILE_DIRECTORY")
+	if exists {
+		cfg.DestinationsCfg.File.Directory = packetsDirectory
+	}
+
+	err := cfg.Validate()
+	if err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+func (cfg *Configuration) Validate() error {
+	if strings.TrimSpace(cfg.ServerCfg.Host) == "" {
+		return fmt.Errorf("server_cfg.host must not be empty")
+	}
+	if cfg.ServerCfg.Port < 1 || cfg.ServerCfg.Port > 65535 {
+		return fmt.Errorf("server_cfg.port must be between 1 and 65535")
+	}
+	if cfg.AuthCfg.Enabled && cfg.AuthCfg.Password == "" {
+		return fmt.Errorf("auth_cfg.password is required when authentication is enabled")
+	}
+	if cfg.DeliveryCfg.AckMode != "queued" && cfg.DeliveryCfg.AckMode != "delivered" {
+		return fmt.Errorf("delivery_cfg.ack_mode must be queued or delivered")
+	}
+	if cfg.DeliveryCfg.QueueCapacity < 1 {
+		return fmt.Errorf("delivery_cfg.queue_capacity must be positive")
+	}
+	if cfg.DeliveryCfg.DumpAfterSeconds < 1 {
+		return fmt.Errorf("delivery_cfg.dump_after_seconds must be positive")
+	}
+	if strings.TrimSpace(cfg.DeliveryCfg.DumpDirectory) == "" {
+		return fmt.Errorf("delivery_cfg.dump_directory must not be empty")
+	}
+	if cfg.LogsCfg.Output != "stdout" && cfg.LogsCfg.Output != "stderr" && cfg.LogsCfg.Output != "file" {
+		return fmt.Errorf("logs_cfg.output must be stdout, stderr or file")
+	}
+	if cfg.LogsCfg.Output == "file" && strings.TrimSpace(cfg.LogsCfg.Directory) == "" {
+		return fmt.Errorf("logs_cfg.directory must not be empty for file output")
+	}
+	if cfg.DestinationsCfg.File.Enabled && strings.TrimSpace(cfg.DestinationsCfg.File.Directory) == "" {
+		return fmt.Errorf("destinations_cfg.file.directory must not be empty for file output")
+	}
+	if !cfg.DestinationsCfg.Stdout && !cfg.DestinationsCfg.File.Enabled {
+		return fmt.Errorf("At least one packet destination must be enabled")
+	}
+	return cfg.ValidateOutputs(os.Stdout, os.Stderr)
+}

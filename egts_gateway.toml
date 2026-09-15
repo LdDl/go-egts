@@ -1,0 +1,24 @@
+[server_cfg]
+host = "0.0.0.0"
+port = 8081
+
+[auth_cfg]
+enabled = false
+password = ""
+
+[delivery_cfg]
+ack_mode = "queued"
+queue_capacity = 1024
+dump_after_seconds = 60
+dump_directory = "./data/queue"
+
+[logs_cfg]
+output = "stderr"
+directory = "./data/logs"
+
+[destinations_cfg]
+stdout = true
+
+[destinations_cfg.file]
+enabled = false
+directory = "./data/packets"
