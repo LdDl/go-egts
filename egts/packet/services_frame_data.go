@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"strconv"
 )
 
@@ -43,14 +44,16 @@ type ServiceDataRecord struct {
 func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 
 	buffer := bytes.NewReader(b)
+	var decoded ServicesFrameData
 
 	for buffer.Len() > 0 {
 		sdr := ServiceDataRecord{}
 
 		// RL (Record Length)
 		rl := make([]byte, 2)
-		if _, err = buffer.Read(rl); err != nil {
-			return fmt.Errorf("SFRD; Error reading RL")
+		_, err = io.ReadFull(buffer, rl)
+		if err != nil {
+			return fmt.Errorf("SFRD; Error reading RL: %w", err)
 		}
 		sdr.RecordLength = binary.LittleEndian.Uint16(rl)
 		if sdr.RecordLength == 0 {
@@ -58,15 +61,17 @@ func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 		}
 		// RN (Record Number)
 		rn := make([]byte, 2)
-		if _, err = buffer.Read(rn); err != nil {
-			return fmt.Errorf("SFRD; Error reading RN")
+		_, err = io.ReadFull(buffer, rn)
+		if err != nil {
+			return fmt.Errorf("SFRD; Error reading RN: %w", err)
 		}
 		sdr.RecordNumber = binary.LittleEndian.Uint16(rn)
 
 		// RecordFlags (RFL): SSOD, RSOD, GRP, RPP, TMFE, EVFE, OBFE
 		flagByte := byte(0)
-		if flagByte, err = buffer.ReadByte(); err != nil {
-			return fmt.Errorf("SFRD; Error reading flags")
+		flagByte, err = buffer.ReadByte()
+		if err != nil {
+			return fmt.Errorf("SFRD; Error reading flags: %w", err)
 		}
 		flagByteAsBits := fmt.Sprintf("%08b", flagByte)
 		// OBFE Object ID FieldExists
@@ -87,8 +92,9 @@ func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 		// OID (Object Identifier)
 		if sdr.OBFE == "1" {
 			oid := make([]byte, 4)
-			if _, err = buffer.Read(oid); err != nil {
-				return fmt.Errorf("SFRD; Error reading OID")
+			_, err = io.ReadFull(buffer, oid)
+			if err != nil {
+				return fmt.Errorf("SFRD; Error reading OID: %w", err)
 			}
 			sdr.ObjectIdentifier = binary.LittleEndian.Uint32(oid)
 		}
@@ -96,8 +102,9 @@ func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 		// EVID (Event Identifier)
 		if sdr.EVFE == "1" {
 			evid := make([]byte, 4)
-			if _, err = buffer.Read(evid); err != nil {
-				return fmt.Errorf("SFRD; Error reading EVID")
+			_, err = io.ReadFull(buffer, evid)
+			if err != nil {
+				return fmt.Errorf("SFRD; Error reading EVID: %w", err)
 			}
 			sdr.EventIdentifier = binary.LittleEndian.Uint32(evid)
 		}
@@ -105,85 +112,133 @@ func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 		// TM (Time)
 		if sdr.TMFE == "1" {
 			tm := make([]byte, 4)
-			if _, err = buffer.Read(tm); err != nil {
-				return fmt.Errorf("SFRD; Error reading TM")
+			_, err = io.ReadFull(buffer, tm)
+			if err != nil {
+				return fmt.Errorf("SFRD; Error reading TM: %w", err)
 			}
 			sdr.Time = binary.LittleEndian.Uint32(tm)
 		}
 
 		// SST (Source Service Type)
-		if sdr.SourceServiceType, err = buffer.ReadByte(); err != nil {
-			return fmt.Errorf("SFRD; Error reading SST")
+		sdr.SourceServiceType, err = buffer.ReadByte()
+		if err != nil {
+			return fmt.Errorf("SFRD; Error reading SST: %w", err)
 		}
 
 		// RST (Recipient Service Type)
-		if sdr.RecipientServiceType, err = buffer.ReadByte(); err != nil {
-			return fmt.Errorf("SFRD; Error reading RST")
+		sdr.RecipientServiceType, err = buffer.ReadByte()
+		if err != nil {
+			return fmt.Errorf("SFRD; Error reading RST: %w", err)
 		}
 
 		// RD (Record Data)
-		if buffer.Len() != 0 {
-			sdr.RecordsData = RecordsData{}
-			bb := make([]byte, sdr.RecordLength)
-			if _, err = buffer.Read(bb); err != nil {
-				return err
-			}
-			err := sdr.RecordsData.Decode(bb)
-			if err != nil {
-				return fmt.Errorf("SFRD;" + err.Error())
-			}
+		if int(sdr.RecordLength) > buffer.Len() {
+			return fmt.Errorf("SFRD; Record length exceeds available data")
 		}
-		*sfrd = append(*sfrd, &sdr)
+		bb := make([]byte, sdr.RecordLength)
+		_, err = io.ReadFull(buffer, bb)
+		if err != nil {
+			return fmt.Errorf("SFRD; Error reading RD: %w", err)
+		}
+		err = sdr.RecordsData.Decode(bb)
+		if err != nil {
+			return fmt.Errorf("SFRD; %w", err)
+		}
+		decoded = append(decoded, &sdr)
 	}
+	*sfrd = decoded
 	return nil
 }
 
 // Encode Parse SFRD to slice of bytes
 func (sfrd *ServicesFrameData) Encode() (b []byte, err error) {
+	if sfrd == nil {
+		return nil, fmt.Errorf("SFRD; ServicesFrameData is nil")
+	}
 	buffer := new(bytes.Buffer)
 	for _, sdr := range *sfrd {
-		if err = binary.Write(buffer, binary.LittleEndian, sdr.RecordLength); err != nil {
-			return nil, fmt.Errorf("SFRD; Error writing RL")
+		if sdr == nil {
+			return nil, fmt.Errorf("SFRD; Service record is nil")
 		}
-		if err = binary.Write(buffer, binary.LittleEndian, sdr.RecordNumber); err != nil {
-			return nil, fmt.Errorf("SFRD; Error writing RN")
+		if sdr.SSOD != "0" && sdr.SSOD != "1" {
+			return nil, fmt.Errorf("SFRD; Invalid SSOD flag")
 		}
-
+		if sdr.RSOD != "0" && sdr.RSOD != "1" {
+			return nil, fmt.Errorf("SFRD; Invalid RSOD flag")
+		}
+		if sdr.GRP != "0" && sdr.GRP != "1" {
+			return nil, fmt.Errorf("SFRD; Invalid GRP flag")
+		}
+		if len(sdr.RPP) != 2 {
+			return nil, fmt.Errorf("SFRD; RPP must contain 2 bits")
+		}
+		if sdr.TMFE != "0" && sdr.TMFE != "1" {
+			return nil, fmt.Errorf("SFRD; Invalid TMFE flag")
+		}
+		if sdr.EVFE != "0" && sdr.EVFE != "1" {
+			return nil, fmt.Errorf("SFRD; Invalid EVFE flag")
+		}
+		if sdr.OBFE != "0" && sdr.OBFE != "1" {
+			return nil, fmt.Errorf("SFRD; Invalid OBFE flag")
+		}
 		flagsBits := sdr.SSOD + sdr.RSOD + sdr.GRP + sdr.RPP + sdr.TMFE + sdr.EVFE + sdr.OBFE
 		flags := uint64(0)
-		flags, _ = strconv.ParseUint(flagsBits, 2, 8)
-		if err = buffer.WriteByte(uint8(flags)); err != nil {
-			return nil, fmt.Errorf("SFRD; Error writing flags")
+		flags, err = strconv.ParseUint(flagsBits, 2, 8)
+		if err != nil {
+			return nil, fmt.Errorf("SFRD; Error parsing flags: %w", err)
 		}
-
+		rd, err := sdr.RecordsData.Encode()
+		if err != nil {
+			return nil, fmt.Errorf("SFRD; Error encoding RN %d: %w", sdr.RecordNumber, err)
+		}
+		if len(rd) == 0 || int(sdr.RecordLength) != len(rd) {
+			return nil, fmt.Errorf("SFRD; RL does not match encoded data length")
+		}
+		err = binary.Write(buffer, binary.LittleEndian, sdr.RecordLength)
+		if err != nil {
+			return nil, fmt.Errorf("SFRD; Error writing RL: %w", err)
+		}
+		err = binary.Write(buffer, binary.LittleEndian, sdr.RecordNumber)
+		if err != nil {
+			return nil, fmt.Errorf("SFRD; Error writing RN: %w", err)
+		}
+		err = buffer.WriteByte(uint8(flags))
+		if err != nil {
+			return nil, fmt.Errorf("SFRD; Error writing flags: %w", err)
+		}
 		if sdr.OBFE == "1" {
-			if err = binary.Write(buffer, binary.LittleEndian, sdr.ObjectIdentifier); err != nil {
-				return nil, fmt.Errorf("SFRD; Error writing OID")
+			err = binary.Write(buffer, binary.LittleEndian, sdr.ObjectIdentifier)
+			if err != nil {
+				return nil, fmt.Errorf("SFRD; Error writing OID: %w", err)
 			}
 		}
 		if sdr.EVFE == "1" {
-			if err = binary.Write(buffer, binary.LittleEndian, sdr.EventIdentifier); err != nil {
-				return nil, fmt.Errorf("SFRD; Error writing EVID")
+			err = binary.Write(buffer, binary.LittleEndian, sdr.EventIdentifier)
+			if err != nil {
+				return nil, fmt.Errorf("SFRD; Error writing EVID: %w", err)
 			}
 		}
 		if sdr.TMFE == "1" {
-			if err = binary.Write(buffer, binary.LittleEndian, sdr.Time); err != nil {
-				return nil, fmt.Errorf("SFRD; Error writing TM")
+			err = binary.Write(buffer, binary.LittleEndian, sdr.Time)
+			if err != nil {
+				return nil, fmt.Errorf("SFRD; Error writing TM: %w", err)
 			}
 		}
-
-		if err = buffer.WriteByte(sdr.SourceServiceType); err != nil {
-			return nil, fmt.Errorf("SFRD; Error writing SST")
-		}
-		if err = buffer.WriteByte(sdr.RecipientServiceType); err != nil {
-			return nil, fmt.Errorf("SFRD; Error writing RST")
-		}
-
-		rd, err := sdr.RecordsData.Encode()
+		err = buffer.WriteByte(sdr.SourceServiceType)
 		if err != nil {
-			return nil, fmt.Errorf("SFRD;" + err.Error())
+			return nil, fmt.Errorf("SFRD; Error writing SST: %w", err)
 		}
-		buffer.Write(rd)
+		err = buffer.WriteByte(sdr.RecipientServiceType)
+		if err != nil {
+			return nil, fmt.Errorf("SFRD; Error writing RST: %w", err)
+		}
+		if buffer.Len()+len(rd) > 65535 {
+			return nil, fmt.Errorf("SFRD; Service data exceeds 65535 bytes")
+		}
+		_, err = buffer.Write(rd)
+		if err != nil {
+			return nil, fmt.Errorf("SFRD; Error writing RD: %w", err)
+		}
 	}
 	return buffer.Bytes(), nil
 }

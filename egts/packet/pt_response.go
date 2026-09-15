@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 )
 
 // PTResponse Subrecord of type EGTS_PT_RESPONSE
@@ -16,46 +17,65 @@ type PTResponse struct {
 // Decode Parse slice of bytes to EGTS_PT_RESPONSE
 func (response *PTResponse) Decode(b []byte) (err error) {
 	buffer := bytes.NewBuffer(b)
+	decoded := PTResponse{}
 
 	//  RPID Response Packet ID
 	rpid := make([]byte, 2)
-	if _, err = buffer.Read(rpid); err != nil {
-		return fmt.Errorf("EGTS_PT_RESPONSE; Error reading RPID")
+	_, err = io.ReadFull(buffer, rpid)
+	if err != nil {
+		return fmt.Errorf("EGTS_PT_RESPONSE; Error reading RPID: %w", err)
 	}
-	response.ResponsePacketID = binary.LittleEndian.Uint16(rpid)
+	decoded.ResponsePacketID = binary.LittleEndian.Uint16(rpid)
 
 	// PR Processing Result
-	if response.ProcessingResult, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("EGTS_PT_RESPONSE; Error reading PR")
+	decoded.ProcessingResult, err = buffer.ReadByte()
+	if err != nil {
+		return fmt.Errorf("EGTS_PT_RESPONSE; Error reading PR: %w", err)
 	}
 
 	// SFRD (Services Frame Data)
 	if buffer.Len() > 0 {
-		response.SDR = &ServicesFrameData{}
-		err := response.SDR.Decode(buffer.Bytes())
+		decoded.SDR = &ServicesFrameData{}
+		err = decoded.SDR.Decode(buffer.Bytes())
 		if err != nil {
-			return fmt.Errorf("EGTS_PT_RESPONSE;" + err.Error())
+			return fmt.Errorf("EGTS_PT_RESPONSE; %w", err)
 		}
 	}
+	*response = decoded
 	return nil
 }
 
 // Encode Parse EGTS_PT_RESPONSE to slice of bytes
 func (response *PTResponse) Encode() (b []byte, err error) {
+	if response == nil {
+		return nil, fmt.Errorf("EGTS_PT_RESPONSE; Response is nil")
+	}
 	buffer := new(bytes.Buffer)
-	if err = binary.Write(buffer, binary.LittleEndian, response.ResponsePacketID); err != nil {
-		return nil, fmt.Errorf("EGTS_PT_RESPONSE; Error writing RPID")
+	err = binary.Write(buffer, binary.LittleEndian, response.ResponsePacketID)
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_PT_RESPONSE; Error writing RPID: %w", err)
 	}
 
-	if err = buffer.WriteByte(response.ProcessingResult); err != nil {
-		return nil, fmt.Errorf("EGTS_PT_RESPONSE; Error writing PR")
+	err = buffer.WriteByte(response.ProcessingResult)
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_PT_RESPONSE; Error writing PR: %w", err)
 	}
 	if response.SDR != nil {
+		data, ok := response.SDR.(*ServicesFrameData)
+		if !ok || data == nil {
+			return nil, fmt.Errorf("EGTS_PT_RESPONSE; SDR requires ServicesFrameData")
+		}
 		sdr, err := response.SDR.Encode()
 		if err != nil {
-			return nil, fmt.Errorf("EGTS_PT_RESPONSE;" + err.Error())
+			return nil, fmt.Errorf("EGTS_PT_RESPONSE; %w", err)
 		}
-		buffer.Write(sdr)
+		if len(sdr)+3 > 65535 {
+			return nil, fmt.Errorf("EGTS_PT_RESPONSE; Response data exceeds 65535 bytes")
+		}
+		_, err = buffer.Write(sdr)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_PT_RESPONSE; Error writing SFRD: %w", err)
+		}
 	}
 	return buffer.Bytes(), nil
 }

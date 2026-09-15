@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"time"
 )
 
@@ -34,40 +35,52 @@ type SRAccelerationHeader struct {
 // Decode Parse array of bytes to EGTS_SR_ACCEL_DATA
 func (subr *SRAccelerationData) Decode(b []byte) (err error) {
 	buffer := bytes.NewReader(b)
+	decoded := SRAccelerationData{}
 
 	rtm := make([]byte, 2)
-	if _, err = buffer.Read(rtm); err != nil {
-		return fmt.Errorf("EGTS_SR_ACCEL_DATA; Error reading RTM")
+	_, err = io.ReadFull(buffer, rtm)
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_ACCEL_DATA; Error reading RTM: %w", err)
 	}
 
-	subr.RTM = binary.LittleEndian.Uint16(rtm)
+	decoded.RTM = binary.LittleEndian.Uint16(rtm)
 
 	x := make([]byte, 2)
-	if _, err = buffer.Read(x); err != nil {
-		return fmt.Errorf("EGTS_SR_ACCEL_DATA; Error reading XAAV")
+	_, err = io.ReadFull(buffer, x)
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_ACCEL_DATA; Error reading XAAV: %w", err)
 	}
 
-	subr.XAAV = int16(binary.LittleEndian.Uint16(x))
+	decoded.XAAV = int16(binary.LittleEndian.Uint16(x))
 
 	y := make([]byte, 2)
-	if _, err = buffer.Read(y); err != nil {
-		return fmt.Errorf("EGTS_SR_ACCEL_DATA; Error reading YAAV")
+	_, err = io.ReadFull(buffer, y)
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_ACCEL_DATA; Error reading YAAV: %w", err)
 	}
 
-	subr.YAAV = int16(binary.LittleEndian.Uint16(y))
+	decoded.YAAV = int16(binary.LittleEndian.Uint16(y))
 
 	z := make([]byte, 2)
-	if _, err = buffer.Read(z); err != nil {
-		return fmt.Errorf("EGTS_SR_ACCEL_DATA; Error reading ZAAV")
+	_, err = io.ReadFull(buffer, z)
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_ACCEL_DATA; Error reading ZAAV: %w", err)
 	}
 
-	subr.ZAAV = int16(binary.LittleEndian.Uint16(z))
+	decoded.ZAAV = int16(binary.LittleEndian.Uint16(z))
 
+	if buffer.Len() != 0 {
+		return fmt.Errorf("EGTS_SR_ACCEL_DATA; Unexpected trailing data in ADS")
+	}
+	*subr = decoded
 	return nil
 }
 
 // Encode Parse EGTS_SR_ACCEL_DATA to array of bytes
 func (subr *SRAccelerationData) Encode() (b []byte, err error) {
+	if subr == nil {
+		return nil, fmt.Errorf("SRAccelerationData; Subrecord is nil")
+	}
 	buffer := new(bytes.Buffer)
 
 	if err = binary.Write(buffer, binary.LittleEndian, subr.RTM); err != nil {
@@ -100,62 +113,88 @@ func (subr *SRAccelerationData) Len() (l uint16) {
 // Decode Parse array of bytes to EGTS_SR_ACCEL_DATA
 func (subr *SRAccelerationHeader) Decode(b []byte) (err error) {
 	buffer := bytes.NewReader(b)
+	decoded := SRAccelerationHeader{}
 
-	if subr.StructuresAmount, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("EGTS_SR_ACCEL_DATA; Error reading SA")
+	decoded.StructuresAmount, err = buffer.ReadByte()
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_ACCEL_DATA; Error reading SA: %w", err)
+	}
+	if decoded.StructuresAmount == 0 {
+		return fmt.Errorf("EGTS_SR_ACCEL_DATA; SA must be greater than zero")
 	}
 
-	timestamp, _ := time.Parse(time.RFC3339, "2010-01-01T00:00:00+00:00")
+	timestamp := time.Date(2010, time.January, 1, 0, 0, 0, 0, time.UTC)
 	nt := make([]byte, 4)
 
-	if _, err = buffer.Read(nt); err != nil {
-		return fmt.Errorf("EGTS_SR_ACCEL_DATA; Error reading NTM")
+	_, err = io.ReadFull(buffer, nt)
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_ACCEL_DATA; Error reading ATM: %w", err)
 	}
 
-	subr.AbsoluteTimeUint = binary.LittleEndian.Uint32(nt)
-	subr.AbsoluteTime = timestamp.Add(time.Duration(int(subr.AbsoluteTimeUint)) * time.Second)
+	decoded.AbsoluteTimeUint = binary.LittleEndian.Uint32(nt)
+	decoded.AbsoluteTime = timestamp.Add(time.Duration(decoded.AbsoluteTimeUint) * time.Second)
 
-	subr.AccelerationData = SRAccelerationsData{}
+	if buffer.Len() != int(decoded.StructuresAmount)*8 {
+		return fmt.Errorf("EGTS_SR_ACCEL_DATA; Data length does not match SA")
+	}
 
-	ads := &SRAccelerationData{}
-
-	for buffer.Len() > 0 {
+	for i := 0; i < int(decoded.StructuresAmount); i++ {
+		ads := &SRAccelerationData{}
 		bb := make([]byte, 8)
-		if _, err = buffer.Read(bb); err != nil {
-			return err
-		}
-
-		err := ads.Decode(bb)
+		_, err = io.ReadFull(buffer, bb)
 		if err != nil {
-			return fmt.Errorf("EGTS_SR_ACCEL_DATA;" + err.Error())
+			return fmt.Errorf("EGTS_SR_ACCEL_DATA; Error reading ADS%d: %w", i+1, err)
 		}
 
-		subr.AccelerationData = append(subr.AccelerationData, ads)
+		err = ads.Decode(bb)
+		if err != nil {
+			return fmt.Errorf("EGTS_SR_ACCEL_DATA; ADS%d: %w", i+1, err)
+		}
+
+		decoded.AccelerationData = append(decoded.AccelerationData, ads)
 	}
 
+	*subr = decoded
 	return nil
 }
 
 // Encode Parse EGTS_SR_ACCEL_DATA to array of bytes
 func (subr *SRAccelerationHeader) Encode() (b []byte, err error) {
+	if subr == nil {
+		return nil, fmt.Errorf("SRAccelerationHeader; Subrecord is nil")
+	}
 	buffer := new(bytes.Buffer)
 
-	if err = buffer.WriteByte(subr.StructuresAmount); err != nil {
-		return nil, fmt.Errorf("EGTS_SR_ACCEL_DATA; Error writing SA")
+	if subr.StructuresAmount == 0 {
+		return nil, fmt.Errorf("EGTS_SR_ACCEL_DATA; SA must be greater than zero")
+	}
+	if int(subr.StructuresAmount) != len(subr.AccelerationData) {
+		return nil, fmt.Errorf("EGTS_SR_ACCEL_DATA; Number of ADS does not match SA")
+	}
+	err = buffer.WriteByte(subr.StructuresAmount)
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_ACCEL_DATA; Error writing SA: %w", err)
 	}
 
-	timestamp, _ := time.Parse(time.RFC3339, "2010-01-01T00:00:00+00:00")
-	if err = binary.Write(buffer, binary.LittleEndian, uint32(subr.AbsoluteTime.Sub(timestamp).Seconds())); err != nil {
-		return nil, fmt.Errorf("EGTS_SR_ACCEL_DATA; Error writing NTM")
+	timestamp := time.Date(2010, time.January, 1, 0, 0, 0, 0, time.UTC)
+	err = binary.Write(buffer, binary.LittleEndian, uint32(subr.AbsoluteTime.Sub(timestamp).Seconds()))
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_ACCEL_DATA; Error writing ATM: %w", err)
 	}
 
-	for _, sr := range subr.AccelerationData {
+	for i, sr := range subr.AccelerationData {
+		if sr == nil {
+			return nil, fmt.Errorf("EGTS_SR_ACCEL_DATA; ADS%d is nil", i+1)
+		}
 		rd, err := sr.Encode()
 		if err != nil {
-			return nil, fmt.Errorf("EGTS_SR_ACCEL_DATA;" + err.Error())
+			return nil, fmt.Errorf("EGTS_SR_ACCEL_DATA; ADS%d: %w", i+1, err)
 		}
 
-		buffer.Write(rd)
+		_, err = buffer.Write(rd)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_SR_ACCEL_DATA; Error writing ADS%d: %w", i+1, err)
+		}
 	}
 
 	return buffer.Bytes(), nil

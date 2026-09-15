@@ -37,64 +37,97 @@ var (
 // Decode Parse array of bytes to EGTS_SR_STATE_DATA
 func (subr *SRStateData) Decode(b []byte) (err error) {
 	buffer := bytes.NewReader(b)
-	if subr.StateByte, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading ST")
+	decoded := SRStateData{}
+	decoded.StateByte, err = buffer.ReadByte()
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading ST: %w", err)
 	}
-	if subr.StateByte < 0 || subr.StateByte >= 8 {
+	if decoded.StateByte >= 8 {
 		return fmt.Errorf("EGTS_SR_STATE_DATA; Such ST does not exists")
 	}
-	subr.State = states[subr.StateByte]
+	decoded.State = states[decoded.StateByte]
 
-	if subr.MainPowerSourceVoltageByte, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading MPSV")
+	decoded.MainPowerSourceVoltageByte, err = buffer.ReadByte()
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading MPSV: %w", err)
 	}
 
-	if subr.BackupBatteryVoltageByte, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading BBV")
+	decoded.BackupBatteryVoltageByte, err = buffer.ReadByte()
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading BBV: %w", err)
 	}
 
-	if subr.InternalBatteryVoltageByte, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading IBV")
+	decoded.InternalBatteryVoltageByte, err = buffer.ReadByte()
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading IBV: %w", err)
 	}
 
-	subr.MainPowerSourceVoltage = float32(subr.MainPowerSourceVoltageByte) * 0.1
-	subr.BackupBatteryVoltage = float32(subr.BackupBatteryVoltageByte) * 0.1
-	subr.InternalBatteryVoltage = float32(subr.InternalBatteryVoltageByte) * 0.1
+	decoded.MainPowerSourceVoltage = float32(decoded.MainPowerSourceVoltageByte) * 0.1
+	decoded.BackupBatteryVoltage = float32(decoded.BackupBatteryVoltageByte) * 0.1
+	decoded.InternalBatteryVoltage = float32(decoded.InternalBatteryVoltageByte) * 0.1
 
 	flagByte := byte(0)
-	if flagByte, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading flags")
+	flagByte, err = buffer.ReadByte()
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_STATE_DATA; Error reading flags: %w", err)
 	}
 	flagByteAsBits := fmt.Sprintf("%08b", flagByte)
-	// log.Println("parsed", flagByteAsBits)
-	subr.NavigationModuleEnable = flagByteAsBits[5:6]
-	subr.InternalBatteryEnable = flagByteAsBits[6:7]
-	subr.BackupBatteryEnable = flagByteAsBits[7:]
+	decoded.NavigationModuleEnable = flagByteAsBits[5:6]
+	decoded.InternalBatteryEnable = flagByteAsBits[6:7]
+	decoded.BackupBatteryEnable = flagByteAsBits[7:]
 
+	if buffer.Len() != 0 {
+		return fmt.Errorf("EGTS_SR_STATE_DATA; Unexpected trailing data")
+	}
+	*subr = decoded
 	return nil
 }
 
 // Encode Parse EGTS_SR_STATE_DATA to array of bytes
 func (subr *SRStateData) Encode() (b []byte, err error) {
+	if subr == nil {
+		return nil, fmt.Errorf("SRStateData; Subrecord is nil")
+	}
+	if subr.StateByte >= 8 {
+		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Such ST does not exists")
+	}
+	if subr.NavigationModuleEnable != "0" && subr.NavigationModuleEnable != "1" {
+		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Invalid NMS flag")
+	}
+	if subr.InternalBatteryEnable != "0" && subr.InternalBatteryEnable != "1" {
+		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Invalid IBU flag")
+	}
+	if subr.BackupBatteryEnable != "0" && subr.BackupBatteryEnable != "1" {
+		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Invalid BBU flag")
+	}
+
 	buffer := new(bytes.Buffer)
-	if err = buffer.WriteByte(subr.StateByte); err != nil {
-		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Error writing ST")
+	err = buffer.WriteByte(subr.StateByte)
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Error writing ST: %w", err)
 	}
-	if err = buffer.WriteByte(subr.MainPowerSourceVoltageByte); err != nil {
-		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Error writing MPSV")
+	err = buffer.WriteByte(subr.MainPowerSourceVoltageByte)
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Error writing MPSV: %w", err)
 	}
-	if err = buffer.WriteByte(subr.BackupBatteryVoltageByte); err != nil {
-		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Error writing BBV")
+	err = buffer.WriteByte(subr.BackupBatteryVoltageByte)
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Error writing BBV: %w", err)
 	}
-	if err = buffer.WriteByte(subr.InternalBatteryVoltageByte); err != nil {
-		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Error writing IBV")
+	err = buffer.WriteByte(subr.InternalBatteryVoltageByte)
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Error writing IBV: %w", err)
 	}
 
 	flagsBits := strings.Repeat("0", 5) + subr.NavigationModuleEnable + subr.InternalBatteryEnable + subr.BackupBatteryEnable
 	flags := uint64(0)
-	flags, _ = strconv.ParseUint(flagsBits, 2, 8)
-	if err = buffer.WriteByte(uint8(flags)); err != nil {
-		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Error writing flags byte")
+	flags, err = strconv.ParseUint(flagsBits, 2, 8)
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Error parsing flags: %w", err)
+	}
+	err = buffer.WriteByte(uint8(flags))
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_STATE_DATA; Error writing flags byte: %w", err)
 	}
 
 	return buffer.Bytes(), nil

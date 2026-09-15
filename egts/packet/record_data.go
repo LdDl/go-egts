@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 
 	"github.com/LdDl/go-egts/egts/subrecord"
 )
@@ -21,21 +22,27 @@ type RecordsData []*RecordData
 // Decode Parse slice of bytes to Service Data Record
 func (rd *RecordsData) Decode(b []byte) (err error) {
 	buffer := bytes.NewBuffer(b)
+	var decoded RecordsData
 
 	for buffer.Len() > 0 {
 		rdEntity := &RecordData{}
 
 		// SRT (Subrecord Туре)
-		if rdEntity.SubrecordType, err = buffer.ReadByte(); err != nil {
-			return fmt.Errorf("SRD; Error reading SRT")
+		rdEntity.SubrecordType, err = buffer.ReadByte()
+		if err != nil {
+			return fmt.Errorf("SRD; Error reading SRT: %w", err)
 		}
 
 		// SRL (Subrecord Length)
 		srl := make([]byte, 2)
-		if _, err = buffer.Read(srl); err != nil {
-			return fmt.Errorf("SRD; Error reading SRL")
+		_, err = io.ReadFull(buffer, srl)
+		if err != nil {
+			return fmt.Errorf("SRD; Error reading SRL: %w", err)
 		}
 		rdEntity.SubrecordLength = binary.LittleEndian.Uint16(srl)
+		if int(rdEntity.SubrecordLength) > buffer.Len() {
+			return fmt.Errorf("SRD; Subrecord length exceeds available data")
+		}
 
 		// SRD (Subrecord Data)
 		switch rdEntity.SubrecordType {
@@ -44,6 +51,9 @@ func (rd *RecordsData) Decode(b []byte) (err error) {
 			break
 		case TermIdentity:
 			rdEntity.SubrecordData = &subrecord.SRTermIdentity{}
+			break
+		case ResultCode:
+			rdEntity.SubrecordData = &subrecord.SRResultCode{}
 			break
 		case PosData:
 			rdEntity.SubrecordData = &subrecord.SRPosData{}
@@ -72,30 +82,48 @@ func (rd *RecordsData) Decode(b []byte) (err error) {
 		}
 
 		bb := buffer.Next(int(rdEntity.SubrecordLength))
-		err := rdEntity.SubrecordData.Decode(bb)
+		err = rdEntity.SubrecordData.Decode(bb)
 		if err != nil {
-			return fmt.Errorf("SRD;" + err.Error())
+			return fmt.Errorf("SRD; %w", err)
 		}
-		*rd = append(*rd, rdEntity)
+		decoded = append(decoded, rdEntity)
 	}
+	*rd = decoded
 	return nil
 }
 
 // Encode Parse Service Data Record to slice of bytes
 func (rd *RecordsData) Encode() (b []byte, err error) {
+	if rd == nil {
+		return nil, fmt.Errorf("SRD; RecordsData is nil")
+	}
 	buffer := new(bytes.Buffer)
 	for _, r := range *rd {
-		if err = buffer.WriteByte(r.SubrecordType); err != nil {
-			return nil, fmt.Errorf("SRD; Error writing SRT")
-		}
-		if err = binary.Write(buffer, binary.LittleEndian, r.SubrecordLength); err != nil {
-			return nil, fmt.Errorf("SRD; Error writing SRL")
+		if r == nil || r.SubrecordData == nil {
+			return nil, fmt.Errorf("SRD; Subrecord is nil")
 		}
 		sd, err := r.SubrecordData.Encode()
 		if err != nil {
-			return nil, fmt.Errorf("SRD;" + err.Error())
+			return nil, fmt.Errorf("SRD; Error encoding SRT %d: %w", r.SubrecordType, err)
 		}
-		buffer.Write(sd)
+		if int(r.SubrecordLength) != len(sd) {
+			return nil, fmt.Errorf("SRD; SRL does not match encoded data length")
+		}
+		if buffer.Len()+3+len(sd) > 65535 {
+			return nil, fmt.Errorf("SRD; Record data exceeds 65535 bytes")
+		}
+		err = buffer.WriteByte(r.SubrecordType)
+		if err != nil {
+			return nil, fmt.Errorf("SRD; Error writing SRT: %w", err)
+		}
+		err = binary.Write(buffer, binary.LittleEndian, r.SubrecordLength)
+		if err != nil {
+			return nil, fmt.Errorf("SRD; Error writing SRL: %w", err)
+		}
+		_, err = buffer.Write(sd)
+		if err != nil {
+			return nil, fmt.Errorf("SRD; Error writing SRD: %w", err)
+		}
 	}
 	return buffer.Bytes(), nil
 }

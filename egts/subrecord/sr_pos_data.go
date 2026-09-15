@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
+	"math"
 	"strconv"
 	"time"
 
@@ -50,149 +52,171 @@ type SRPosData struct {
 // Decode Parse array of bytes to EGTS_SR_POS_DATA
 func (subr *SRPosData) Decode(b []byte) (err error) {
 	buffer := bytes.NewReader(b)
+	decoded := SRPosData{}
 
 	// Navigation Time , seconds since 00:00:00 01.01.2010 UTC - specification from EGTS
-	timestamp, _ := time.Parse(time.RFC3339, "2010-01-01T00:00:00+00:00")
+	timestamp := time.Date(2010, time.January, 1, 0, 0, 0, 0, time.UTC)
 	nt := make([]byte, 4)
-	if _, err = buffer.Read(nt); err != nil {
-		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading NTM")
+	_, err = io.ReadFull(buffer, nt)
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading NTM: %w", err)
 	}
-	subr.NavigationTimeUint = binary.LittleEndian.Uint32(nt)
-	subr.NavigationTime = timestamp.Add(time.Duration(int(subr.NavigationTimeUint)) * time.Second)
+	decoded.NavigationTimeUint = binary.LittleEndian.Uint32(nt)
+	decoded.NavigationTime = timestamp.Add(time.Duration(decoded.NavigationTimeUint) * time.Second)
 
 	lat := make([]byte, 4)
-	if _, err = buffer.Read(lat); err != nil {
-		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading LAT")
+	_, err = io.ReadFull(buffer, lat)
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading LAT: %w", err)
 	}
 
 	lon := make([]byte, 4)
-	if _, err = buffer.Read(lon); err != nil {
-		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading LONG")
+	_, err = io.ReadFull(buffer, lon)
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading LONG: %w", err)
 	}
-	// Longitude , degree,  (WGS - 84) / 180 * 0xFFFFFFFF
-	subr.Longitude = 180.0 * float64(binary.LittleEndian.Uint32(lon)) / 0xFFFFFFFF
 
 	// Flags
 	flagByte := byte(0)
-	if flagByte, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading flags")
+	flagByte, err = buffer.ReadByte()
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading flags: %w", err)
 	}
 	flagByteAsBits := fmt.Sprintf("%08b", flagByte)
-	subr.Valid = flagByteAsBits[7:]
-	subr.Fix = flagByteAsBits[6:7]
-	subr.CoordinateSystem = flagByteAsBits[5:6]
-	subr.BlackBox = flagByteAsBits[4:5]
-	subr.Move = flagByteAsBits[3:4]
-	subr.LAHS = flagByteAsBits[2:3]
-	subr.LOHS = flagByteAsBits[1:2]
-	subr.AltitudeExists = flagByteAsBits[:1]
+	decoded.Valid = flagByteAsBits[7:]
+	decoded.Fix = flagByteAsBits[6:7]
+	decoded.CoordinateSystem = flagByteAsBits[5:6]
+	decoded.BlackBox = flagByteAsBits[4:5]
+	decoded.Move = flagByteAsBits[3:4]
+	decoded.LAHS = flagByteAsBits[2:3]
+	decoded.LOHS = flagByteAsBits[1:2]
+	decoded.AltitudeExists = flagByteAsBits[:1]
 
-	if subr.Valid == "1" {
-		// Latitude , degree,  (WGS - 84) / 90 * 0xFFFFFFFF
-		subr.Latitude = 90.0 * float64(binary.LittleEndian.Uint32(lat)) / 0xFFFFFFFF
-		if subr.LAHS == "1" {
-			subr.Latitude = subr.Latitude * -1
-		}
-		// Longitude , degree,  (WGS - 84) / 180 * 0xFFFFFFFF
-		subr.Longitude = 180.0 * float64(binary.LittleEndian.Uint32(lon)) / 0xFFFFFFFF
-		if subr.LOHS == "1" {
-			subr.Longitude = subr.Longitude * -1
-		}
+	// Latitude , degree,  (WGS - 84) / 90 * 0xFFFFFFFF
+	decoded.Latitude = 90.0 * float64(binary.LittleEndian.Uint32(lat)) / 0xFFFFFFFF
+	if decoded.LAHS == "1" {
+		decoded.Latitude = decoded.Latitude * -1
+	}
+	// Longitude , degree,  (WGS - 84) / 180 * 0xFFFFFFFF
+	decoded.Longitude = 180.0 * float64(binary.LittleEndian.Uint32(lon)) / 0xFFFFFFFF
+	if decoded.LOHS == "1" {
+		decoded.Longitude = decoded.Longitude * -1
 	}
 
 	speedBytes := make([]byte, 2)
-	if _, err = buffer.Read(speedBytes); err != nil {
-		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading SPD")
+	_, err = io.ReadFull(buffer, speedBytes)
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading SPD: %w", err)
 	}
 	speed := binary.LittleEndian.Uint16(speedBytes)
-	subr.Speed = utils.BitField(speed, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13).(int) / 10
+	decoded.Speed = utils.BitField(speed, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13).(int) / 10
 
-	subr.AltsFlag = uint8(speed >> 14 & 0x1)
-	subr.DirhFlag = uint8(speed >> 15 & 0x1)
+	decoded.AltsFlag = uint8(speed >> 14 & 0x1)
+	decoded.DirhFlag = uint8(speed >> 15 & 0x1)
 	// DIR Direction
-	if subr.Direction, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading DIR")
+	decoded.Direction, err = buffer.ReadByte()
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading DIR: %w", err)
 	}
-	subr.DirectionValue = uint16(subr.Direction) | uint16(subr.DirhFlag)<<8
-	subr.Direction = subr.Direction | subr.DirhFlag<<7
+	decoded.DirectionValue = uint16(decoded.Direction) | uint16(decoded.DirhFlag)<<8
+	// Don't know why it was here, but just keep for the history:
+	// subr.Direction = subr.Direction | subr.DirhFlag<<7
 
 	// ODM Odometer, 3b
-	subr.OdometerBytes = make([]byte, 3)
-	if _, err = buffer.Read(subr.OdometerBytes); err != nil {
-		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading ODM")
+	decoded.OdometerBytes = make([]byte, 3)
+	_, err = io.ReadFull(buffer, decoded.OdometerBytes)
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading ODM: %w", err)
 	}
-	subr.Odometer = int(binary.BigEndian.Uint32(append([]byte{0}, subr.OdometerBytes...))) / 10
+	decoded.Odometer = int(binary.LittleEndian.Uint32(append(decoded.OdometerBytes, 0))) / 10
 	// DIN Digital Inputs
-	if subr.DigitalInputs, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading DIN")
+	decoded.DigitalInputs, err = buffer.ReadByte()
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading DIN: %w", err)
 	}
 
 	// SRC Source
-	if subr.Source, err = buffer.ReadByte(); err != nil {
-		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading SRC")
+	decoded.Source, err = buffer.ReadByte()
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_POS_DATA; Error reading SRC: %w", err)
 	}
 
-	if subr.AltitudeExists == "1" {
-		subr.AltitudeBytes = make([]byte, 3)
-		if _, err = buffer.Read(subr.AltitudeBytes); err != nil {
-			return fmt.Errorf("EGTS_SR_POS_DATA; Error reading ALT")
+	if decoded.AltitudeExists == "1" {
+		decoded.AltitudeBytes = make([]byte, 3)
+		_, err = io.ReadFull(buffer, decoded.AltitudeBytes)
+		if err != nil {
+			return fmt.Errorf("EGTS_SR_POS_DATA; Error reading ALT: %w", err)
 		}
-		subr.Altitude = binary.BigEndian.Uint32(append([]byte{0}, subr.AltitudeBytes...))
+		decoded.Altitude = binary.LittleEndian.Uint32(append(decoded.AltitudeBytes, 0))
 	}
 
+	*subr = decoded
 	return nil
 }
 
 // Encode Parse EGTS_SR_POS_DATA to array of bytes
 func (subr *SRPosData) Encode() (b []byte, err error) {
+	if subr == nil {
+		return nil, fmt.Errorf("SRPosData; Subrecord is nil")
+	}
 	buffer := new(bytes.Buffer)
-	timestamp, _ := time.Parse(time.RFC3339, "2010-01-01T00:00:00+00:00")
-	if err = binary.Write(buffer, binary.LittleEndian, uint32(subr.NavigationTime.Sub(timestamp).Seconds())); err != nil {
-		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing NTM")
+	timestamp := time.Date(2010, time.January, 1, 0, 0, 0, 0, time.UTC)
+	err = binary.Write(buffer, binary.LittleEndian, uint32(subr.NavigationTime.Sub(timestamp).Seconds()))
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing NTM: %w", err)
 	}
-	if err = binary.Write(buffer, binary.LittleEndian, uint32(subr.Latitude/90*0xFFFFFFFF)); err != nil {
-		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing LAT")
+	err = binary.Write(buffer, binary.LittleEndian, uint32(math.Abs(subr.Latitude)/90*0xFFFFFFFF))
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing LAT: %w", err)
 	}
-	if err = binary.Write(buffer, binary.LittleEndian, uint32(subr.Longitude/180*0xFFFFFFFF)); err != nil {
-		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing LONG")
+	err = binary.Write(buffer, binary.LittleEndian, uint32(math.Abs(subr.Longitude)/180*0xFFFFFFFF))
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing LONG: %w", err)
 	}
 	flags := uint64(0)
 	flags, err = strconv.ParseUint(subr.AltitudeExists+subr.LOHS+subr.LAHS+subr.Move+subr.BlackBox+subr.CoordinateSystem+subr.Fix+subr.Valid, 2, 8)
 	if err != nil {
-		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing flags")
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing flags: %w", err)
 	}
-	if err = buffer.WriteByte(uint8(flags)); err != nil {
-		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing flags byte")
+	err = buffer.WriteByte(uint8(flags))
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing flags byte: %w", err)
 	}
 
 	speed := uint16(subr.Speed*10) | uint16(subr.DirhFlag)<<15
 	speed = speed | uint16(subr.AltsFlag)<<14
 	spd := make([]byte, 2)
 	binary.LittleEndian.PutUint16(spd, speed)
-	if _, err = buffer.Write(spd); err != nil {
-		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing SPD")
+	_, err = buffer.Write(spd)
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing SPD: %w", err)
 	}
 
 	dir := subr.Direction
-	if err = binary.Write(buffer, binary.LittleEndian, dir); err != nil {
-		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing DIR")
+	err = binary.Write(buffer, binary.LittleEndian, dir)
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing DIR: %w", err)
 	}
 
-	if _, err = buffer.Write(subr.OdometerBytes); err != nil {
-		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing ODM")
+	_, err = buffer.Write(subr.OdometerBytes)
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing ODM: %w", err)
 	}
 
-	if err = binary.Write(buffer, binary.LittleEndian, subr.DigitalInputs); err != nil {
-		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing DIN")
+	err = binary.Write(buffer, binary.LittleEndian, subr.DigitalInputs)
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing DIN: %w", err)
 	}
 
-	if err = binary.Write(buffer, binary.LittleEndian, subr.Source); err != nil {
-		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing SRC")
+	err = binary.Write(buffer, binary.LittleEndian, subr.Source)
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing SRC: %w", err)
 	}
 
 	if subr.AltitudeExists == "1" {
-		if _, err = buffer.Write(subr.AltitudeBytes); err != nil {
-			return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing ALT")
+		_, err = buffer.Write(subr.AltitudeBytes)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_SR_POS_DATA; Error writing ALT: %w", err)
 		}
 	}
 

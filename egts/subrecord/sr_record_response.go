@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"log"
+	"io"
 )
 
 // SRRecordResponse EGTS_SR_RECORD_RESPONSE
@@ -20,27 +20,38 @@ type SRRecordResponse struct {
 // Decode Parse array of bytes to EGTS_SR_RECORD_RESPONSE
 func (subr *SRRecordResponse) Decode(b []byte) (err error) {
 	buffer := bytes.NewReader(b)
+	decoded := SRRecordResponse{}
 	crn := make([]byte, 2)
-	if _, err = buffer.Read(crn); err != nil {
-		return fmt.Errorf("EGTS_SR_RECORD_RESPONSE; Error reading CRN")
+	_, err = io.ReadFull(buffer, crn)
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_RECORD_RESPONSE; Error reading CRN: %w", err)
 	}
-	subr.ConfirmedRecordNumber = binary.LittleEndian.Uint16(crn)
-	if subr.RecordStatus, err = buffer.ReadByte(); err != nil {
-		log.Println(err, b)
-		return fmt.Errorf("EGTS_SR_RECORD_RESPONSE; Error reading RST")
+	decoded.ConfirmedRecordNumber = binary.LittleEndian.Uint16(crn)
+	decoded.RecordStatus, err = buffer.ReadByte()
+	if err != nil {
+		return fmt.Errorf("EGTS_SR_RECORD_RESPONSE; Error reading RST: %w", err)
 	}
 
+	if buffer.Len() != 0 {
+		return fmt.Errorf("EGTS_SR_RECORD_RESPONSE; Unexpected trailing data")
+	}
+	*subr = decoded
 	return nil
 }
 
 // Encode Parse EGTS_SR_RECORD_RESPONSE to array of bytes
 func (subr *SRRecordResponse) Encode() (b []byte, err error) {
-	buffer := new(bytes.Buffer)
-	if err = binary.Write(buffer, binary.LittleEndian, subr.ConfirmedRecordNumber); err != nil {
-		return nil, fmt.Errorf("EGTS_SR_RECORD_RESPONSE; Error writing CRN")
+	if subr == nil {
+		return nil, fmt.Errorf("SRRecordResponse; Subrecord is nil")
 	}
-	if err = buffer.WriteByte(subr.RecordStatus); err != nil {
-		return nil, fmt.Errorf("EGTS_SR_RECORD_RESPONSE; Error writing RST")
+	buffer := new(bytes.Buffer)
+	err = binary.Write(buffer, binary.LittleEndian, subr.ConfirmedRecordNumber)
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_RECORD_RESPONSE; Error writing CRN: %w", err)
+	}
+	err = buffer.WriteByte(subr.RecordStatus)
+	if err != nil {
+		return nil, fmt.Errorf("EGTS_SR_RECORD_RESPONSE; Error writing RST: %w", err)
 	}
 	return buffer.Bytes(), nil
 }

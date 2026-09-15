@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/LdDl/go-egts/egts/packet"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -27,7 +28,8 @@ func TestIncomingPacket(t *testing.T) {
 			t.Errorf("Error: %s", err.Error())
 		}
 		ans := pkg.PrepareAnswer(0, pkg.PacketID)
-		hexedAns := ans.Encode()
+		hexedAns, err := ans.Encode()
+		assert.NoError(t, err)
 		if hex.EncodeToString(hexedAns) != AllResponseDataCheckIncome[i] {
 			t.Errorf("Have to be %s, but got %s", AllResponseDataCheckIncome[i], hex.EncodeToString(hexedAns))
 		}
@@ -52,7 +54,8 @@ func TestAuthResponsePacket(t *testing.T) {
 			t.Errorf("Error: %s", err.Error())
 		}
 		ans := pkg.PrepareAnswer(0, pkg.PacketID)
-		hexedAns := ans.Encode()
+		hexedAns, err := ans.Encode()
+		assert.NoError(t, err)
 		if hex.EncodeToString(hexedAns) != AuthResponseDataCheckIncome[i] {
 			t.Errorf("Have to be %s, but got %s", AuthResponseDataCheckIncome[i], hex.EncodeToString(hexedAns))
 		}
