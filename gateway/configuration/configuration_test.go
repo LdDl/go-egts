@@ -305,5 +305,14 @@ func TestExampleConfigurations(t *testing.T) {
 		{ID: "monitoring", Host: "127.0.0.1", Port: 8082, ConnectTimeoutSeconds: 5, AckTimeoutSeconds: 10},
 		{ID: "backup", Host: "127.0.0.1", Port: 8083, ConnectTimeoutSeconds: 5, AckTimeoutSeconds: 10},
 	}
+	for i, id := range []string{"monitoring", "backup"} {
+		rabbit := configuration.DefaultRabbitMQDestination()
+		rabbit.ID = id
+		rabbit.Port = 5672 + i
+		rabbit.UserName = "egts_" + id
+		rabbit.Password = "egts_" + id
+		rabbit.Vhost = "egts"
+		want.DestinationsCfg.RabbitMQ = append(want.DestinationsCfg.RabbitMQ, rabbit)
+	}
 	assert.Equal(t, want, cfg)
 }

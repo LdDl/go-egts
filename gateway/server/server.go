@@ -28,6 +28,7 @@ type server struct {
 	wake        chan struct{}
 	hasDump     bool
 	relays      map[string]*relaySession
+	rabbits     map[string]*destination.RabbitMQ
 }
 
 func Run(ctx context.Context, cfg *configuration.Configuration) error {
@@ -51,8 +52,9 @@ func Run(ctx context.Context, cfg *configuration.Configuration) error {
 }
 
 func newServer(cfg *configuration.Configuration) (*server, error) {
-	s := &server{cfg: *cfg, clients: make(map[net.Conn]struct{}), wake: make(chan struct{}, 1), relays: make(map[string]*relaySession)}
+	s := &server{cfg: *cfg, clients: make(map[net.Conn]struct{}), wake: make(chan struct{}, 1), relays: make(map[string]*relaySession), rabbits: make(map[string]*destination.RabbitMQ)}
 	s.cfg.DestinationsCfg.EGTS = append([]configuration.EGTSDestinationConf(nil), cfg.DestinationsCfg.EGTS...)
+	s.cfg.DestinationsCfg.RabbitMQ = append([]configuration.RabbitMQDestinationConf(nil), cfg.DestinationsCfg.RabbitMQ...)
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
@@ -72,6 +74,16 @@ func newServer(cfg *configuration.Configuration) (*server, error) {
 	err = s.restoreDump()
 	if err != nil {
 		return nil, err
+	}
+	for _, rabbit := range s.cfg.DestinationsCfg.RabbitMQ {
+		if !rabbit.Enabled {
+			continue
+		}
+		writer, err := destination.PrepareRabbitMQ(rabbit)
+		if err != nil {
+			return nil, err
+		}
+		s.rabbits[rabbit.ID] = writer
 	}
 	if cfg.DestinationsCfg.File.Enabled {
 		s.file, err = destination.PrepareFile(&s.cfg)
@@ -192,6 +204,17 @@ func (s *server) serve(ctx context.Context, listener net.Listener) error {
 			}
 		}
 	}
+	for id, rabbit := range s.rabbits {
+		err = rabbit.Close()
+		if err != nil {
+			if result == nil {
+				result = err
+			} else {
+				result = fmt.Errorf("%w; Can't close RabbitMQ destination %s: %v", result, id, err)
+			}
+		}
+	}
+
 	return result
 }
 

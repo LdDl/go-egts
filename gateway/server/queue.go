@@ -18,12 +18,13 @@ var (
 )
 
 type pendingPacket struct {
-	record *destination.Record
-	stdout bool
-	file   bool
-	egts   map[string]bool
-	relay  *relayPacket
-	done   chan struct{}
+	record   *destination.Record
+	stdout   bool
+	file     bool
+	egts     map[string]bool
+	rabbitmq map[string]bool
+	relay    *relayPacket
+	done     chan struct{}
 }
 
 type deliveryTarget struct {
@@ -74,6 +75,14 @@ func (s *server) enqueue(record *destination.Record, relay *relayPacket) (*pendi
 	if item.relay != nil {
 		item.relay.session.pending += len(item.egts)
 	}
+	for _, cfg := range s.cfg.DestinationsCfg.RabbitMQ {
+		if cfg.Enabled {
+			if item.rabbitmq == nil {
+				item.rabbitmq = make(map[string]bool)
+			}
+			item.rabbitmq[cfg.ID] = true
+		}
+	}
 	s.queue = append(s.queue, item)
 	select {
 	case s.wake <- struct{}{}:
@@ -101,6 +110,11 @@ func (s *server) deliver(ctx context.Context) error {
 			targets = append(targets, deliveryTarget{kind: "egts", id: cfg.ID})
 		}
 	}
+	for _, cfg := range s.cfg.DestinationsCfg.RabbitMQ {
+		if cfg.Enabled {
+			targets = append(targets, deliveryTarget{kind: "rabbitmq", id: cfg.ID})
+		}
+	}
 	results := make(chan deliveryResult, len(targets))
 	var resultErr error
 	for {
@@ -108,7 +122,7 @@ func (s *server) deliver(ctx context.Context) error {
 		s.mu.Lock()
 		pending := s.queue[:0]
 		for _, item := range s.queue {
-			if !item.stdout && !item.file && len(item.egts) == 0 {
+			if !item.stdout && !item.file && len(item.egts) == 0 && len(item.rabbitmq) == 0 {
 				close(item.done)
 			} else {
 				pending = append(pending, item)
@@ -139,7 +153,7 @@ func (s *server) deliver(ctx context.Context) error {
 			s.mu.Lock()
 			var item *pendingPacket
 			for _, candidate := range s.queue {
-				if (target.kind == "stdout" && candidate.stdout) || (target.kind == "file" && candidate.file) || (target.kind == "egts" && candidate.egts[target.id]) {
+				if (target.kind == "stdout" && candidate.stdout) || (target.kind == "file" && candidate.file) || (target.kind == "egts" && candidate.egts[target.id]) || (target.kind == "rabbitmq" && candidate.rabbitmq[target.id]) {
 					item = candidate
 					break
 				}
@@ -170,6 +184,8 @@ func (s *server) deliver(ctx context.Context) error {
 					err = s.file.WriteContext(attempt, item.record)
 				case "egts":
 					err = item.relay.session.writers[target.id].WriteContext(attempt, item.record, item.relay.identity)
+				case "rabbitmq":
+					err = s.rabbits[target.id].WriteContext(attempt, item.record)
 				}
 				stop()
 				results <- deliveryResult{target: index, item: item, err: err}
@@ -236,6 +252,8 @@ func (s *server) deliver(ctx context.Context) error {
 			result.item.stdout = false
 		case "file":
 			result.item.file = false
+		case "rabbitmq":
+			delete(result.item.rabbitmq, target.id)
 		case "egts":
 			delete(result.item.egts, target.id)
 			session := result.item.relay.session

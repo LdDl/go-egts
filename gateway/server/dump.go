@@ -21,15 +21,16 @@ type dumpHeader struct {
 }
 
 type dumpRecord struct {
-	ReceivedAt time.Time          `json:"received_at"`
-	Source     destination.Source `json:"source"`
-	Raw        []byte             `json:"raw"`
-	Stdout     bool               `json:"pending_stdout"`
-	File       bool               `json:"pending_file"`
-	EGTS       bool               `json:"pending_egts"`
-	EGTSIDs    []string           `json:"pending_egts_ids"`
-	SessionID  *string            `json:"session_id"`
-	Identity   []byte             `json:"identity"`
+	ReceivedAt  time.Time          `json:"received_at"`
+	Source      destination.Source `json:"source"`
+	Raw         []byte             `json:"raw"`
+	Stdout      bool               `json:"pending_stdout"`
+	File        bool               `json:"pending_file"`
+	EGTS        bool               `json:"pending_egts"`
+	EGTSIDs     []string           `json:"pending_egts_ids"`
+	RabbitMQIDs []string           `json:"pending_rabbitmq_ids"`
+	SessionID   *string            `json:"session_id"`
+	Identity    []byte             `json:"identity"`
 }
 
 func (s *server) restoreDump() (err error) {
@@ -57,13 +58,19 @@ func (s *server) restoreDump() (err error) {
 	}
 	var header dumpHeader
 	err = json.Unmarshal(scanner.Bytes(), &header)
-	if err != nil || (header.Version != 1 && header.Version != 2 && header.Version != 3) {
+	if err != nil || (header.Version != 1 && header.Version != 2 && header.Version != 3 && header.Version != 4) {
 		return fmt.Errorf("Invalid packet dump version")
 	}
 	enabled := make(map[string]bool)
 	for _, cfg := range s.cfg.DestinationsCfg.EGTS {
 		if cfg.Enabled {
 			enabled[cfg.ID] = true
+		}
+	}
+	enabledRabbits := make(map[string]bool)
+	for _, cfg := range s.cfg.DestinationsCfg.RabbitMQ {
+		if cfg.Enabled {
+			enabledRabbits[cfg.ID] = true
 		}
 	}
 	var pending []*pendingPacket
@@ -87,7 +94,7 @@ func (s *server) restoreDump() (err error) {
 				saved.EGTSIDs = []string{id}
 			}
 		}
-		if (!saved.Stdout && !saved.File && len(saved.EGTSIDs) == 0) || (saved.Stdout && !s.cfg.DestinationsCfg.Stdout) || (saved.File && !s.cfg.DestinationsCfg.File.Enabled) {
+		if (!saved.Stdout && !saved.File && len(saved.EGTSIDs) == 0 && len(saved.RabbitMQIDs) == 0) || (saved.Stdout && !s.cfg.DestinationsCfg.Stdout) || (saved.File && !s.cfg.DestinationsCfg.File.Enabled) {
 			return fmt.Errorf("Packet dump requires an unavailable destination")
 		}
 		var relayIDs map[string]bool
@@ -103,11 +110,27 @@ func (s *server) restoreDump() (err error) {
 			}
 			relayIDs[id] = true
 		}
+		if header.Version < 4 && len(saved.RabbitMQIDs) > 0 {
+			return fmt.Errorf("Invalid RabbitMQ destinations in legacy packet dump")
+		}
+		var rabbitIDs map[string]bool
+		if len(saved.RabbitMQIDs) > 0 {
+			rabbitIDs = make(map[string]bool)
+		}
+		for _, id := range saved.RabbitMQIDs {
+			if !enabledRabbits[id] {
+				return fmt.Errorf("Packet dump requires an unavailable destination: RabbitMQ %s", id)
+			}
+			if rabbitIDs[id] {
+				return fmt.Errorf("Duplicate RabbitMQ destination in packet dump: %s", id)
+			}
+			rabbitIDs[id] = true
+		}
 		record, err := destination.NewRecord(saved.ReceivedAt, saved.Source, saved.Raw)
 		if err != nil {
 			return fmt.Errorf("Invalid packet in dump: %w", err)
 		}
-		item := &pendingPacket{record: record, stdout: saved.Stdout, file: saved.File, egts: relayIDs, done: make(chan struct{})}
+		item := &pendingPacket{record: record, stdout: saved.Stdout, file: saved.File, egts: relayIDs, rabbitmq: rabbitIDs, done: make(chan struct{})}
 		if len(relayIDs) > 0 {
 			if saved.SessionID == nil || len(*saved.SessionID) != 32 {
 				return fmt.Errorf("Invalid relay session in packet dump")
@@ -156,7 +179,7 @@ func (s *server) saveDump() (err error) {
 	s.mu.Lock()
 	var pending []dumpRecord
 	for _, item := range s.queue {
-		if item.stdout || item.file || len(item.egts) > 0 {
+		if item.stdout || item.file || len(item.egts) > 0 || len(item.rabbitmq) > 0 {
 			saved := dumpRecord{ReceivedAt: item.record.ReceivedAt, Source: item.record.Source, Raw: item.record.Raw, Stdout: item.stdout, File: item.file}
 			if len(item.egts) > 0 {
 				for id := range item.egts {
@@ -166,6 +189,10 @@ func (s *server) saveDump() (err error) {
 				saved.SessionID = &item.relay.session.id
 				saved.Identity = item.relay.identity
 			}
+			for id := range item.rabbitmq {
+				saved.RabbitMQIDs = append(saved.RabbitMQIDs, id)
+			}
+			sort.Strings(saved.RabbitMQIDs)
 			pending = append(pending, saved)
 		}
 	}
@@ -196,6 +223,12 @@ func (s *server) saveDump() (err error) {
 	for _, cfg := range s.cfg.DestinationsCfg.EGTS {
 		if cfg.Enabled {
 			version = 3
+			break
+		}
+	}
+	for _, cfg := range s.cfg.DestinationsCfg.RabbitMQ {
+		if cfg.Enabled {
+			version = 4
 			break
 		}
 	}

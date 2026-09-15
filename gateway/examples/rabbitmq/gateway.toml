@@ -1,0 +1,41 @@
+[server_cfg]
+host = "127.0.0.1"
+port = 28084
+
+[delivery_cfg]
+ack_mode = "delivered"
+queue_capacity = 1024
+dump_after_seconds = 60
+dump_directory = "./data/rabbitmq-demo/queue"
+
+[logs_cfg]
+output = "stderr"
+
+[destinations_cfg]
+stdout = false
+
+[[destinations_cfg.rabbitmq]]
+id = "monitoring"
+enabled = true
+host = "127.0.0.1"
+port = 5672
+username = "egts_monitoring"
+password = "egts_monitoring"
+vhost = "egts"
+queue_name = "egts.packets"
+queue_type = "classic"
+connect_timeout_seconds = 5
+publish_timeout_seconds = 10
+
+[[destinations_cfg.rabbitmq]]
+id = "backup"
+enabled = true
+host = "127.0.0.1"
+port = 5673
+username = "egts_backup"
+password = "egts_backup"
+vhost = "egts"
+queue_name = "egts.packets"
+queue_type = "classic"
+connect_timeout_seconds = 5
+publish_timeout_seconds = 10

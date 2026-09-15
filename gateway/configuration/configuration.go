@@ -51,9 +51,10 @@ type RotationConf struct {
 }
 
 type DestinationsConf struct {
-	Stdout bool                  `toml:"stdout" json:"stdout"`
-	File   FileDestinationConf   `toml:"file" json:"file"`
-	EGTS   []EGTSDestinationConf `toml:"egts" json:"egts"`
+	Stdout   bool                      `toml:"stdout" json:"stdout"`
+	File     FileDestinationConf       `toml:"file" json:"file"`
+	EGTS     []EGTSDestinationConf     `toml:"egts" json:"egts"`
+	RabbitMQ []RabbitMQDestinationConf `toml:"rabbitmq" json:"rabbitmq"`
 }
 
 type EGTSDestinationConf struct {
@@ -143,7 +144,7 @@ func PrepareConfiguration() (*Configuration, error) {
 	return PrepareEnvConfiguration()
 }
 
-type egtsFileConfiguration struct {
+type destinationsFileConfiguration struct {
 	DestinationsCfg map[string]toml.Primitive `toml:"destinations_cfg"`
 }
 
@@ -166,24 +167,41 @@ func PrepareFileConfiguration(fname string) (*Configuration, error) {
 	if len(unknown) != 0 {
 		return nil, fmt.Errorf("Unknown configuration key: %s", unknown[0].String())
 	}
-	if len(cfg.DestinationsCfg.EGTS) > 0 {
-		var raw egtsFileConfiguration
+	if len(cfg.DestinationsCfg.EGTS) > 0 || len(cfg.DestinationsCfg.RabbitMQ) > 0 {
+		var raw destinationsFileConfiguration
 		metadata, err = toml.Decode(string(data), &raw)
 		if err != nil {
-			return nil, fmt.Errorf("Can't decode EGTS destinations")
+			return nil, fmt.Errorf("Can't decode destinations")
 		}
-		var entries []toml.Primitive
-		err = metadata.PrimitiveDecode(raw.DestinationsCfg["egts"], &entries)
-		if err != nil {
-			return nil, fmt.Errorf("Can't decode EGTS destination list")
-		}
-		for i, entry := range entries {
-			relay := DefaultEGTSDestination()
-			err = metadata.PrimitiveDecode(entry, &relay)
+		if len(cfg.DestinationsCfg.EGTS) > 0 {
+			var entries []toml.Primitive
+			err = metadata.PrimitiveDecode(raw.DestinationsCfg["egts"], &entries)
 			if err != nil {
-				return nil, fmt.Errorf("Can't decode EGTS destination %d", i)
+				return nil, fmt.Errorf("Can't decode EGTS destination list")
 			}
-			cfg.DestinationsCfg.EGTS[i] = relay
+			for i, entry := range entries {
+				relay := DefaultEGTSDestination()
+				err = metadata.PrimitiveDecode(entry, &relay)
+				if err != nil {
+					return nil, fmt.Errorf("Can't decode EGTS destination %d", i)
+				}
+				cfg.DestinationsCfg.EGTS[i] = relay
+			}
+		}
+		if len(cfg.DestinationsCfg.RabbitMQ) > 0 {
+			var entries []toml.Primitive
+			err = metadata.PrimitiveDecode(raw.DestinationsCfg["rabbitmq"], &entries)
+			if err != nil {
+				return nil, fmt.Errorf("Can't decode RabbitMQ destination list")
+			}
+			for i, entry := range entries {
+				rabbit := DefaultRabbitMQDestination()
+				err = metadata.PrimitiveDecode(entry, &rabbit)
+				if err != nil {
+					return nil, fmt.Errorf("Can't decode RabbitMQ destination %d", i)
+				}
+				cfg.DestinationsCfg.RabbitMQ[i] = rabbit
+			}
 		}
 	}
 
@@ -423,7 +441,13 @@ func PrepareEnvConfiguration() (*Configuration, error) {
 		}
 	}
 
-	err := cfg.Validate()
+	var err error
+	cfg.DestinationsCfg.RabbitMQ, err = prepareRabbitMQEnvConfiguration()
+	if err != nil {
+		return nil, err
+	}
+
+	err = cfg.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -491,7 +515,22 @@ func (cfg *Configuration) Validate() error {
 			hasRelay = true
 		}
 	}
-	if !cfg.DestinationsCfg.Stdout && !cfg.DestinationsCfg.File.Enabled && !hasRelay {
+	rabbitIDs := make(map[string]bool)
+	hasRabbit := false
+	for _, rabbit := range cfg.DestinationsCfg.RabbitMQ {
+		err := rabbit.Validate()
+		if err != nil {
+			return fmt.Errorf("RabbitMQ destination %q: %w", rabbit.ID, err)
+		}
+		if rabbitIDs[rabbit.ID] {
+			return fmt.Errorf("Duplicate RabbitMQ destination ID %q", rabbit.ID)
+		}
+		rabbitIDs[rabbit.ID] = true
+		if rabbit.Enabled {
+			hasRabbit = true
+		}
+	}
+	if !cfg.DestinationsCfg.Stdout && !cfg.DestinationsCfg.File.Enabled && !hasRelay && !hasRabbit {
 		return fmt.Errorf("At least one packet destination must be enabled")
 	}
 	return cfg.ValidateOutputs(os.Stdout, os.Stderr)

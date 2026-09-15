@@ -28,6 +28,32 @@ max_total_size_bytes = 62914560
 [destinations_cfg]
 stdout = true
 
+[[destinations_cfg.rabbitmq]]
+id = "monitoring"
+enabled = false
+host = "127.0.0.1"
+port = 5672
+username = "egts_monitoring"
+password = "egts_monitoring"
+vhost = "egts"
+queue_name = "egts.packets"
+queue_type = "classic"
+connect_timeout_seconds = 5
+publish_timeout_seconds = 10
+
+[[destinations_cfg.rabbitmq]]
+id = "backup"
+enabled = false
+host = "127.0.0.1"
+port = 5673
+username = "egts_backup"
+password = "egts_backup"
+vhost = "egts"
+queue_name = "egts.packets"
+queue_type = "classic"
+connect_timeout_seconds = 5
+publish_timeout_seconds = 10
+
 [destinations_cfg.file]
 enabled = false
 directory = "./data/packets"
