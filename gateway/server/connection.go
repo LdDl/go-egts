@@ -64,6 +64,7 @@ func (s *server) handleConnection(ctx context.Context, conn net.Conn) error {
 		hasCredentials := false
 		onlyIdentity := true
 		requestCredentials := false
+		rejectionReason := ""
 		nextAuthorized := authorized
 		nextSource := source
 		nextRelayIdentity := relayIdentity
@@ -95,6 +96,10 @@ func (s *server) handleConnection(ctx context.Context, conn net.Conn) error {
 							valid := subtle.ConstantTimeCompare([]byte(data.Password), []byte(s.cfg.AuthCfg.Password)) == 1
 							if !valid || data.ServerSequence != nil {
 								pkg.ErrorCode = packet.EGTS_PC_AUTH_DENIED
+								rejectionReason = "invalid_credentials"
+								if data.ServerSequence != nil {
+									rejectionReason = "unsupported_server_sequence"
+								}
 							} else {
 								nextAuthorized = true
 							}
@@ -107,12 +112,16 @@ func (s *server) handleConnection(ctx context.Context, conn net.Conn) error {
 			requestCredentials = !authorized && identityRequest && onlyIdentity && !hasCredentials
 			if !nextAuthorized && !requestCredentials {
 				pkg.ErrorCode = packet.EGTS_PC_AUTH_DENIED
+				if rejectionReason == "" {
+					rejectionReason = "authentication_required"
+				}
 			}
 			if pkg.ErrorCode == packet.EGTS_PC_OK && !requestCredentials {
 				record := &destination.Record{ReceivedAt: receivedAt, Source: nextSource, Packet: pkg, Raw: raw}
 				item, err := s.enqueue(record, &relayPacket{session: session, identity: nextRelayIdentity})
 				if err != nil {
 					pkg.ErrorCode = packet.EGTS_PC_NO_RES_AVAIL
+					rejectionReason = err.Error()
 					if errors.Is(err, ErrRelayCredentials) {
 						pkg.ErrorCode = packet.EGTS_PC_INC_DATAFORM
 					}
@@ -124,6 +133,12 @@ func (s *server) handleConnection(ctx context.Context, conn net.Conn) error {
 					}
 				}
 			}
+		}
+		if decodeErr == nil && pkg.ErrorCode != packet.EGTS_PC_OK {
+			log.Log().Str("scope", logger.SCOPE_SERVER).Str("event", logger.EVENT_PACKET_REJECTED).
+				Str("remote_address", source.RemoteAddress).Interface("terminal_id", nextSource.TerminalID).
+				Uint16("packet_id", pkg.PacketID).Uint8("result", pkg.ErrorCode).Str("reason", rejectionReason).
+				Bool("connection_closing", pkg.ErrorCode == packet.EGTS_PC_AUTH_DENIED).Msg("Rejected EGTS packet")
 		}
 		pid++
 		answer := pkg.PrepareAnswer(rn, pid)
@@ -170,8 +185,24 @@ func (s *server) handleConnection(ctx context.Context, conn net.Conn) error {
 			if n != len(encoded) {
 				return io.ErrShortWrite
 			}
-			log.Log().Str("scope", logger.SCOPE_SERVER).Str("event", logger.EVENT_RECIEVED_AUTH).
-				Str("remote_address", source.RemoteAddress).Uint8("result", pkg.ErrorCode).Msg("Processed EGTS authentication")
+			event := logger.EVENT_RECIEVED_AUTH
+			message := "Processed EGTS authentication packet"
+			switch {
+			case requestCredentials:
+				event = logger.EVENT_AUTH_REQUESTED
+				message = "Requested EGTS credentials"
+			case pkg.ErrorCode != packet.EGTS_PC_OK:
+				event = logger.EVENT_AUTH_REJECTED
+				message = "Rejected EGTS authentication packet"
+			case s.cfg.AuthCfg.Enabled && hasCredentials:
+				event = logger.EVENT_AUTH_SUCCESS
+				message = "EGTS authentication succeeded"
+			}
+			log.Log().Str("scope", logger.SCOPE_SERVER).Str("event", event).
+				Str("remote_address", source.RemoteAddress).Interface("terminal_id", nextSource.TerminalID).
+				Uint16("packet_id", pkg.PacketID).Uint8("result", pkg.ErrorCode).
+				Bool("auth_enabled", s.cfg.AuthCfg.Enabled).Bool("authorized", pkg.ErrorCode == packet.EGTS_PC_OK && nextAuthorized).
+				Msg(message)
 		}
 		if pkg.ErrorCode == packet.EGTS_PC_OK {
 			authorized = nextAuthorized
