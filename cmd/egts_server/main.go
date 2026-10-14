@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -16,6 +17,7 @@ import (
 
 var (
 	port                = 8081
+	serviceVersion      = 1
 	headerLen           = 10
 	pidCounter          uint32
 	rnCounter           uint32
@@ -24,6 +26,12 @@ var (
 )
 
 func main() {
+	flag.IntVar(&serviceVersion, "service-version", 1, "EGTS service layer version: 1 or 2 (transport PRV stays 1)")
+	flag.IntVar(&port, "port", 8081, "TCP listen port")
+	flag.Parse()
+	if serviceVersion != 1 && serviceVersion != 2 {
+		log.Fatal("service-version must be 1 or 2")
+	}
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf(":%d", port))
 	if err != nil {
 		fmt.Println(err)
@@ -103,7 +111,7 @@ func handleConnection(conn *net.TCPConn) error {
 		recvPacket := append(headerBuf, buf...)
 
 		pkg := packet.Packet{}
-		pkg, err = packet.ReadPacket(recvPacket)
+		pkg, err = packet.ReadPacketVersion(recvPacket, uint8(serviceVersion))
 		if err != nil {
 			log.Printf("Can't parse EGTS packet from '%s' due the error: %s", conn.RemoteAddr().String(), err.Error())
 			if pkg.PacketType == packet.EGTS_PT_APPDATA && (pkg.ErrorCode == packet.EGTS_PC_DATACRC_ERROR || pkg.ErrorCode == packet.EGTS_PC_INC_DATAFORM) {
@@ -125,12 +133,18 @@ func handleConnection(conn *net.TCPConn) error {
 		case packet.EGTS_PT_APPDATA:
 			sfrd := pkg.ServicesFrameData.(*packet.ServicesFrameData)
 			for i := range *sfrd {
-				oid := (*sfrd)[i].ObjectIdentifier
+				oid := uint64((*sfrd)[i].ObjectIdentifier)
+				if serviceVersion == 2 {
+					oid = (*sfrd)[i].ObjectIdentifierV2
+				}
 				rd := (*sfrd)[i].RecordsData
 				for r := range rd {
 					switch rd[r].SubrecordType {
 					case packet.PosData:
 						switch rd[r].SubrecordData.(type) {
+						case *subrecord.SRPosDataV2:
+							pos := rd[r].SubrecordData.(*subrecord.SRPosDataV2)
+							log.Printf("PosData V2: OID: %d | Longitude: %f | Latitude: %f", oid, pos.Longitude, pos.Latitude)
 						case *subrecord.SRPosData:
 							pos := rd[r].SubrecordData.(*subrecord.SRPosData)
 							log.Printf("PosData is:\n\tOID: %d | Longitude: %f | Latitude: %f | Time: %v\n", oid, pos.Longitude, pos.Latitude, &currentTime)
@@ -139,6 +153,10 @@ func handleConnection(conn *net.TCPConn) error {
 						}
 					case packet.TermIdentity:
 						switch rd[r].SubrecordData.(type) {
+						case *subrecord.SRTermIdentityV2:
+							term := rd[r].SubrecordData.(*subrecord.SRTermIdentityV2)
+							log.Printf("SRTermIdentity V2: TID: %d | SSLPV: %s", term.TerminalIdentifier, term.ServiceSupportLevelProtocolVersion)
+							srResultCode = pkg.PrepareSRResultCode(packet.EGTS_PC_OK, getNextRN(), getNextPid())
 						case *subrecord.SRTermIdentity:
 							term := rd[r].SubrecordData.(*subrecord.SRTermIdentity)
 							log.Printf("SRTermIdentity is:\n\tOID: %d | MSISDN: %s | IMSI: %s\n", oid, term.MobileStationIntegratedServicesDigitalNetworkNumber, term.InternationalMobileSubscriberIdentity)
