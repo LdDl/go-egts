@@ -16,6 +16,14 @@ type PTResponse struct {
 
 // Decode Parse slice of bytes to EGTS_PT_RESPONSE
 func (response *PTResponse) Decode(b []byte) (err error) {
+	return response.DecodeVersion(b, ServiceVersion1)
+}
+
+// DecodeVersion decodes an acknowledgement in the selected service layer format.
+func (response *PTResponse) DecodeVersion(b []byte, version uint8) (err error) {
+	if err = validateServiceVersion(version); err != nil {
+		return err
+	}
 	buffer := bytes.NewBuffer(b)
 	decoded := PTResponse{}
 
@@ -36,7 +44,7 @@ func (response *PTResponse) Decode(b []byte) (err error) {
 	// SFRD (Services Frame Data)
 	if buffer.Len() > 0 {
 		decoded.SDR = &ServicesFrameData{}
-		err = decoded.SDR.Decode(buffer.Bytes())
+		err = decoded.SDR.(*ServicesFrameData).DecodeVersion(buffer.Bytes(), version)
 		if err != nil {
 			return fmt.Errorf("EGTS_PT_RESPONSE; %w", err)
 		}

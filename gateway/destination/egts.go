@@ -17,12 +17,13 @@ import (
 
 // EGTS owns the outgoing connection for one incoming terminal session.
 type EGTS struct {
-	mu       sync.Mutex
-	cfg      configuration.EGTSDestinationConf
-	server   configuration.ServerConf
-	conn     net.Conn
-	identity []byte
-	closed   bool
+	mu             sync.Mutex
+	cfg            configuration.EGTSDestinationConf
+	server         configuration.ServerConf
+	conn           net.Conn
+	identity       []byte
+	closed         bool
+	serviceVersion uint8
 }
 
 type recordConfirmation struct {
@@ -54,7 +55,7 @@ func (e *EGTS) WriteContext(ctx context.Context, record *Record, identity []byte
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
-	pkg, err := packet.ReadPacket(record.Raw)
+	pkg, err := packet.ReadPacketVersion(record.Raw, record.Source.ServiceVersion)
 	if err != nil {
 		return err
 	}
@@ -81,13 +82,14 @@ func (e *EGTS) WriteContext(ctx context.Context, record *Record, identity []byte
 			}
 		}
 	}()
-	if e.conn != nil && !bytes.Equal(e.identity, identity) {
+	if e.conn != nil && (!bytes.Equal(e.identity, identity) || e.serviceVersion != record.Source.ServiceVersion) {
 		err = e.conn.Close()
 		e.conn = nil
 		if err != nil {
 			return err
 		}
 	}
+	e.serviceVersion = record.Source.ServiceVersion
 	connected := false
 	if e.conn == nil {
 		dialer := net.Dialer{Timeout: time.Duration(e.cfg.ConnectTimeoutSeconds) * time.Second}
@@ -141,7 +143,10 @@ func (e *EGTS) WriteContext(ctx context.Context, record *Record, identity []byte
 func (e *EGTS) authenticate(ctx context.Context, pid uint16, identity []byte) error {
 	var records []packet.BytesData
 	if len(identity) > 0 {
-		term := &subrecord.SRTermIdentity{}
+		var term packet.BytesData = &subrecord.SRTermIdentity{}
+		if e.serviceVersion == packet.ServiceVersion2 {
+			term = &subrecord.SRTermIdentityV2{}
+		}
 		err := term.Decode(identity)
 		if err != nil {
 			return fmt.Errorf("Invalid relay terminal identity: %w", err)
@@ -159,13 +164,15 @@ func (e *EGTS) authenticate(ctx context.Context, pid uint16, identity []byte) er
 			srt = packet.AuthInfo
 		}
 		service := &packet.ServiceDataRecord{
-			RecordNumber: pid, SSOD: "0", RSOD: "0", GRP: "0", RPP: "00", TMFE: "0", EVFE: "0", OBFE: "0",
+			ServiceVersion: e.serviceVersion,
+			RecordNumber:   pid, SSOD: "0", RSOD: "0", GRP: "0", RPP: "00", TMFE: "0", EVFE: "0", OBFE: "0",
 			SourceServiceType: packet.SERVICE_AUTH, RecipientServiceType: packet.SERVICE_AUTH,
 			RecordsData: packet.RecordsData{&packet.RecordData{SubrecordType: srt, SubrecordLength: data.Len(), SubrecordData: data}},
 		}
 		service.RecordLength = service.RecordsData.Len()
 		services := packet.ServicesFrameData{service}
 		pkg := packet.Packet{
+			ServiceVersion:  e.serviceVersion,
 			ProtocolVersion: 1, PRF: "00", PR: "00", CMP: "0", ENA: "00", RTE: "0", HeaderLength: 11,
 			FrameDataLength: services.Len(), PacketID: pid, PacketType: packet.EGTS_PT_APPDATA, ServicesFrameData: &services,
 		}
@@ -221,7 +228,7 @@ func (e *EGTS) exchange(ctx context.Context, pkg *packet.Packet, raw []byte, exp
 		if err != nil {
 			return false, fmt.Errorf("Can't receive EGTS confirmation: %w", err)
 		}
-		response, err := packet.ReadPacket(frame)
+		response, err := packet.ReadPacketVersion(frame, e.serviceVersion)
 		if err != nil {
 			return false, fmt.Errorf("Invalid EGTS confirmation: %w", err)
 		}

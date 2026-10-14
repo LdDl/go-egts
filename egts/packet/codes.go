@@ -7,6 +7,11 @@ var (
 	EGTS_PT_SIGNED_APPDATA = uint8(2) // EGTS_PT_SIGNED_APPDATA (пакет содержащий данные  ППУс цифровой подписью)
 )
 
+const (
+	VehicleData    uint8 = 3
+	VehicleDataAdd uint8 = 12
+)
+
 // Типы подзаписей
 var (
 	RecordResponse    = uint8(0)  // EGTS_SR_RECORD_RESPONSE

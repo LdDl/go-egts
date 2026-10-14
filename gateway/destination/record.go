@@ -12,8 +12,10 @@ import (
 )
 
 type Source struct {
-	RemoteAddress string  `json:"remote_address"`
-	TerminalID    *uint32 `json:"terminal_id"`
+	ServiceVersion uint8   `json:"service_version,omitempty"`
+	TerminalIDV2   *uint64 `json:"terminal_id_v2,omitempty"`
+	RemoteAddress  string  `json:"remote_address"`
+	TerminalID     *uint32 `json:"terminal_id"`
 }
 
 type Record struct {
@@ -25,9 +27,13 @@ type Record struct {
 }
 
 func NewRecord(receivedAt time.Time, source Source, raw []byte) (*Record, error) {
-	decoded, err := packet.ReadPacket(raw)
+	decoded, err := packet.ReadPacketVersion(raw, source.ServiceVersion)
 	if err != nil {
 		return nil, fmt.Errorf("Can't decode packet for destination: %w", err)
+	}
+	if source.TerminalIDV2 != nil {
+		id := *source.TerminalIDV2
+		source.TerminalIDV2 = &id
 	}
 	if source.TerminalID != nil {
 		terminalID := *source.TerminalID

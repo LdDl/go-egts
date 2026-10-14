@@ -11,6 +11,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/LdDl/go-egts/egts/packet"
 	"github.com/LdDl/go-egts/egts/subrecord"
 	"github.com/LdDl/go-egts/gateway/configuration"
 	"github.com/LdDl/go-egts/gateway/destination"
@@ -59,7 +60,7 @@ func (s *server) restoreDump() (err error) {
 	}
 	var header dumpHeader
 	err = json.Unmarshal(scanner.Bytes(), &header)
-	if err != nil || (header.Version != 1 && header.Version != 2 && header.Version != 3 && header.Version != 4 && header.Version != 5) {
+	if err != nil || (header.Version != 1 && header.Version != 2 && header.Version != 3 && header.Version != 4 && header.Version != 5 && header.Version != 6) {
 		return fmt.Errorf("Invalid packet dump version")
 	}
 	enabled := make(map[string]bool)
@@ -149,6 +150,9 @@ func (s *server) restoreDump() (err error) {
 			}
 			valkeyIDs[id] = true
 		}
+		if header.Version < 6 && saved.Source.ServiceVersion == packet.ServiceVersion2 {
+			return fmt.Errorf("V2 packet requires dump version 6")
+		}
 		record, err := destination.NewRecord(saved.ReceivedAt, saved.Source, saved.Raw)
 		if err != nil {
 			return fmt.Errorf("Invalid packet in dump: %w", err)
@@ -163,7 +167,10 @@ func (s *server) restoreDump() (err error) {
 				return fmt.Errorf("Invalid relay session identifier")
 			}
 			if len(saved.Identity) > 0 {
-				identity := subrecord.SRTermIdentity{}
+				var identity packet.BytesData = &subrecord.SRTermIdentity{}
+				if saved.Source.ServiceVersion == packet.ServiceVersion2 {
+					identity = &subrecord.SRTermIdentityV2{}
+				}
 				err = identity.Decode(saved.Identity)
 				if err != nil {
 					return fmt.Errorf("Invalid relay identity in packet dump: %w", err)
@@ -262,6 +269,12 @@ func (s *server) saveDump() (err error) {
 	for _, cfg := range s.cfg.DestinationsCfg.Valkey {
 		if cfg.Enabled {
 			version = 5
+			break
+		}
+	}
+	for _, saved := range pending {
+		if saved.Source.ServiceVersion == packet.ServiceVersion2 {
+			version = 6
 			break
 		}
 	}
