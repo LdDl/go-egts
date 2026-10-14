@@ -20,6 +20,9 @@ type ServicesFrameData []*ServiceDataRecord
 
 // ServiceDataRecord SDR (Service Data Record)
 type ServiceDataRecord struct {
+	// ServiceVersion selects the service layer format; zero retains V1.
+	ServiceVersion     uint8  `json:"service_version,omitempty"`
+	ObjectIdentifierV2 uint64 `json:"OID_V2,omitempty"`
 	/* Header section */
 	RecordLength uint16 `json:"RL"` // RL (Record Length)
 	RecordNumber uint16 `json:"RN"` // RN (Record Number)
@@ -43,11 +46,22 @@ type ServiceDataRecord struct {
 // Decode Parse slice of bytes to SFRD
 func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 
+	return sfrd.DecodeVersion(b, ServiceVersion1)
+}
+
+// DecodeVersion decodes records using an explicitly selected service layer version.
+func (sfrd *ServicesFrameData) DecodeVersion(b []byte, version uint8) (err error) {
+	if err = validateServiceVersion(version); err != nil {
+		return err
+	}
 	buffer := bytes.NewReader(b)
 	var decoded ServicesFrameData
 
 	for buffer.Len() > 0 {
 		sdr := ServiceDataRecord{}
+		if version == ServiceVersion2 {
+			sdr.ServiceVersion = version
+		}
 
 		// RL (Record Length)
 		rl := make([]byte, 2)
@@ -91,12 +105,20 @@ func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 
 		// OID (Object Identifier)
 		if sdr.OBFE == "1" {
-			oid := make([]byte, 4)
+			size := 4
+			if version == ServiceVersion2 {
+				size = 8
+			}
+			oid := make([]byte, size)
 			_, err = io.ReadFull(buffer, oid)
 			if err != nil {
 				return fmt.Errorf("SFRD; Error reading OID: %w", err)
 			}
-			sdr.ObjectIdentifier = binary.LittleEndian.Uint32(oid)
+			if version == ServiceVersion2 {
+				sdr.ObjectIdentifierV2 = binary.LittleEndian.Uint64(oid)
+			} else {
+				sdr.ObjectIdentifier = binary.LittleEndian.Uint32(oid)
+			}
 		}
 
 		// EVID (Event Identifier)
@@ -140,7 +162,7 @@ func (sfrd *ServicesFrameData) Decode(b []byte) (err error) {
 		if err != nil {
 			return fmt.Errorf("SFRD; Error reading RD: %w", err)
 		}
-		err = sdr.RecordsData.Decode(bb)
+		err = sdr.RecordsData.DecodeVersion(bb, version)
 		if err != nil {
 			return fmt.Errorf("SFRD; %w", err)
 		}
@@ -159,6 +181,18 @@ func (sfrd *ServicesFrameData) Encode() (b []byte, err error) {
 	for _, sdr := range *sfrd {
 		if sdr == nil {
 			return nil, fmt.Errorf("SFRD; Service record is nil")
+		}
+		if err := validateServiceVersion(sdr.ServiceVersion); err != nil {
+			return nil, err
+		}
+		if err := sdr.RecordsData.validateVersion(sdr.ServiceVersion); err != nil {
+			return nil, err
+		}
+		if sdr.ServiceVersion == ServiceVersion2 && sdr.ObjectIdentifier != 0 {
+			return nil, fmt.Errorf("SFRD; Use ObjectIdentifierV2 for V2")
+		}
+		if sdr.ServiceVersion != ServiceVersion2 && sdr.ObjectIdentifierV2 != 0 {
+			return nil, fmt.Errorf("SFRD; V2 OID requires V2")
 		}
 		if sdr.SSOD != "0" && sdr.SSOD != "1" {
 			return nil, fmt.Errorf("SFRD; Invalid SSOD flag")
@@ -207,7 +241,11 @@ func (sfrd *ServicesFrameData) Encode() (b []byte, err error) {
 			return nil, fmt.Errorf("SFRD; Error writing flags: %w", err)
 		}
 		if sdr.OBFE == "1" {
-			err = binary.Write(buffer, binary.LittleEndian, sdr.ObjectIdentifier)
+			if sdr.ServiceVersion == ServiceVersion2 {
+				err = binary.Write(buffer, binary.LittleEndian, sdr.ObjectIdentifierV2)
+			} else {
+				err = binary.Write(buffer, binary.LittleEndian, sdr.ObjectIdentifier)
+			}
 			if err != nil {
 				return nil, fmt.Errorf("SFRD; Error writing OID: %w", err)
 			}

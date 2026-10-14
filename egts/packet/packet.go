@@ -14,6 +14,8 @@ import (
 
 // Packet EGTS packet
 type Packet struct {
+	// ServiceVersion is local decoding context, not the transport PRV byte.
+	ServiceVersion uint8 `json:"service_version,omitempty"`
 	/* Header section */
 	ProtocolVersion uint8 `json:"PRV"`  // PRV (Protocol Version)
 	SecurityKeyID   uint8 `json:"SKID"` // SKID (Security Key ID)
@@ -42,6 +44,19 @@ type Packet struct {
 // ReadPacket Parse slice of bytes as EGTS packet
 func ReadPacket(b []byte) (p Packet, err error) {
 
+	return ReadPacketVersion(b, ServiceVersion1)
+}
+
+// ReadPacketVersion decodes a packet with the configured service layer version.
+// The transport PRV remains 1 for both supported service layer versions.
+func ReadPacketVersion(b []byte, version uint8) (p Packet, err error) {
+	if err = validateServiceVersion(version); err != nil {
+		p.ErrorCode = EGTS_PC_UNS_PROTOCOL
+		return p, err
+	}
+	if version == ServiceVersion2 {
+		p.ServiceVersion = version
+	}
 	buffer := bytes.NewBuffer(b)
 	p.ProtocolVersion, err = buffer.ReadByte()
 	if err != nil {
@@ -214,7 +229,12 @@ func ReadPacket(b []byte) (p Packet, err error) {
 		return p, fmt.Errorf("Packet; EGTS_PC_UNS_TYPE; Packet type %d", p.PacketType)
 	}
 
-	err = p.ServicesFrameData.Decode(dataFrameBytes)
+	switch data := p.ServicesFrameData.(type) {
+	case *PTResponse:
+		err = data.DecodeVersion(dataFrameBytes, version)
+	case *ServicesFrameData:
+		err = data.DecodeVersion(dataFrameBytes, version)
+	}
 	if err != nil {
 		p.ErrorCode = EGTS_PC_INC_DATAFORM
 		return p, fmt.Errorf("Packet dataFrame; EGTS_PC_INC_DATAFORM; %w", err)
@@ -227,6 +247,9 @@ func ReadPacket(b []byte) (p Packet, err error) {
 func (p *Packet) Encode() (b []byte, err error) {
 	if p == nil {
 		return nil, fmt.Errorf("Packet; Packet is nil")
+	}
+	if err := p.validateServiceVersion(); err != nil {
+		return nil, err
 	}
 	if p.ProtocolVersion != 1 {
 		return nil, fmt.Errorf("Packet; Unsupported protocol version")
@@ -377,6 +400,7 @@ func (p *Packet) PrepareAnswer(recordNum, pid uint16) Packet {
 				}
 				if service == nil {
 					service = &ServiceDataRecord{
+						ServiceVersion:       p.ServiceVersion,
 						RecordNumber:         recordNum,
 						SSOD:                 "0",
 						RSOD:                 "1",
@@ -407,6 +431,7 @@ func (p *Packet) PrepareAnswer(recordNum, pid uint16) Packet {
 		resp.SDR = &services
 	}
 	ans := Packet{
+		ServiceVersion:    p.ServiceVersion,
 		ProtocolVersion:   1,
 		SecurityKeyID:     0,
 		PRF:               "00",
@@ -439,6 +464,7 @@ func (p *Packet) PrepareSRResultCode(c uint8, recordNum, pid uint16) Packet {
 
 	sfrd := ServicesFrameData{
 		&ServiceDataRecord{
+			ServiceVersion:       p.ServiceVersion,
 			RecordLength:         data.Len(),
 			RecordNumber:         recordNum,
 			SSOD:                 "0",
@@ -455,6 +481,7 @@ func (p *Packet) PrepareSRResultCode(c uint8, recordNum, pid uint16) Packet {
 	}
 
 	resp := Packet{
+		ServiceVersion:    p.ServiceVersion,
 		ProtocolVersion:   1,
 		SecurityKeyID:     0,
 		PRF:               "00",

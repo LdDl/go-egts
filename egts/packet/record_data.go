@@ -21,6 +21,14 @@ type RecordsData []*RecordData
 
 // Decode Parse slice of bytes to Service Data Record
 func (rd *RecordsData) Decode(b []byte) (err error) {
+	return rd.DecodeVersion(b, ServiceVersion1)
+}
+
+// DecodeVersion decodes subrecords in the selected service layer format.
+func (rd *RecordsData) DecodeVersion(b []byte, version uint8) (err error) {
+	if err = validateServiceVersion(version); err != nil {
+		return err
+	}
 	buffer := bytes.NewBuffer(b)
 	var decoded RecordsData
 
@@ -50,8 +58,22 @@ func (rd *RecordsData) Decode(b []byte) (err error) {
 			rdEntity.SubrecordData = &subrecord.SRRecordResponse{}
 			break
 		case TermIdentity:
-			rdEntity.SubrecordData = &subrecord.SRTermIdentity{}
+			if version == ServiceVersion2 {
+				rdEntity.SubrecordData = &subrecord.SRTermIdentityV2{}
+			} else {
+				rdEntity.SubrecordData = &subrecord.SRTermIdentity{}
+			}
 			break
+		case VehicleData:
+			if version != ServiceVersion2 {
+				return fmt.Errorf("RD; V2 vehicle data requires service version 2")
+			}
+			rdEntity.SubrecordData = &subrecord.SRVehicleDataV2{}
+		case VehicleDataAdd:
+			if version != ServiceVersion2 {
+				return fmt.Errorf("RD; Vehicle data add requires service version 2")
+			}
+			rdEntity.SubrecordData = &subrecord.SRVehicleDataAdd{}
 		case AuthInfo:
 			rdEntity.SubrecordData = &subrecord.SRAuthInfo{}
 			break
@@ -62,7 +84,11 @@ func (rd *RecordsData) Decode(b []byte) (err error) {
 			rdEntity.SubrecordData = &subrecord.SRResultCode{}
 			break
 		case PosData:
-			rdEntity.SubrecordData = &subrecord.SRPosData{}
+			if version == ServiceVersion2 {
+				rdEntity.SubrecordData = &subrecord.SRPosDataV2{}
+			} else {
+				rdEntity.SubrecordData = &subrecord.SRPosData{}
+			}
 			break
 		case ExtPosData:
 			rdEntity.SubrecordData = &subrecord.SRExPosDataRecord{}
