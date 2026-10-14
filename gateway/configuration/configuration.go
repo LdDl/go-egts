@@ -21,8 +21,9 @@ type Configuration struct {
 }
 
 type ServerConf struct {
-	Host string `toml:"host" json:"host"`
-	Port int    `toml:"port" json:"port"`
+	ServiceVersion uint8  `toml:"service_version" json:"service_version,omitempty"`
+	Host           string `toml:"host" json:"host"`
+	Port           int    `toml:"port" json:"port"`
 }
 
 type AuthConf struct {
@@ -242,6 +243,14 @@ func PrepareEnvConfiguration() (*Configuration, error) {
 			return nil, fmt.Errorf("EGTS_SERVER_PORT: %w", err)
 		}
 		cfg.ServerCfg.Port = port
+	}
+	versionStr, exists := os.LookupEnv("EGTS_SERVICE_VERSION")
+	if exists {
+		version, err := strconv.ParseUint(versionStr, 10, 8)
+		if err != nil {
+			return nil, fmt.Errorf("EGTS_SERVICE_VERSION: %w", err)
+		}
+		cfg.ServerCfg.ServiceVersion = uint8(version)
 	}
 	authEnabledStr, exists := os.LookupEnv("EGTS_AUTH_ENABLED")
 	if exists {
@@ -475,6 +484,9 @@ func PrepareEnvConfiguration() (*Configuration, error) {
 }
 
 func (cfg *Configuration) Validate() error {
+	if cfg.ServerCfg.ServiceVersion > 2 {
+		return fmt.Errorf("server_cfg.service_version must be 0 (V1 default), 1 or 2")
+	}
 	if strings.TrimSpace(cfg.ServerCfg.Host) == "" {
 		return fmt.Errorf("server_cfg.host must not be empty")
 	}

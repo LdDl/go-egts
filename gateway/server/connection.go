@@ -18,7 +18,7 @@ import (
 
 func (s *server) handleConnection(ctx context.Context, conn net.Conn) error {
 	authorized := !s.cfg.AuthCfg.Enabled
-	source := destination.Source{RemoteAddress: conn.RemoteAddr().String()}
+	source := destination.Source{ServiceVersion: s.cfg.ServerCfg.ServiceVersion, RemoteAddress: conn.RemoteAddr().String()}
 	var pid uint16
 	var rn uint16
 	var session *relaySession
@@ -49,7 +49,7 @@ func (s *server) handleConnection(ctx context.Context, conn net.Conn) error {
 			return fmt.Errorf("Can't read EGTS packet: %w", err)
 		}
 		receivedAt := time.Now().UTC()
-		pkg, decodeErr := packet.ReadPacket(raw)
+		pkg, decodeErr := packet.ReadPacketVersion(raw, source.ServiceVersion)
 		if decodeErr != nil {
 			log.Log().Str("scope", logger.SCOPE_SERVER).Str("event", logger.EVENT_PACKET_REJECTED).
 				Str("remote_address", source.RemoteAddress).Err(decodeErr).Msg("Invalid EGTS packet")
@@ -88,6 +88,19 @@ func (s *server) handleConnection(ctx context.Context, conn net.Conn) error {
 								return err
 							}
 						}
+					case *subrecord.SRTermIdentityV2:
+						id := data.TerminalIdentifier
+						nextSource.TerminalIDV2 = &id
+						authRequest = true
+						identityRequest = true
+						if session != nil {
+							nextRelayIdentity, err = data.Encode()
+							if err != nil {
+								return err
+							}
+						}
+					case *subrecord.SRVehicleDataV2, *subrecord.SRVehicleDataAdd:
+						// Vehicle information can accompany the initial identity request.
 					case *subrecord.SRAuthInfo:
 						hasCredentials = true
 						onlyIdentity = false
@@ -137,6 +150,7 @@ func (s *server) handleConnection(ctx context.Context, conn net.Conn) error {
 		if decodeErr == nil && pkg.ErrorCode != packet.EGTS_PC_OK {
 			log.Log().Str("scope", logger.SCOPE_SERVER).Str("event", logger.EVENT_PACKET_REJECTED).
 				Str("remote_address", source.RemoteAddress).Interface("terminal_id", nextSource.TerminalID).
+				Interface("terminal_id_v2", nextSource.TerminalIDV2).
 				Uint16("packet_id", pkg.PacketID).Uint8("result", pkg.ErrorCode).Str("reason", rejectionReason).
 				Bool("connection_closing", pkg.ErrorCode == packet.EGTS_PC_AUTH_DENIED).Msg("Rejected EGTS packet")
 		}
@@ -200,6 +214,7 @@ func (s *server) handleConnection(ctx context.Context, conn net.Conn) error {
 			}
 			log.Log().Str("scope", logger.SCOPE_SERVER).Str("event", event).
 				Str("remote_address", source.RemoteAddress).Interface("terminal_id", nextSource.TerminalID).
+				Interface("terminal_id_v2", nextSource.TerminalIDV2).
 				Uint16("packet_id", pkg.PacketID).Uint8("result", pkg.ErrorCode).
 				Bool("auth_enabled", s.cfg.AuthCfg.Enabled).Bool("authorized", pkg.ErrorCode == packet.EGTS_PC_OK && nextAuthorized).
 				Msg(message)
